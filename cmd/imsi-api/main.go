@@ -6,12 +6,15 @@ import (
 	"os"
 
 	"github.com/CloudSpaceLab/imsi-rails/internal/core"
+	"github.com/CloudSpaceLab/imsi-rails/internal/health"
 	"github.com/CloudSpaceLab/imsi-rails/internal/intake"
 )
 
 func main() {
 	mux := http.NewServeMux()
-	intake.NewHandler(seedIntakeService()).Register(mux)
+	healthService := seedHealthService()
+	intake.NewHandler(seedIntakeService(healthService)).Register(mux)
+	health.NewHandler(healthService).Register(mux)
 
 	addr := ":8080"
 	if envAddr := os.Getenv("IMSI_API_ADDR"); envAddr != "" {
@@ -24,7 +27,7 @@ func main() {
 	}
 }
 
-func seedIntakeService() *intake.Service {
+func seedIntakeService(healthSource core.RouteHealthProvider) *intake.Service {
 	registry := core.NewRouteRegistry()
 	registry.AddProvider(core.Provider{ID: "sandbox-provider", Name: "Sandbox Provider", Enabled: true, Approved: true})
 	age := uint64(30)
@@ -45,9 +48,16 @@ func seedIntakeService() *intake.Service {
 	return intake.NewService(
 		registry,
 		core.DefaultBankPolicy(),
-		core.NewRouteHealthBook(),
+		healthSource,
 		intake.NewInMemoryTransactionStore(),
 		core.NewInMemoryRouteDecisionStore(),
 		intake.NewInMemoryEventSink(),
+	)
+}
+
+func seedHealthService() *health.Service {
+	return health.NewService(
+		health.NewInMemoryStore(),
+		health.NewInMemoryEventSink(),
 	)
 }
