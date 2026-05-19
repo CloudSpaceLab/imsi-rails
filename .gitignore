@@ -3,5 +3,6 @@ node_modules/
 /dist/
 /apps/web/dist/
 /.playwright-mcp/
-/imsi-rails-vue-*.png
+/imsi-rails-*.png
+vite-*.log
 *.tsbuildinfo

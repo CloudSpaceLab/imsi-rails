@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import CorridorMatrix from './components/CorridorMatrix.vue'
 import DataFreshness from './components/DataFreshness.vue'
+import DowntimeTimeline from './components/DowntimeTimeline.vue'
 import HealthBadge from './components/HealthBadge.vue'
+import LatencyWaterfall from './components/LatencyWaterfall.vue'
 import ProviderScorecards from './components/ProviderScorecards.vue'
 import TransactionTimeline from './components/TransactionTimeline.vue'
-import { corridors, providerScores, summary, timeline } from './data'
+import { corridors, downtimeEvents, drilldownFilters, latencySteps, latencySummary, providerScores, summary, timeline } from './data'
 import { operationalActions } from './copy'
 </script>
 
@@ -83,6 +85,10 @@ import { operationalActions } from './copy'
             </div>
           </div>
         </aside>
+
+        <LatencyWaterfall :filters="drilldownFilters" :summary="latencySummary" :steps="latencySteps" />
+
+        <DowntimeTimeline :events="downtimeEvents" />
 
         <ProviderScorecards :providers="providerScores" />
 
