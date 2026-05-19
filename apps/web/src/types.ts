@@ -23,3 +23,34 @@ export type DowntimeEvent = {
   detail: string
 }
 
+export type ProviderToggle = {
+  provider: string
+  route: string
+  enabled: boolean
+  state: HealthState
+}
+
+export type FallbackRoute = {
+  rank: number
+  provider: string
+  route: string
+  state: HealthState
+}
+
+export type TrafficSplitPreset = {
+  label: string
+  active: boolean
+  split: string
+}
+
+export type ScoringWeight = {
+  label: string
+  value: number
+}
+
+export type ChangeHistoryItem = {
+  time: string
+  actor: string
+  summary: string
+}
+

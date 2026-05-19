@@ -5,8 +5,24 @@ import DowntimeTimeline from './components/DowntimeTimeline.vue'
 import HealthBadge from './components/HealthBadge.vue'
 import LatencyWaterfall from './components/LatencyWaterfall.vue'
 import ProviderScorecards from './components/ProviderScorecards.vue'
+import RouteConfigurationPanel from './components/RouteConfigurationPanel.vue'
 import TransactionTimeline from './components/TransactionTimeline.vue'
-import { corridors, downtimeEvents, drilldownFilters, latencySteps, latencySummary, providerScores, summary, timeline } from './data'
+import {
+  changeHistory,
+  corridors,
+  downtimeEvents,
+  drilldownFilters,
+  fallbackRoutes,
+  latencySteps,
+  latencySummary,
+  providerScores,
+  providerToggles,
+  routeConfigImpact,
+  scoringWeights,
+  summary,
+  timeline,
+  trafficSplitPresets,
+} from './data'
 import { operationalActions } from './copy'
 </script>
 
@@ -85,6 +101,15 @@ import { operationalActions } from './copy'
             </div>
           </div>
         </aside>
+
+        <RouteConfigurationPanel
+          :providers="providerToggles"
+          :fallback-routes="fallbackRoutes"
+          :presets="trafficSplitPresets"
+          :weights="scoringWeights"
+          :impact="routeConfigImpact"
+          :history="changeHistory"
+        />
 
         <LatencyWaterfall :filters="drilldownFilters" :summary="latencySummary" :steps="latencySteps" />
 
