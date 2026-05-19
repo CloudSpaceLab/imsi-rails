@@ -99,6 +99,7 @@ type RouteHealthBook struct {
 
 type RouteHealthProvider interface {
 	SnapshotFor(routeID RouteID) RouteHealthSnapshot
+	BlockedRoutes() map[RouteID]bool
 }
 
 func NewRouteHealthBook() RouteHealthBook {
@@ -110,6 +111,10 @@ func (b RouteHealthBook) SnapshotFor(routeID RouteID) RouteHealthSnapshot {
 		return snapshot
 	}
 	return DefaultRouteHealthSnapshot()
+}
+
+func (b RouteHealthBook) BlockedRoutes() map[RouteID]bool {
+	return map[RouteID]bool{}
 }
 
 type RejectionReason string

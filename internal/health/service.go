@@ -117,33 +117,59 @@ type HealthStateChangeEvent struct {
 }
 
 type IngestSampleResponse struct {
-	Sample      HealthSample            `json:"sample"`
-	StateChange *HealthStateChangeEvent `json:"state_change,omitempty"`
+	Sample               HealthSample                    `json:"sample"`
+	StateChange          *HealthStateChangeEvent         `json:"state_change,omitempty"`
+	CircuitBreaker       *CircuitBreakerRecord           `json:"circuit_breaker,omitempty"`
+	CircuitBreakerChange *CircuitBreakerStateChangeEvent `json:"circuit_breaker_change,omitempty"`
 }
 
 type RouteHealthResponse struct {
-	RouteID  core.RouteID             `json:"route_id"`
-	State    State                    `json:"state"`
-	Snapshot core.RouteHealthSnapshot `json:"snapshot"`
+	RouteID        core.RouteID             `json:"route_id"`
+	State          State                    `json:"state"`
+	Snapshot       core.RouteHealthSnapshot `json:"snapshot"`
+	CircuitBreaker CircuitBreakerRecord     `json:"circuit_breaker"`
 }
 
 type Store interface {
 	Record(sample HealthSample) (previous State, changed bool)
 	LatestRoute(routeID core.RouteID) (core.RouteHealthSnapshot, State, bool)
 	RouteHealthBook() core.RouteHealthBook
+	RecordCircuitBreaker(record CircuitBreakerRecord) (previous CircuitBreakerRecord, changed bool)
+	CircuitBreaker(routeID core.RouteID) (CircuitBreakerRecord, bool)
+	BlockedRoutes() map[core.RouteID]bool
 }
 
 type EventSink interface {
 	Emit(event HealthStateChangeEvent)
 }
 
+type CircuitBreakerEventSink interface {
+	EmitCircuitBreaker(event CircuitBreakerStateChangeEvent)
+}
+
 type Service struct {
-	store  Store
-	events EventSink
+	store             Store
+	events            EventSink
+	breakerEvents     CircuitBreakerEventSink
+	breakerThresholds CircuitBreakerThresholds
 }
 
 func NewService(store Store, events EventSink) *Service {
-	return &Service{store: store, events: events}
+	service := &Service{
+		store:             store,
+		events:            events,
+		breakerThresholds: DefaultCircuitBreakerThresholds(),
+	}
+	if sink, ok := events.(CircuitBreakerEventSink); ok {
+		service.breakerEvents = sink
+	}
+	return service
+}
+
+func NewServiceWithCircuitBreakerThresholds(store Store, events EventSink, thresholds CircuitBreakerThresholds) *Service {
+	service := NewService(store, events)
+	service.breakerThresholds = thresholds
+	return service
 }
 
 func (s *Service) Ingest(request IngestSampleRequest) (IngestSampleResponse, error) {
@@ -208,6 +234,14 @@ func (s *Service) Ingest(request IngestSampleRequest) (IngestSampleResponse, err
 		response.StateChange = &event
 	}
 
+	if sample.RouteID != "" && sample.RouteSnapshot != nil {
+		breaker, breakerChange := s.recordCircuitBreaker(sample, *sample.RouteSnapshot, recordedAt)
+		response.CircuitBreaker = &breaker
+		if breakerChange != nil {
+			response.CircuitBreakerChange = breakerChange
+		}
+	}
+
 	return response, nil
 }
 
@@ -216,7 +250,11 @@ func (s *Service) LatestRoute(routeID core.RouteID) (RouteHealthResponse, bool) 
 	if !ok {
 		return RouteHealthResponse{}, false
 	}
-	return RouteHealthResponse{RouteID: routeID, State: state, Snapshot: snapshot}, true
+	breaker, ok := s.store.CircuitBreaker(routeID)
+	if !ok {
+		breaker = EvaluateCircuitBreaker(routeID, CircuitBreakerRecord{State: BreakerUnknown}, snapshot, s.breakerThresholds, snapshot.ObservedAt)
+	}
+	return RouteHealthResponse{RouteID: routeID, State: state, Snapshot: snapshot, CircuitBreaker: breaker}, true
 }
 
 func (s *Service) RouteHealthBook() core.RouteHealthBook {
@@ -229,6 +267,40 @@ func (s *Service) SnapshotFor(routeID core.RouteID) core.RouteHealthSnapshot {
 		return core.DefaultRouteHealthSnapshot()
 	}
 	return response.Snapshot
+}
+
+func (s *Service) BlockedRoutes() map[core.RouteID]bool {
+	return s.store.BlockedRoutes()
+}
+
+func (s *Service) CircuitBreaker(routeID core.RouteID) (CircuitBreakerRecord, bool) {
+	return s.store.CircuitBreaker(routeID)
+}
+
+func (s *Service) recordCircuitBreaker(sample HealthSample, snapshot core.RouteHealthSnapshot, recordedAt time.Time) (CircuitBreakerRecord, *CircuitBreakerStateChangeEvent) {
+	previous, ok := s.store.CircuitBreaker(sample.RouteID)
+	if !ok {
+		previous = CircuitBreakerRecord{RouteID: sample.RouteID, State: BreakerUnknown}
+	}
+
+	breaker := EvaluateCircuitBreaker(sample.RouteID, previous, snapshot, s.breakerThresholds, recordedAt)
+	previous, changed := s.store.RecordCircuitBreaker(breaker)
+	if !changed {
+		return breaker, nil
+	}
+
+	event := CircuitBreakerStateChangeEvent{
+		EventID:       sample.SampleID + "-breaker-change",
+		RouteID:       sample.RouteID,
+		PreviousState: previous.State,
+		CurrentState:  breaker.State,
+		OccurredAt:    recordedAt,
+		Reason:        breaker.Reason,
+	}
+	if s.breakerEvents != nil {
+		s.breakerEvents.EmitCircuitBreaker(event)
+	}
+	return breaker, &event
 }
 
 func validate(request IngestSampleRequest) error {
@@ -433,6 +505,7 @@ type InMemoryStore struct {
 	samples        []HealthSample
 	routeSnapshots map[core.RouteID]core.RouteHealthSnapshot
 	states         map[string]State
+	breakers       map[core.RouteID]CircuitBreakerRecord
 }
 
 func NewInMemoryStore() *InMemoryStore {
@@ -440,6 +513,7 @@ func NewInMemoryStore() *InMemoryStore {
 		samples:        []HealthSample{},
 		routeSnapshots: map[core.RouteID]core.RouteHealthSnapshot{},
 		states:         map[string]State{},
+		breakers:       map[core.RouteID]CircuitBreakerRecord{},
 	}
 }
 
@@ -487,6 +561,39 @@ func (s *InMemoryStore) RouteHealthBook() core.RouteHealthBook {
 	return book
 }
 
+func (s *InMemoryStore) RecordCircuitBreaker(record CircuitBreakerRecord) (CircuitBreakerRecord, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	previous, ok := s.breakers[record.RouteID]
+	if !ok {
+		previous = CircuitBreakerRecord{RouteID: record.RouteID, State: BreakerUnknown}
+	}
+	s.breakers[record.RouteID] = record
+	return previous, previous.State != record.State
+}
+
+func (s *InMemoryStore) CircuitBreaker(routeID core.RouteID) (CircuitBreakerRecord, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	record, ok := s.breakers[routeID]
+	return record, ok
+}
+
+func (s *InMemoryStore) BlockedRoutes() map[core.RouteID]bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	blocked := map[core.RouteID]bool{}
+	for routeID, record := range s.breakers {
+		if record.State == BreakerBlocked {
+			blocked[routeID] = true
+		}
+	}
+	return blocked
+}
+
 func (s *InMemoryStore) Samples() []HealthSample {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -504,12 +611,16 @@ func stateKey(sample HealthSample) string {
 }
 
 type InMemoryEventSink struct {
-	mu     sync.RWMutex
-	events []HealthStateChangeEvent
+	mu            sync.RWMutex
+	events        []HealthStateChangeEvent
+	breakerEvents []CircuitBreakerStateChangeEvent
 }
 
 func NewInMemoryEventSink() *InMemoryEventSink {
-	return &InMemoryEventSink{events: []HealthStateChangeEvent{}}
+	return &InMemoryEventSink{
+		events:        []HealthStateChangeEvent{},
+		breakerEvents: []CircuitBreakerStateChangeEvent{},
+	}
 }
 
 func (s *InMemoryEventSink) Emit(event HealthStateChangeEvent) {
@@ -524,6 +635,21 @@ func (s *InMemoryEventSink) Events() []HealthStateChangeEvent {
 
 	events := make([]HealthStateChangeEvent, len(s.events))
 	copy(events, s.events)
+	return events
+}
+
+func (s *InMemoryEventSink) EmitCircuitBreaker(event CircuitBreakerStateChangeEvent) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.breakerEvents = append(s.breakerEvents, event)
+}
+
+func (s *InMemoryEventSink) CircuitBreakerEvents() []CircuitBreakerStateChangeEvent {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	events := make([]CircuitBreakerStateChangeEvent, len(s.breakerEvents))
+	copy(events, s.breakerEvents)
 	return events
 }
 
