@@ -30,3 +30,13 @@ The platform is not a consumer remittance app or money exchange marketplace. It 
 Open [landing/index.html](landing/index.html) directly in a browser.
 
 The landing page is intentionally static and dependency-free so it remains fast, portable, and easy to publish.
+
+## Web Control Room
+
+The operational UI prototype lives in `apps/web`.
+
+```bash
+npm install
+npm run web:dev
+npm run web:build
+```
