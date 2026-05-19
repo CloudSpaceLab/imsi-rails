@@ -1,0 +1,323 @@
+# imsi-rails Delivery Masterplan
+
+## Product Mission
+
+Make international money transfer reliability measurable, configurable, and self-correcting for banks.
+
+Banks should onboard their IMTO providers into `imsi-rails`, see provider performance in one place, and let the best eligible provider win each transaction based on reliability, speed, cost, FX quality, compliance readiness, liquidity, and live rail health.
+
+## Delivery Strategy
+
+Ship the smallest bank-grade control plane that proves value:
+
+1. Monitor every connected route.
+2. Trace every transaction.
+3. Compare providers by corridor.
+4. Configure route priorities safely.
+5. Switch traffic away from degraded routes.
+6. Prove the impact with data.
+
+Do not build a consumer remittance product. Do not build a provider auction marketplace. Do not build broad BI before the routing and reliability loop works.
+
+## System Shape
+
+### Core Services
+
+1. Routing API
+   - transaction intake
+   - idempotency
+   - route eligibility
+   - route scoring
+   - route decision audit
+   - status lookup
+
+2. Adapter Worker
+   - provider submissions
+   - provider callbacks/webhooks
+   - SFTP/CSV polling
+   - provider status normalization
+
+3. Health Engine
+   - active probes
+   - passive health from transaction outcomes
+   - latency sampling
+   - downtime event detection
+   - circuit breaker state
+
+4. Policy Engine
+   - bank rules
+   - provider enablement
+   - corridor controls
+   - scoring weights
+   - traffic split
+   - maker-checker approval
+
+5. Reconciliation Worker
+   - provider file import
+   - bank posting file import
+   - matching and exception detection
+
+6. Web Application
+   - control room
+   - corridors
+   - transactions
+   - FX and cost
+   - route configuration
+   - latency drilldowns
+   - audit
+
+## MVP Architecture
+
+Keep the MVP compact:
+
+- Rust + Tokio + Axum for backend services
+- PostgreSQL for system of record and pilot analytics rollups
+- NATS for event flow and live dashboard updates
+- SvelteKit for app UI
+- uPlot for dense latency charts
+- TanStack Table for large operational tables
+- OpenTelemetry instrumentation from day one
+
+Add ClickHouse only after the pilot proves event volume and drilldown needs exceed PostgreSQL rollups.
+
+## Product Milestones
+
+### Milestone 0: Foundation and Narrative
+
+Outcome:
+
+- repo has product docs, architecture, PRD, issue plan, and landing page
+- stakeholders understand what is being built and what is not being built
+
+Deliverables:
+
+- architecture document
+- PRD
+- landing page
+- milestone/issue backlog
+- performance budgets
+
+Exit criteria:
+
+- docs are reviewed
+- landing page opens locally
+- GitHub milestones/issues are ready or created
+
+### Milestone 1: Pilot Core
+
+Outcome:
+
+- the bank can send transactions into the platform and see lifecycle traces
+
+Deliverables:
+
+- transaction intake API
+- canonical transaction model
+- provider/route registry
+- route decision audit log
+- first sandbox provider adapter
+- control room UI shell
+- transaction trace UI
+
+Exit criteria:
+
+- transaction can be accepted, routed, traced, and inspected
+- every route decision has an explainable audit record
+- UI shows live transaction states from event stream
+
+### Milestone 2: Reliability Intelligence
+
+Outcome:
+
+- the platform detects route degradation and shows latency/downtime root cause
+
+Deliverables:
+
+- health engine
+- provider/corridor scorecards
+- latency waterfall
+- downtime timeline
+- circuit breaker state model
+- provider health dashboard
+- alert rules
+
+Exit criteria:
+
+- provider degradation is visible within 5 seconds of threshold breach
+- latency can be split by provider, corridor, destination bank, step, and payout method
+- circuit breaker can mark a route degraded without changing code
+
+### Milestone 3: Switching and Configuration
+
+Outcome:
+
+- operations teams can safely change traffic allocation and route priorities
+
+Deliverables:
+
+- eligibility engine
+- weighted route scoring
+- fallback route list
+- provider enable/disable controls
+- traffic split controls
+- policy simulator
+- shadow routing
+- maker-checker approval for sensitive changes
+
+Exit criteria:
+
+- operator can preview the impact of a route change before saving
+- route changes are versioned and auditable
+- degraded route can be bypassed for new traffic
+- fallback routing works with idempotency protection
+
+### Milestone 4: FX, Cost, and Reconciliation
+
+Outcome:
+
+- bank can compare cost, speed, FX, and settlement quality across providers
+
+Deliverables:
+
+- FX rate ingestion
+- stale-rate detection
+- cost comparison view
+- provider fee/spread model
+- reconciliation import
+- unmatched item view
+- duplicate/mismatch detection
+- settlement aging
+
+Exit criteria:
+
+- UI shows effective cost by provider/corridor
+- route engine can avoid stale FX data
+- reconciliation exceptions are grouped by provider and reason
+
+### Milestone 5: Bank Pilot Hardening
+
+Outcome:
+
+- platform is ready for a controlled bank pilot
+
+Deliverables:
+
+- SSO/OIDC integration path
+- RBAC roles
+- audit exports
+- load test suite
+- dashboard performance audit
+- disaster recovery runbook
+- deployment guide
+- incident workflow
+
+Exit criteria:
+
+- pilot performance budgets pass
+- critical actions require correct permissions
+- all sensitive config changes are audited
+- rollback path is documented and tested
+
+## UI Delivery Plan
+
+### Landing Page
+
+Purpose:
+
+- make the product legible to bank executives, remittance teams, and technical sponsors
+
+Requirements:
+
+- static and dependency-free
+- premium control-room aesthetic
+- clear value proposition
+- no generic remittance app messaging
+- first viewport signals the actual product
+
+### Product UI
+
+Build in this order:
+
+1. Control Room
+   - live health
+   - active incidents
+   - traffic split
+   - recommended action
+
+2. Transaction Trace
+   - lifecycle timeline
+   - selected route
+   - rejected routes
+   - current owner
+
+3. Corridor Detail
+   - provider ranking
+   - latency
+   - failure rate
+   - FX/cost comparison
+
+4. Route Configuration
+   - provider toggles
+   - fallback order
+   - traffic split
+   - preview and approval
+
+5. Latency Drilldown
+   - step-level waterfall
+   - downtime timeline
+   - heatmaps
+
+6. Reconciliation
+   - imports
+   - exceptions
+   - aging
+
+## Engineering Principles
+
+1. Hot path stays small.
+   - Route decisions must use cached policy, cached capability, cached health, and fresh enough FX snapshots.
+
+2. Everything important emits an event.
+   - The dashboard, audit trail, scorecards, and incident analysis depend on clean event discipline.
+
+3. Analytics are outside the hot path.
+   - ClickHouse or rollup queries must never block transaction routing.
+
+4. Adapters are isolated.
+   - A slow or broken provider adapter must not degrade the routing core.
+
+5. Configuration is versioned.
+   - No route policy change should happen without a policy version, actor, timestamp, reason, and rollback path.
+
+6. The UI is operational software.
+   - It must help people make correct decisions under pressure.
+
+## Delivery Risks
+
+| Risk | Mitigation |
+| --- | --- |
+| Provider APIs are inconsistent | Normalize through adapter contracts and canonical states |
+| Bank integration takes too long | Start with sandbox, file samples, and one posting path |
+| UI becomes overloaded | Build control room first, deep drilldowns second |
+| Routing becomes too clever too early | Start with eligibility plus simple weighted scoring |
+| Analytics stack becomes heavy | Use PostgreSQL rollups first, add ClickHouse when justified |
+| Neutrality is questioned | Make routing policy bank-controlled and audit every decision |
+| Auto-switching causes duplicate payouts | Use idempotency, pre-finality failover rules, and clear safe/unsafe states |
+
+## Pilot Success Report
+
+At the end of the pilot, produce a report showing:
+
+- transactions routed
+- success rate by provider and corridor
+- P50/P95/P99 time-to-credit
+- stuck transaction reduction
+- failures avoided by switching
+- provider downtime detected
+- traffic shifted due to degradation
+- cost/FX impact
+- reconciliation exceptions by provider
+- operator actions and time-to-resolution
+
+This report becomes the bank expansion sales asset.
+

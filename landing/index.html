@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>imsi-rails | IMTO reliability infrastructure for banks</title>
+    <meta
+      name="description"
+      content="imsi-rails is a bank-facing IMTO routing, switching, and reliability control tower."
+    >
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <canvas id="route-field" aria-hidden="true"></canvas>
+
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="imsi-rails home">
+        <span class="brand-mark"></span>
+        <span>imsi-rails</span>
+      </a>
+      <nav class="nav" aria-label="Primary navigation">
+        <a href="#reliability">Reliability</a>
+        <a href="#routing">Routing</a>
+        <a href="#delivery">Delivery</a>
+        <a href="../docs/prd.md">PRD</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">Bank-grade IMTO control tower</p>
+          <h1 id="hero-title">imsi-rails</h1>
+          <p class="hero-lede">
+            International money transfer reliability infrastructure for banks. One switching layer for every IMTO provider, live rail health, FX visibility, route scoring, and safe traffic swaps.
+          </p>
+          <div class="hero-actions" aria-label="Project documents">
+            <a class="button primary" href="../docs/masterplan.md">Read masterplan</a>
+            <a class="button secondary" href="../docs/research-and-architecture.md">View architecture</a>
+          </div>
+          <dl class="signal-row" aria-label="Platform signals">
+            <div>
+              <dt>Route decision</dt>
+              <dd>&lt;20 ms p95</dd>
+            </div>
+            <div>
+              <dt>Health refresh</dt>
+              <dd>&lt;5 sec</dd>
+            </div>
+            <div>
+              <dt>Provider model</dt>
+              <dd>best wins</dd>
+            </div>
+          </dl>
+        </div>
+
+        <aside class="control-preview" aria-label="imsi-rails control room preview">
+          <div class="preview-topline">
+            <span>Control Room</span>
+            <strong>Live</strong>
+          </div>
+          <div class="health-strip">
+            <div>
+              <span>Global health</span>
+              <strong id="health-score">97.2%</strong>
+            </div>
+            <div>
+              <span>P95 time-to-credit</span>
+              <strong id="credit-time">42s</strong>
+            </div>
+            <div>
+              <span>Routes degraded</span>
+              <strong id="degraded-routes">2</strong>
+            </div>
+          </div>
+          <div class="route-table" role="table" aria-label="Provider route comparison">
+            <div class="table-row table-head" role="row">
+              <span role="columnheader">Provider</span>
+              <span role="columnheader">Rail</span>
+              <span role="columnheader">Latency</span>
+              <span role="columnheader">Decision</span>
+            </div>
+            <div class="table-row" role="row">
+              <span role="cell">Thunes</span>
+              <span role="cell">Account</span>
+              <span role="cell">31s</span>
+              <span role="cell" class="status good">Route more</span>
+            </div>
+            <div class="table-row" role="row">
+              <span role="cell">Remitly</span>
+              <span role="cell">Account</span>
+              <span role="cell">38s</span>
+              <span role="cell" class="status good">Eligible</span>
+            </div>
+            <div class="table-row" role="row">
+              <span role="cell">Ria</span>
+              <span role="cell">Cash</span>
+              <span role="cell">4m 18s</span>
+              <span role="cell" class="status warn">Shift 25%</span>
+            </div>
+            <div class="table-row" role="row">
+              <span role="cell">PAPSS</span>
+              <span role="cell">Local</span>
+              <span role="cell">51s</span>
+              <span role="cell" class="status neutral">Shadow</span>
+            </div>
+          </div>
+          <div class="latency-waterfall" aria-label="Latency waterfall">
+            <div style="--w: 18%"><span>Intake</span></div>
+            <div style="--w: 28%"><span>Provider</span></div>
+            <div style="--w: 42%"><span>Bank rail</span></div>
+            <div style="--w: 12%"><span>Notify</span></div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="section intro-band" id="reliability">
+        <div class="section-heading">
+          <p class="eyebrow">The operating promise</p>
+          <h2>Every bank gets one reliability layer across all IMTO providers.</h2>
+        </div>
+        <div class="proof-grid">
+          <article>
+            <h3>See failures early</h3>
+            <p>Track provider uptime, callback lag, bank posting failures, time-to-credit, settlement delays, and stuck transactions from one calm control room.</p>
+          </article>
+          <article>
+            <h3>Route with evidence</h3>
+            <p>Eligibility, cost, FX quality, latency, compliance status, and rail health are scored before traffic moves.</p>
+          </article>
+          <article>
+            <h3>Switch safely</h3>
+            <p>Provider toggles, traffic splits, fallback lists, circuit breakers, shadow policies, approval flows, and rollback are designed for real incidents.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section split" id="routing">
+        <div class="section-heading">
+          <p class="eyebrow">Best provider wins</p>
+          <h2>Providers compete on measured performance, not promises.</h2>
+          <p>
+            The bank sets policy. imsi-rails measures live outcomes and routes eligible traffic to the provider with the strongest blend of reliability, speed, cost, FX quality, and operational confidence.
+          </p>
+        </div>
+        <div class="route-score">
+          <div class="score-row">
+            <span>Reliability</span>
+            <meter min="0" max="100" value="94">94%</meter>
+            <strong>94</strong>
+          </div>
+          <div class="score-row">
+            <span>Speed</span>
+            <meter min="0" max="100" value="88">88%</meter>
+            <strong>88</strong>
+          </div>
+          <div class="score-row">
+            <span>Cost</span>
+            <meter min="0" max="100" value="81">81%</meter>
+            <strong>81</strong>
+          </div>
+          <div class="score-row">
+            <span>FX quality</span>
+            <meter min="0" max="100" value="76">76%</meter>
+            <strong>76</strong>
+          </div>
+          <div class="score-row">
+            <span>Ops burden</span>
+            <meter min="0" max="100" value="91">91%</meter>
+            <strong>91</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-heading">
+          <p class="eyebrow">Latency intelligence</p>
+          <h2>Downtime analysis that answers where, when, and why.</h2>
+        </div>
+        <div class="analysis-grid">
+          <div>
+            <span class="mini-label">Step waterfall</span>
+            <h3>Pinpoint the delay</h3>
+            <p>Break time-to-credit into intake, validation, compliance, provider acceptance, bank rail posting, notification, and settlement matching.</p>
+          </div>
+          <div>
+            <span class="mini-label">Heatmaps</span>
+            <h3>Find hidden patterns</h3>
+            <p>Compare provider, corridor, destination bank, hour of day, amount band, payout method, and exception type without overwhelming the operator.</p>
+          </div>
+          <div>
+            <span class="mini-label">Incident timeline</span>
+            <h3>Prove the response</h3>
+            <p>Show when degradation began, when the circuit breaker opened, how much traffic shifted, and whether the next-best route performed better.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section delivery" id="delivery">
+        <div class="section-heading">
+          <p class="eyebrow">Practical delivery</p>
+          <h2>Start lean. Prove value. Expand from operational truth.</h2>
+        </div>
+        <ol class="timeline">
+          <li>
+            <strong>Foundation</strong>
+            <span>Architecture, PRD, landing page, issue plan, performance budgets.</span>
+          </li>
+          <li>
+            <strong>Pilot core</strong>
+            <span>Transaction intake, route registry, audit log, sandbox adapter, control room, transaction trace.</span>
+          </li>
+          <li>
+            <strong>Reliability intelligence</strong>
+            <span>Provider health, latency drilldowns, downtime timelines, circuit breaker state.</span>
+          </li>
+          <li>
+            <strong>Switching</strong>
+            <span>Eligibility, weighted scoring, traffic splits, shadow routing, safe rollback.</span>
+          </li>
+        </ol>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>imsi-rails</span>
+      <a href="../docs/prd.md">PRD</a>
+      <a href="../docs/github-issues.md">GitHub issues</a>
+      <a href="../docs/masterplan.md">Masterplan</a>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>
