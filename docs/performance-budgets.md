@@ -51,7 +51,7 @@ The numbers are intentionally strict because the product promise is reliability 
 
 Before a pilot release:
 
-- run route scoring microbenchmarks
+- run Go route scoring microbenchmarks
 - run k6 intake and dashboard smoke tests
 - run browser checks for landing and product shell
 - inspect bundle size for the authenticated app shell

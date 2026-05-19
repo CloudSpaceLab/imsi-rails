@@ -9,6 +9,7 @@ International money transfer reliability infrastructure for banks.
 - [Market and platform brief](plan.md)
 - [Research and architecture](docs/research-and-architecture.md)
 - [Architecture decision records](docs/adr/0001-runtime-and-hot-path.md)
+- [Backend runtime review](docs/backend-runtime-review.md)
 - [Performance budgets](docs/performance-budgets.md)
 - [Reality register](docs/reality-register.md)
 - [Delivery masterplan](docs/masterplan.md)
