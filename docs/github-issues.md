@@ -4,6 +4,8 @@ This backlog is written so it can be copied into GitHub issues or created with t
 
 Created in GitHub on 2026-05-19 for `CloudSpaceLab/imsi-rails` as issues #1-#22 across milestones M0-M5.
 
+Updated on 2026-05-19 with design-language implementation issues #23-#24.
+
 ## Milestones
 
 ### M0: Foundation and Landing Page
@@ -520,3 +522,45 @@ Acceptance criteria:
 - incident runbook exists
 - rollback plan exists
 - provider escalation workflow documented
+
+### 23. Build design-system primitives from brand language
+
+Milestone: M1: Pilot Core
+
+Labels: `frontend`, `ui`, `design`
+
+Priority: P0
+
+Description:
+
+Create the first product design-system primitives from the users, brand, and design-language guide.
+
+Acceptance criteria:
+
+- health badge component exists
+- route score chip component exists
+- data freshness indicator exists
+- transaction timeline primitives exist
+- corridor status cell exists
+- status colors and labels match brand language
+- components support keyboard focus and accessible labels
+
+### 24. Implement operational copy and state taxonomy
+
+Milestone: M1: Pilot Core
+
+Labels: `frontend`, `ui`, `documentation`
+
+Priority: P1
+
+Description:
+
+Translate the brand voice and operational state taxonomy into reusable UI copy patterns.
+
+Acceptance criteria:
+
+- status taxonomy includes healthy, watch, degraded, blocked, recovery, unknown, and stale data
+- action labels are standardized for shift traffic, pause new traffic, preview policy, rollback, and export evidence
+- route rejection reasons use consistent copy
+- recommendation copy explains why an action is suggested
+- copy avoids generic remittance app language

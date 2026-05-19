@@ -10,6 +10,7 @@ International money transfer reliability infrastructure for banks.
 - [Research and architecture](docs/research-and-architecture.md)
 - [Delivery masterplan](docs/masterplan.md)
 - [Product requirements document](docs/prd.md)
+- [Users, brand, and design language](docs/users-brand-design-language.md)
 - [GitHub issue plan](docs/github-issues.md)
 - [Static landing page](landing/index.html)
 
@@ -29,4 +30,3 @@ The platform is not a consumer remittance app or money exchange marketplace. It 
 Open [landing/index.html](landing/index.html) directly in a browser.
 
 The landing page is intentionally static and dependency-free so it remains fast, portable, and easy to publish.
-

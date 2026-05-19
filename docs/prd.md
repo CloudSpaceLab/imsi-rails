@@ -52,6 +52,21 @@ The first product will not:
 
 ## 5. Users and Personas
 
+Full user, brand, and design-language reference: [Users, Brand, and Design Language](users-brand-design-language.md).
+
+MVP user priority:
+
+1. Daily Operator
+2. Head of Remittances / Economic Buyer
+3. Technical Integrator
+4. Risk and Compliance
+5. Executive Buyer
+
+The product must serve two usage modes:
+
+- operational mode for users actively monitoring, tracing, switching, and resolving incidents
+- evidence mode for users reviewing provider performance, audit history, commercial outcomes, and pilot impact
+
 ### Payments Operations Analyst
 
 Needs:
@@ -108,6 +123,28 @@ Needs:
 - proof that reliability improved
 - provider accountability
 - expansion path across corridors and countries
+
+### Provider Relationship Manager
+
+Needs:
+
+- objective provider SLA scorecards
+- incident evidence
+- support responsiveness history
+- reconciliation break rate
+- volume shifted due to provider performance
+- exportable reports for provider reviews
+
+### imsi-rails Sales / Customer Success User
+
+Needs:
+
+- demo environment
+- simulated incident story
+- pilot report template
+- before/after routing impact
+- executive summary assets
+- bank onboarding checklist
 
 ## 6. Product Scope
 
@@ -392,6 +429,15 @@ Premium fintech control room:
 - charts that feel alive without noise
 - no decoration that competes with incident signals
 
+Brand/design direction:
+
+- product phrase: IMTO reliability infrastructure for banks
+- brand idea: the reliability layer beneath international money movement
+- design north star: premium operational intelligence
+- copy style: clear, precise, evidence-led, and calm under pressure
+- color system: use status colors for meaning only
+- motion: use motion to explain state change, not to decorate
+
 ### MVP Screens
 
 1. Control Room
@@ -416,6 +462,17 @@ Premium fintech control room:
 - FX comparison table
 - incident banner
 - audit drawer
+
+### UI Quality Gates
+
+- primary user can answer the screen's main question in under 5 seconds
+- live/stale data state is obvious
+- all critical numbers include units and time windows
+- every recommendation explains why
+- traffic-changing actions show preview, reason capture, approval path, and rollback
+- critical workflows work with keyboard navigation
+- executive read-only views work on tablet/mobile
+- dashboard performance budgets are respected
 
 ## 11. Data Model Summary
 
@@ -498,4 +555,3 @@ Pilot report metrics:
 - Which FX source is authoritative for the bank?
 - What is the safe failover boundary for each provider?
 - What maker-checker approvals does the bank require?
-
