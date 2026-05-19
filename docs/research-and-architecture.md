@@ -19,25 +19,26 @@ The architecture should:
 
 ### Backend Hot Path
 
-Use Rust with Tokio and Axum for the routing, switching, circuit breaker, and adapter runtime.
+Use Go for the routing, switching, circuit breaker, and adapter runtime.
 
 Why:
 
-- Rust is designed for memory-efficient, reliable software without a garbage collector.
-- Tokio provides async networking primitives and a work-stealing runtime suitable for high concurrency.
-- Axum is built on Tokio, Hyper, and Tower, which gives us composable middleware for auth, rate limits, tracing, timeouts, and retries.
+- Go produces small operationally simple services: compiled binaries, easy containerization, strong standard library, and mature support for HTTP, Postgres, NATS, SFTP, XML/SOAP, observability, and concurrent network workloads.
+- Go's concurrency model is a good fit for adapter-heavy systems. The official Go FAQ describes goroutines as having little overhead beyond a stack of a few kilobytes and says hundreds of thousands can be practical in the same address space.
+- The product's practical latency risk is external: provider APIs, bank posting rails, webhooks, SFTP files, reconciliation, and human operations. The core route scoring logic should be sub-millisecond to low-millisecond work in Go when fed from in-memory snapshots.
+- Go is easier to hire for and maintain than Rust in bank-integration teams, while still giving far lower operational overhead than many heavyweight enterprise stacks.
 - A compiled single-binary service is easier to deploy in controlled bank infrastructure than a large runtime-heavy stack.
 
 Alternative:
 
-- Go is acceptable if hiring speed is more important than memory predictability. The recommendation remains Rust for the transaction routing core because the product promise depends on low CPU, low memory, and stable latency.
+- Node.js/TypeScript is acceptable for BFFs, internal tools, and UI-adjacent services. It is not the preferred core switching runtime because Node.js performance depends on keeping each event-loop callback small; a blocked event loop can delay other clients.
+- Rust remains a future option for extremely performance-sensitive components, but it should not be the default backend because the added delivery and hiring cost is unlikely to pay back in the first bank pilots.
 
 Sources:
 
-- Rust: https://www.rust-lang.org/
-- Rust ownership: https://doc.rust-lang.org/book/ch04-00-understanding-ownership.html
-- Tokio: https://tokio.rs/
-- Axum: https://docs.rs/axum/latest/axum/
+- Go FAQ: https://go.dev/doc/faq
+- Node.js event-loop guidance: https://nodejs.org/learn/asynchronous-work/dont-block-the-event-loop
+- Stack Overflow Developer Survey 2025: https://survey.stackoverflow.co/2025/technology
 
 ### Eventing and Streaming
 
@@ -138,12 +139,14 @@ Sources:
 
 ### Frontend
 
-Use SvelteKit for the product application, uPlot for dense latency/time-series charts, and TanStack Table for virtualized operational tables.
+Use Vue 3 with Vite and TypeScript for the product application, uPlot for dense latency/time-series charts, and TanStack Table for virtualized operational tables.
 
 Why:
 
-- Svelte compiles UI components into lean JavaScript.
-- SvelteKit supports robust app patterns, SSR/prerendering where needed, routing, and performance-oriented builds.
+- Vue 3 has a larger hiring pool and more mature enterprise ecosystem than Svelte, which lowers delivery risk for a bank-facing product.
+- Vue has official TypeScript guidance and tooling, including Vue - Official for IDE support.
+- Vite gives fast development/build tooling and supports a Vue + TypeScript template.
+- Vue Router and Pinia give standard ecosystem answers for routing and state management without forcing a heavy UI framework.
 - uPlot is small and optimized for time-series charts.
 - TanStack Table is headless, giving control over dense bank-grade table UX without shipping a heavy component system.
 
@@ -157,8 +160,11 @@ Dashboard guidance:
 
 Sources:
 
-- Svelte overview: https://svelte.dev/docs/svelte/overview
-- SvelteKit introduction: https://svelte.dev/docs/kit/introduction
+- Vue TypeScript guide: https://vuejs.org/guide/typescript/overview
+- Vue FAQ: https://vuejs.org/about/faq.html
+- Vite guide: https://vite.dev/guide/
+- Vue Router: https://router.vuejs.org/
+- Pinia: https://pinia.vuejs.org/
 - uPlot: https://github.com/leeoniya/uPlot
 - TanStack Table: https://tanstack.com/table/v8/docs/overview
 - Apache ECharts canvas/SVG guidance: https://echarts.apache.org/handbook/en/best-practices/canvas-vs-svg/
@@ -348,4 +354,3 @@ The winning architecture is not "more services." It is a clean separation:
 - analyze outside the hot path
 - expose simple configuration controls
 - let provider performance determine traffic allocation
-

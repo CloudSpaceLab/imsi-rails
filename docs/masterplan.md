@@ -107,10 +107,10 @@ The masterplan should be rejected or revised if future work violates these princ
 
 Keep the MVP compact:
 
-- Rust + Tokio + Axum for backend services
+- Go for backend services
 - PostgreSQL for system of record and pilot analytics rollups
 - NATS for event flow and live dashboard updates
-- SvelteKit for app UI
+- Vue 3 + Vite + TypeScript for app UI
 - uPlot for dense latency charts
 - TanStack Table for large operational tables
 - OpenTelemetry instrumentation from day one
