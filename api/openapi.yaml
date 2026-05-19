@@ -1,0 +1,247 @@
+openapi: 3.1.0
+info:
+  title: imsi-rails Transaction Intake API
+  version: 0.1.0
+  summary: Bank-facing API for submitting IMTO transactions into the imsi-rails routing layer.
+servers:
+  - url: https://api.imsi-rails.example
+paths:
+  /v1/transactions:
+    post:
+      summary: Submit a transaction for route selection
+      operationId: submitTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitTransactionRequest"
+      responses:
+        "201":
+          description: Transaction accepted and routed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubmitTransactionResponse"
+        "200":
+          description: Idempotent replay of a previously accepted request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubmitTransactionResponse"
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/transactions/{transaction_id}:
+    get:
+      summary: Retrieve transaction intake and route-decision state
+      operationId: getTransaction
+      parameters:
+        - name: transaction_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Transaction record.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionRecord"
+        "404":
+          description: Transaction was not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+components:
+  schemas:
+    SubmitTransactionRequest:
+      type: object
+      required:
+        - bank_id
+        - idempotency_key
+        - sender_country
+        - receiver_country
+        - amount_minor_units
+        - currency
+        - payout_method
+      properties:
+        bank_id:
+          type: string
+        idempotency_key:
+          type: string
+        sender_country:
+          type: string
+          minLength: 2
+          maxLength: 2
+        receiver_country:
+          type: string
+          minLength: 2
+          maxLength: 2
+        amount_minor_units:
+          type: integer
+          minimum: 1
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        payout_method:
+          $ref: "#/components/schemas/PayoutMethod"
+        destination_bank:
+          type: string
+        compliance_manual_review_required:
+          type: boolean
+          default: false
+    SubmitTransactionResponse:
+      type: object
+      required:
+        - transaction_id
+        - switch_reference
+        - state
+        - idempotent_replay
+        - route_decision
+      properties:
+        transaction_id:
+          type: string
+        switch_reference:
+          type: string
+        state:
+          $ref: "#/components/schemas/TransactionState"
+        idempotent_replay:
+          type: boolean
+        selected_route_id:
+          type: string
+        selected_provider_id:
+          type: string
+        route_decision:
+          $ref: "#/components/schemas/RouteDecision"
+    TransactionRecord:
+      type: object
+      required:
+        - transaction_id
+        - switch_reference
+        - bank_id
+        - idempotency_key
+        - state
+        - request
+        - route_decision
+        - created_at
+        - updated_at
+      properties:
+        transaction_id:
+          type: string
+        switch_reference:
+          type: string
+        bank_id:
+          type: string
+        idempotency_key:
+          type: string
+        state:
+          $ref: "#/components/schemas/TransactionState"
+        request:
+          $ref: "#/components/schemas/SubmitTransactionRequest"
+        route_decision:
+          $ref: "#/components/schemas/RouteDecision"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    RouteDecision:
+      type: object
+      required:
+        - transaction_id
+        - policy_id
+        - policy_version
+        - eligible_routes
+        - rejected_routes
+        - decided_at
+        - auto_switching_allowed
+      properties:
+        transaction_id:
+          type: string
+        policy_id:
+          type: string
+        policy_version:
+          type: integer
+        selected_route:
+          $ref: "#/components/schemas/CandidateRouteScore"
+        eligible_routes:
+          type: array
+          items:
+            $ref: "#/components/schemas/CandidateRouteScore"
+        rejected_routes:
+          type: array
+          items:
+            $ref: "#/components/schemas/RejectedRoute"
+        decided_at:
+          type: string
+          format: date-time
+        auto_switching_allowed:
+          type: boolean
+    CandidateRouteScore:
+      type: object
+      properties:
+        route_id:
+          type: string
+        provider_id:
+          type: string
+        total_score_bps:
+          type: integer
+        component_scores:
+          type: object
+          additionalProperties:
+            type: integer
+        primary_reason:
+          type: string
+    RejectedRoute:
+      type: object
+      properties:
+        route_id:
+          type: string
+        provider_id:
+          type: string
+        reason:
+          type: string
+    PayoutMethod:
+      type: string
+      enum:
+        - bank_account
+        - cash_pickup
+        - wallet
+        - card
+        - branch
+    TransactionState:
+      type: string
+      enum:
+        - created
+        - accepted
+        - compliance_pending
+        - prefund_pending
+        - sent_to_provider
+        - provider_accepted
+        - received_by_bank
+        - account_validated
+        - payout_submitted
+        - credited
+        - paid_cash
+        - failed
+        - reversed
+        - disputed
+        - reconciled
+    Problem:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            detail:
+              type: string

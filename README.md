@@ -14,6 +14,7 @@ International money transfer reliability infrastructure for banks.
 - [GitHub issue plan](docs/github-issues.md)
 - [Static landing page](landing/index.html)
 - [Core routing domain notes](docs/implementation-notes/core-routing-domain.md)
+- [Transaction intake API notes](docs/implementation-notes/transaction-intake-api.md)
 
 ## Development
 
@@ -21,6 +22,12 @@ Run the Go core tests:
 
 ```powershell
 go test ./...
+```
+
+Run the demo API:
+
+```powershell
+go run ./cmd/imsi-api
 ```
 
 ## Product Positioning
