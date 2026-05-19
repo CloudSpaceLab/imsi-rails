@@ -15,6 +15,7 @@ International money transfer reliability infrastructure for banks.
 - [Static landing page](landing/index.html)
 - [Core routing domain notes](docs/implementation-notes/core-routing-domain.md)
 - [Transaction intake API notes](docs/implementation-notes/transaction-intake-api.md)
+- [Health event ingestion notes](docs/implementation-notes/health-event-ingestion.md)
 
 ## Development
 
@@ -29,6 +30,8 @@ Run the demo API:
 ```powershell
 go run ./cmd/imsi-api
 ```
+
+The demo API exposes transaction intake at `/v1/transactions` and health ingestion at `/v1/health/samples`.
 
 ## Product Positioning
 

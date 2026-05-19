@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
-  title: imsi-rails Transaction Intake API
+  title: imsi-rails Bank API
   version: 0.1.0
-  summary: Bank-facing API for submitting IMTO transactions into the imsi-rails routing layer.
+  summary: Bank-facing API for transaction intake, route selection, and reliability health ingestion.
 servers:
   - url: https://api.imsi-rails.example
 paths:
@@ -54,6 +54,52 @@ paths:
                 $ref: "#/components/schemas/TransactionRecord"
         "404":
           description: Transaction was not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/health/samples:
+    post:
+      summary: Ingest a provider or route health sample
+      operationId: ingestHealthSample
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IngestHealthSampleRequest"
+      responses:
+        "201":
+          description: Health sample recorded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngestHealthSampleResponse"
+        "400":
+          description: Invalid sample.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/health/routes/{route_id}:
+    get:
+      summary: Retrieve latest route health state and snapshot
+      operationId: getRouteHealth
+      parameters:
+        - name: route_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Latest route health.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouteHealthResponse"
+        "404":
+          description: Route health was not found.
           content:
             application/json:
               schema:
@@ -209,6 +255,247 @@ components:
           type: string
         reason:
           type: string
+    IngestHealthSampleRequest:
+      type: object
+      required:
+        - provider_id
+        - signal_type
+      properties:
+        provider_id:
+          type: string
+        route_id:
+          type: string
+        corridor:
+          $ref: "#/components/schemas/Corridor"
+        payout_method:
+          $ref: "#/components/schemas/PayoutMethod"
+        signal_type:
+          $ref: "#/components/schemas/HealthSignalType"
+        observed_at:
+          type: string
+          format: date-time
+        window_seconds:
+          type: integer
+          minimum: 0
+        provider_api:
+          $ref: "#/components/schemas/ProviderAPISignal"
+        timeout_rate:
+          $ref: "#/components/schemas/RateSignal"
+        error_rate:
+          $ref: "#/components/schemas/RateSignal"
+        callback_lag:
+          $ref: "#/components/schemas/CallbackLagSignal"
+        transaction_outcome:
+          $ref: "#/components/schemas/TransactionOutcomeSignal"
+    IngestHealthSampleResponse:
+      type: object
+      required:
+        - sample
+      properties:
+        sample:
+          $ref: "#/components/schemas/HealthSample"
+        state_change:
+          $ref: "#/components/schemas/HealthStateChangeEvent"
+    HealthSample:
+      type: object
+      required:
+        - sample_id
+        - provider_id
+        - signal_type
+        - observed_at
+        - recorded_at
+        - state
+      properties:
+        sample_id:
+          type: string
+        provider_id:
+          type: string
+        route_id:
+          type: string
+        corridor:
+          $ref: "#/components/schemas/Corridor"
+        payout_method:
+          $ref: "#/components/schemas/PayoutMethod"
+        signal_type:
+          $ref: "#/components/schemas/HealthSignalType"
+        observed_at:
+          type: string
+          format: date-time
+        recorded_at:
+          type: string
+          format: date-time
+        window_seconds:
+          type: integer
+        state:
+          $ref: "#/components/schemas/HealthState"
+        provider_api:
+          $ref: "#/components/schemas/ProviderAPISignal"
+        timeout_rate:
+          $ref: "#/components/schemas/RateSignal"
+        error_rate:
+          $ref: "#/components/schemas/RateSignal"
+        callback_lag:
+          $ref: "#/components/schemas/CallbackLagSignal"
+        transaction_outcome:
+          $ref: "#/components/schemas/TransactionOutcomeSignal"
+        route_snapshot:
+          $ref: "#/components/schemas/RouteHealthSnapshot"
+    HealthStateChangeEvent:
+      type: object
+      required:
+        - event_id
+        - sample_id
+        - provider_id
+        - previous_state
+        - current_state
+        - occurred_at
+        - reason
+      properties:
+        event_id:
+          type: string
+        sample_id:
+          type: string
+        provider_id:
+          type: string
+        route_id:
+          type: string
+        previous_state:
+          $ref: "#/components/schemas/HealthState"
+        current_state:
+          $ref: "#/components/schemas/HealthState"
+        occurred_at:
+          type: string
+          format: date-time
+        reason:
+          $ref: "#/components/schemas/HealthSignalType"
+    RouteHealthResponse:
+      type: object
+      required:
+        - route_id
+        - state
+        - snapshot
+      properties:
+        route_id:
+          type: string
+        state:
+          $ref: "#/components/schemas/HealthState"
+        snapshot:
+          $ref: "#/components/schemas/RouteHealthSnapshot"
+    RouteHealthSnapshot:
+      type: object
+      required:
+        - success_rate_bps
+        - uptime_bps
+        - p95_latency_ms
+        - manual_intervention_bps
+        - settlement_reliability_bps
+        - observed_at
+      properties:
+        success_rate_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        uptime_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        p95_latency_ms:
+          type: integer
+        manual_intervention_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        settlement_reliability_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        observed_at:
+          type: string
+          format: date-time
+    ProviderAPISignal:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - up
+            - degraded
+            - down
+        http_status_code:
+          type: integer
+        latency_ms:
+          type: integer
+    RateSignal:
+      type: object
+      properties:
+        rate_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        affected_count:
+          type: integer
+          minimum: 0
+        total_count:
+          type: integer
+          minimum: 0
+    CallbackLagSignal:
+      type: object
+      required:
+        - p95_lag_ms
+      properties:
+        p95_lag_ms:
+          type: integer
+        max_lag_ms:
+          type: integer
+        delayed_callbacks:
+          type: integer
+        total_callbacks:
+          type: integer
+    TransactionOutcomeSignal:
+      type: object
+      required:
+        - transaction_id
+        - state
+      properties:
+        transaction_id:
+          type: string
+        state:
+          $ref: "#/components/schemas/TransactionState"
+        time_to_credit_ms:
+          type: integer
+        provider_reference:
+          type: string
+    Corridor:
+      type: object
+      required:
+        - origin_country
+        - destination_country
+      properties:
+        origin_country:
+          type: string
+          minLength: 2
+          maxLength: 2
+        destination_country:
+          type: string
+          minLength: 2
+          maxLength: 2
+    HealthSignalType:
+      type: string
+      enum:
+        - provider_api_status
+        - timeout_rate
+        - error_rate
+        - callback_lag
+        - transaction_outcome
+    HealthState:
+      type: string
+      enum:
+        - unknown
+        - healthy
+        - watch
+        - degraded
     PayoutMethod:
       type: string
       enum:

@@ -97,6 +97,10 @@ type RouteHealthBook struct {
 	Routes map[RouteID]RouteHealthSnapshot `json:"routes"`
 }
 
+type RouteHealthProvider interface {
+	SnapshotFor(routeID RouteID) RouteHealthSnapshot
+}
+
 func NewRouteHealthBook() RouteHealthBook {
 	return RouteHealthBook{Routes: map[RouteID]RouteHealthSnapshot{}}
 }
@@ -154,7 +158,7 @@ type RouteDecision struct {
 	AutoSwitchingAllowed bool                  `json:"auto_switching_allowed"`
 }
 
-func SelectRoute(registry RouteRegistry, policy BankPolicy, health RouteHealthBook, input EligibilityInput) RouteDecision {
+func SelectRoute(registry RouteRegistry, policy BankPolicy, health RouteHealthProvider, input EligibilityInput) RouteDecision {
 	eligibleRoutes := make([]CandidateRouteScore, 0)
 	rejectedRoutes := make([]RejectedRoute, 0)
 
@@ -197,7 +201,7 @@ func SelectRoute(registry RouteRegistry, policy BankPolicy, health RouteHealthBo
 	}
 }
 
-func rejectionReason(route Route, registry RouteRegistry, policy BankPolicy, health RouteHealthBook, input EligibilityInput) (RejectionReason, bool) {
+func rejectionReason(route Route, registry RouteRegistry, policy BankPolicy, health RouteHealthProvider, input EligibilityInput) (RejectionReason, bool) {
 	provider, ok := registry.Provider(route.ProviderID)
 	if !ok {
 		return RejectProviderMissing, true

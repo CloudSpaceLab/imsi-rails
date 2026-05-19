@@ -66,13 +66,13 @@ type Service struct {
 	mu           sync.Mutex
 	registry     core.RouteRegistry
 	policy       core.BankPolicy
-	health       core.RouteHealthBook
+	health       core.RouteHealthProvider
 	transactions TransactionStore
 	decisions    core.RouteDecisionStore
 	events       EventSink
 }
 
-func NewService(registry core.RouteRegistry, policy core.BankPolicy, health core.RouteHealthBook, transactions TransactionStore, decisions core.RouteDecisionStore, events EventSink) *Service {
+func NewService(registry core.RouteRegistry, policy core.BankPolicy, health core.RouteHealthProvider, transactions TransactionStore, decisions core.RouteDecisionStore, events EventSink) *Service {
 	return &Service{
 		registry:     registry,
 		policy:       policy,
