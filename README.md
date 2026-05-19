@@ -45,3 +45,4 @@ Implementation notes:
 
 - [Vue control room shell](docs/implementation-notes/vue-control-room-shell.md)
 - [Latency and downtime drilldowns](docs/implementation-notes/latency-downtime-drilldowns.md)
+- [Provider and corridor scorecards](docs/implementation-notes/provider-corridor-scorecards.md)

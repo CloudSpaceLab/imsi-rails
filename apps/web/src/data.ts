@@ -58,10 +58,50 @@ export const corridors = [
 ]
 
 export const providerScores = [
-  { provider: 'Thunes', reliability: 98, speed: 96, cost: 88, fx: 91, state: 'healthy' as HealthState },
-  { provider: 'Remitly', reliability: 96, speed: 90, cost: 84, fx: 89, state: 'healthy' as HealthState },
-  { provider: 'Ria', reliability: 72, speed: 48, cost: 94, fx: 86, state: 'degraded' as HealthState },
-  { provider: 'PAPSS', reliability: 87, speed: 82, cost: 91, fx: 88, state: 'recovery' as HealthState },
+  {
+    provider: 'Thunes',
+    corridor: 'US -> Nigeria',
+    successRate: '99.1%',
+    p50: '14s',
+    p95: '31s',
+    p99: '58s',
+    stuckRate: '0.04%',
+    settlementExceptions: 2,
+    state: 'healthy' as HealthState,
+  },
+  {
+    provider: 'Remitly',
+    corridor: 'UK -> Nigeria',
+    successRate: '98.4%',
+    p50: '18s',
+    p95: '49s',
+    p99: '1m 12s',
+    stuckRate: '0.09%',
+    settlementExceptions: 5,
+    state: 'healthy' as HealthState,
+  },
+  {
+    provider: 'Ria',
+    corridor: 'EU -> Nigeria',
+    successRate: '87.5%',
+    p50: '46s',
+    p95: '4m 18s',
+    p99: '7m 44s',
+    stuckRate: '1.18%',
+    settlementExceptions: 19,
+    state: 'degraded' as HealthState,
+  },
+  {
+    provider: 'PAPSS',
+    corridor: 'Kenya -> Nigeria',
+    successRate: '96.8%',
+    p50: '23s',
+    p95: '58s',
+    p99: '1m 36s',
+    stuckRate: '0.21%',
+    settlementExceptions: 4,
+    state: 'recovery' as HealthState,
+  },
 ]
 
 export const timeline: TimelineStep[] = [
