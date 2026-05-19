@@ -7,3 +7,19 @@ export type TimelineStep = {
   time: string
 }
 
+export type LatencyStep = {
+  label: string
+  owner: string
+  durationMs: number
+  targetMs: number
+  state: HealthState
+}
+
+export type DowntimeEvent = {
+  time: string
+  title: string
+  actor: string
+  state: HealthState
+  detail: string
+}
+

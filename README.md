@@ -40,3 +40,8 @@ npm install
 npm run web:dev
 npm run web:build
 ```
+
+Implementation notes:
+
+- [Vue control room shell](docs/implementation-notes/vue-control-room-shell.md)
+- [Latency and downtime drilldowns](docs/implementation-notes/latency-downtime-drilldowns.md)

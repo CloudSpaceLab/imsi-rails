@@ -1,4 +1,4 @@
-import type { HealthState, TimelineStep } from './types'
+import type { DowntimeEvent, HealthState, LatencyStep, TimelineStep } from './types'
 
 export const summary = {
   globalHealth: '97.2%',
@@ -71,5 +71,59 @@ export const timeline: TimelineStep[] = [
   { label: 'Provider accepted', owner: 'Thunes', status: 'done', time: '14:29:16' },
   { label: 'Bank rail posting', owner: 'NIP', status: 'current', time: '14:29:23' },
   { label: 'Settlement match', owner: 'Settlement', status: 'pending', time: 'pending' },
+]
+
+export const drilldownFilters = {
+  provider: 'Ria',
+  corridor: 'EU -> Nigeria',
+  destinationBank: 'Access Bank',
+  window: '15 min',
+}
+
+export const latencySummary = {
+  endToEnd: '4m 18s',
+  target: '90s',
+  slowestStep: 'Provider accepted',
+  affectedTransactions: 184,
+}
+
+export const latencySteps: LatencyStep[] = [
+  { label: 'Bank submit', owner: 'Bank channel', durationMs: 420, targetMs: 800, state: 'healthy' },
+  { label: 'Validation', owner: 'imsi-rails', durationMs: 260, targetMs: 500, state: 'healthy' },
+  { label: 'FX lock', owner: 'Treasury policy', durationMs: 1_800, targetMs: 2_000, state: 'healthy' },
+  { label: 'Provider accepted', owner: 'Ria', durationMs: 128_000, targetMs: 30_000, state: 'degraded' },
+  { label: 'Webhook callback', owner: 'Ria', durationMs: 84_000, targetMs: 45_000, state: 'watch' },
+  { label: 'Bank posting', owner: 'NIP', durationMs: 43_000, targetMs: 60_000, state: 'healthy' },
+]
+
+export const downtimeEvents: DowntimeEvent[] = [
+  {
+    time: '14:04',
+    title: 'P95 breach detected',
+    actor: 'imsi-rails',
+    state: 'watch',
+    detail: 'EU -> Nigeria account payouts crossed the 90s policy threshold.',
+  },
+  {
+    time: '14:13',
+    title: 'Provider route degraded',
+    actor: 'Ria adapter',
+    state: 'degraded',
+    detail: 'Timeout rate reached 12.5% over the active 15 min window.',
+  },
+  {
+    time: '14:16',
+    title: 'Traffic shift previewed',
+    actor: 'Ops analyst',
+    state: 'healthy',
+    detail: '25% shift to Thunes simulated with lower cost-adjusted risk.',
+  },
+  {
+    time: '14:21',
+    title: 'Recovery test started',
+    actor: 'Circuit breaker',
+    state: 'recovery',
+    detail: 'Ria held to 10% canary while webhook lag is monitored.',
+  },
 ]
 
