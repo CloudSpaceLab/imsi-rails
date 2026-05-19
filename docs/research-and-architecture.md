@@ -139,12 +139,14 @@ Sources:
 
 ### Frontend
 
-Use SvelteKit for the product application, uPlot for dense latency/time-series charts, and TanStack Table for virtualized operational tables.
+Use Vue 3 with Vite and TypeScript for the product application, uPlot for dense latency/time-series charts, and TanStack Table for virtualized operational tables.
 
 Why:
 
-- Svelte compiles UI components into lean JavaScript.
-- SvelteKit supports robust app patterns, SSR/prerendering where needed, routing, and performance-oriented builds.
+- Vue 3 has a larger hiring pool and more mature enterprise ecosystem than Svelte, which lowers delivery risk for a bank-facing product.
+- Vue has official TypeScript guidance and tooling, including Vue - Official for IDE support.
+- Vite gives fast development/build tooling and supports a Vue + TypeScript template.
+- Vue Router and Pinia give standard ecosystem answers for routing and state management without forcing a heavy UI framework.
 - uPlot is small and optimized for time-series charts.
 - TanStack Table is headless, giving control over dense bank-grade table UX without shipping a heavy component system.
 
@@ -158,8 +160,11 @@ Dashboard guidance:
 
 Sources:
 
-- Svelte overview: https://svelte.dev/docs/svelte/overview
-- SvelteKit introduction: https://svelte.dev/docs/kit/introduction
+- Vue TypeScript guide: https://vuejs.org/guide/typescript/overview
+- Vue FAQ: https://vuejs.org/about/faq.html
+- Vite guide: https://vite.dev/guide/
+- Vue Router: https://router.vuejs.org/
+- Pinia: https://pinia.vuejs.org/
 - uPlot: https://github.com/leeoniya/uPlot
 - TanStack Table: https://tanstack.com/table/v8/docs/overview
 - Apache ECharts canvas/SVG guidance: https://echarts.apache.org/handbook/en/best-practices/canvas-vs-svg/

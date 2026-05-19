@@ -6,7 +6,7 @@ Date: 2026-05-19
 
 Use Go for the backend core services.
 
-Use TypeScript/SvelteKit for the UI and UI-adjacent work.
+Use Vue 3, Vite, and TypeScript for the UI and UI-adjacent work.
 
 Do not use Rust as the default backend for the first implementation.
 
@@ -66,7 +66,7 @@ Go is the better default for that combination.
 
 Node.js/TypeScript remains very useful for:
 
-- SvelteKit frontend
+- Vue/Vite frontend tooling
 - admin/BFF services
 - demo tooling
 - report generation
