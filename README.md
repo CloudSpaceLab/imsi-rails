@@ -13,6 +13,15 @@ International money transfer reliability infrastructure for banks.
 - [Users, brand, and design language](docs/users-brand-design-language.md)
 - [GitHub issue plan](docs/github-issues.md)
 - [Static landing page](landing/index.html)
+- [Core routing domain notes](docs/implementation-notes/core-routing-domain.md)
+
+## Development
+
+Run the Go core tests:
+
+```powershell
+go test ./...
+```
 
 ## Product Positioning
 
