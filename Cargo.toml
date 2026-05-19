@@ -1,0 +1,9 @@
+[workspace]
+members = ["crates/imsi-core"]
+resolver = "2"
+
+[workspace.package]
+edition = "2024"
+license = "UNLICENSED"
+repository = "https://github.com/CloudSpaceLab/imsi-rails"
+
