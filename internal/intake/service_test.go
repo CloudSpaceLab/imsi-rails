@@ -5,9 +5,18 @@ import (
 	"testing"
 
 	"github.com/CloudSpaceLab/imsi-rails/internal/core"
+	"github.com/CloudSpaceLab/imsi-rails/internal/health"
 )
 
 func testService() (*Service, *InMemoryTransactionStore, *InMemoryEventSink, *core.InMemoryRouteDecisionStore) {
+	transactions := NewInMemoryTransactionStore()
+	events := NewInMemoryEventSink()
+	decisions := core.NewInMemoryRouteDecisionStore()
+	service := NewService(testRegistry(), core.DefaultBankPolicy(), core.NewRouteHealthBook(), transactions, decisions, events)
+	return service, transactions, events, decisions
+}
+
+func testRegistry() core.RouteRegistry {
 	registry := core.NewRouteRegistry()
 	registry.AddProvider(core.Provider{ID: "p1", Name: "Provider 1", Enabled: true, Approved: true})
 	age := uint64(30)
@@ -23,12 +32,7 @@ func testService() (*Service, *InMemoryTransactionStore, *InMemoryEventSink, *co
 		FXRateAgeSeconds:   &age,
 		FXQualityBps:       9_200,
 	})
-
-	transactions := NewInMemoryTransactionStore()
-	events := NewInMemoryEventSink()
-	decisions := core.NewInMemoryRouteDecisionStore()
-	service := NewService(registry, core.DefaultBankPolicy(), core.NewRouteHealthBook(), transactions, decisions, events)
-	return service, transactions, events, decisions
+	return registry
 }
 
 func validRequest() SubmitTransactionRequest {
@@ -113,5 +117,48 @@ func TestDuplicateIDempotencyKeyDoesNotDuplicateProcessing(t *testing.T) {
 	}
 	if _, ok := transactions.GetByIDempotencyKey("bank-1", "idem-1"); !ok {
 		t.Fatal("expected idempotency lookup")
+	}
+}
+
+func TestSubmitRejectsCircuitBreakerBlockedRoute(t *testing.T) {
+	t.Parallel()
+
+	healthService := health.NewService(health.NewInMemoryStore(), health.NewInMemoryEventSink())
+	if _, err := healthService.Ingest(health.IngestSampleRequest{
+		ProviderID: "p1",
+		RouteID:    "r1",
+		SignalType: health.SignalProviderAPIStatus,
+		ProviderAPI: &health.ProviderAPISignal{
+			Status:    health.ProviderAPIDown,
+			LatencyMS: 5_000,
+		},
+	}); err != nil {
+		t.Fatalf("health ingest failed: %v", err)
+	}
+
+	service := NewService(
+		testRegistry(),
+		core.DefaultBankPolicy(),
+		healthService,
+		NewInMemoryTransactionStore(),
+		core.NewInMemoryRouteDecisionStore(),
+		NewInMemoryEventSink(),
+	)
+	response, err := service.Submit(validRequest())
+	if err != nil {
+		t.Fatalf("submit failed: %v", err)
+	}
+
+	if response.State != core.StateFailed {
+		t.Fatalf("expected failed state, got %s", response.State)
+	}
+	if response.RouteDecision.SelectedRoute != nil {
+		t.Fatal("expected no selected route")
+	}
+	if len(response.RouteDecision.RejectedRoutes) != 1 {
+		t.Fatalf("expected 1 rejected route, got %d", len(response.RouteDecision.RejectedRoutes))
+	}
+	if response.RouteDecision.RejectedRoutes[0].Reason != core.RejectCircuitBreakerOpen {
+		t.Fatalf("expected circuit breaker rejection, got %s", response.RouteDecision.RejectedRoutes[0].Reason)
 	}
 }

@@ -16,6 +16,7 @@ International money transfer reliability infrastructure for banks.
 - [Core routing domain notes](docs/implementation-notes/core-routing-domain.md)
 - [Transaction intake API notes](docs/implementation-notes/transaction-intake-api.md)
 - [Health event ingestion notes](docs/implementation-notes/health-event-ingestion.md)
+- [Circuit breaker state machine notes](docs/implementation-notes/circuit-breaker-state-machine.md)
 
 ## Development
 

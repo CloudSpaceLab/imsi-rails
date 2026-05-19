@@ -104,7 +104,7 @@ func (s *Service) Submit(request SubmitTransactionRequest) (SubmitTransactionRes
 		Amount:                         core.NewMoney(request.Currency, request.AmountMinorUnits),
 		DestinationBank:                request.DestinationBank,
 		ComplianceManualReviewRequired: request.ComplianceManualReviewRequired,
-		CircuitBreakerBlockedRoutes:    map[core.RouteID]bool{},
+		CircuitBreakerBlockedRoutes:    s.health.BlockedRoutes(),
 	}
 
 	decision := core.SelectRoute(s.registry, s.policy, s.health, input)

@@ -296,6 +296,10 @@ components:
           $ref: "#/components/schemas/HealthSample"
         state_change:
           $ref: "#/components/schemas/HealthStateChangeEvent"
+        circuit_breaker:
+          $ref: "#/components/schemas/CircuitBreakerRecord"
+        circuit_breaker_change:
+          $ref: "#/components/schemas/CircuitBreakerStateChangeEvent"
     HealthSample:
       type: object
       required:
@@ -374,6 +378,7 @@ components:
         - route_id
         - state
         - snapshot
+        - circuit_breaker
       properties:
         route_id:
           type: string
@@ -381,6 +386,97 @@ components:
           $ref: "#/components/schemas/HealthState"
         snapshot:
           $ref: "#/components/schemas/RouteHealthSnapshot"
+        circuit_breaker:
+          $ref: "#/components/schemas/CircuitBreakerRecord"
+    CircuitBreakerRecord:
+      type: object
+      required:
+        - route_id
+        - state
+        - reason
+        - snapshot
+        - thresholds
+        - updated_at
+      properties:
+        route_id:
+          type: string
+        state:
+          $ref: "#/components/schemas/CircuitBreakerState"
+        reason:
+          type: string
+        snapshot:
+          $ref: "#/components/schemas/RouteHealthSnapshot"
+        thresholds:
+          $ref: "#/components/schemas/CircuitBreakerThresholds"
+        updated_at:
+          type: string
+          format: date-time
+    CircuitBreakerStateChangeEvent:
+      type: object
+      required:
+        - event_id
+        - route_id
+        - previous_state
+        - current_state
+        - occurred_at
+        - reason
+      properties:
+        event_id:
+          type: string
+        route_id:
+          type: string
+        previous_state:
+          $ref: "#/components/schemas/CircuitBreakerState"
+        current_state:
+          $ref: "#/components/schemas/CircuitBreakerState"
+        occurred_at:
+          type: string
+          format: date-time
+        reason:
+          type: string
+    CircuitBreakerThresholds:
+      type: object
+      required:
+        - degraded_success_rate_bps
+        - blocked_success_rate_bps
+        - degraded_uptime_bps
+        - blocked_uptime_bps
+        - degraded_p95_latency_ms
+        - blocked_p95_latency_ms
+        - recovery_success_rate_bps
+        - recovery_uptime_bps
+        - recovery_p95_latency_ms
+      properties:
+        degraded_success_rate_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        blocked_success_rate_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        degraded_uptime_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        blocked_uptime_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        degraded_p95_latency_ms:
+          type: integer
+        blocked_p95_latency_ms:
+          type: integer
+        recovery_success_rate_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        recovery_uptime_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        recovery_p95_latency_ms:
+          type: integer
     RouteHealthSnapshot:
       type: object
       required:
@@ -496,6 +592,14 @@ components:
         - healthy
         - watch
         - degraded
+    CircuitBreakerState:
+      type: string
+      enum:
+        - unknown
+        - healthy
+        - degraded
+        - blocked
+        - recovery_testing
     PayoutMethod:
       type: string
       enum:

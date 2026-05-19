@@ -99,6 +99,9 @@ func TestIngestTimeoutRateUpdatesRouteSnapshot(t *testing.T) {
 	if got := len(events.Events()); got != 1 {
 		t.Fatalf("expected 1 state-change event, got %d", got)
 	}
+	if got := len(events.CircuitBreakerEvents()); got != 1 {
+		t.Fatalf("expected 1 breaker event, got %d", got)
+	}
 }
 
 func TestIngestCallbackLagAndTransactionOutcome(t *testing.T) {
@@ -144,6 +147,9 @@ func TestIngestCallbackLagAndTransactionOutcome(t *testing.T) {
 	}
 	if got := len(events.Events()); got != 2 {
 		t.Fatalf("expected 2 state-change events, got %d", got)
+	}
+	if got := len(events.CircuitBreakerEvents()); got != 2 {
+		t.Fatalf("expected 2 breaker events, got %d", got)
 	}
 }
 
