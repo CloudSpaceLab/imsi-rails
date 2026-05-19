@@ -1,4 +1,14 @@
-import type { DowntimeEvent, HealthState, LatencyStep, TimelineStep } from './types'
+import type {
+  ChangeHistoryItem,
+  DowntimeEvent,
+  FallbackRoute,
+  HealthState,
+  LatencyStep,
+  ProviderToggle,
+  ScoringWeight,
+  TimelineStep,
+  TrafficSplitPreset,
+} from './types'
 
 export const summary = {
   globalHealth: '97.2%',
@@ -166,4 +176,43 @@ export const downtimeEvents: DowntimeEvent[] = [
     detail: 'Ria held to 10% canary while webhook lag is monitored.',
   },
 ]
+
+export const providerToggles: ProviderToggle[] = [
+  { provider: 'Thunes', route: 'US -> Nigeria / NIP', enabled: true, state: 'healthy' as HealthState },
+  { provider: 'Remitly', route: 'UK -> Nigeria / NIP', enabled: true, state: 'healthy' as HealthState },
+  { provider: 'Ria', route: 'EU -> Nigeria / NIP', enabled: false, state: 'degraded' as HealthState },
+  { provider: 'PAPSS', route: 'Kenya -> Nigeria / PAPSS', enabled: true, state: 'recovery' as HealthState },
+]
+
+export const fallbackRoutes: FallbackRoute[] = [
+  { rank: 1, provider: 'Thunes', route: 'NIP account payout', state: 'healthy' as HealthState },
+  { rank: 2, provider: 'Remitly', route: 'NIP account payout', state: 'healthy' as HealthState },
+  { rank: 3, provider: 'PAPSS', route: 'Cross-border account payout', state: 'recovery' as HealthState },
+  { rank: 4, provider: 'Ria', route: 'NIP account payout', state: 'degraded' as HealthState },
+]
+
+export const trafficSplitPresets: TrafficSplitPreset[] = [
+  { label: 'Reliability', active: true, split: '70 / 20 / 10' },
+  { label: 'Balanced', active: false, split: '50 / 30 / 20' },
+  { label: 'Recovery', active: false, split: '80 / 10 / 10' },
+]
+
+export const scoringWeights: ScoringWeight[] = [
+  { label: 'Reliability', value: 40 },
+  { label: 'Speed', value: 25 },
+  { label: 'Cost', value: 20 },
+  { label: 'FX', value: 15 },
+]
+
+export const changeHistory: ChangeHistoryItem[] = [
+  { time: '14:16', actor: 'Ops analyst', summary: 'Previewed 25% traffic shift from Ria to Thunes.' },
+  { time: '13:48', actor: 'Treasury lead', summary: 'Raised FX freshness weight for EU -> Nigeria.' },
+  { time: '12:22', actor: 'Switch operator', summary: 'Moved PAPSS into recovery fallback order.' },
+]
+
+export const routeConfigImpact = {
+  successRate: '+6.1%',
+  p95: '-2m 47s',
+  cost: '+0.08%',
+}
 
