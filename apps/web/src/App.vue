@@ -4,6 +4,7 @@ import DataFreshness from './components/DataFreshness.vue'
 import DowntimeTimeline from './components/DowntimeTimeline.vue'
 import HealthBadge from './components/HealthBadge.vue'
 import LatencyWaterfall from './components/LatencyWaterfall.vue'
+import PolicySimulatorPanel from './components/PolicySimulatorPanel.vue'
 import ProviderScorecards from './components/ProviderScorecards.vue'
 import RouteConfigurationPanel from './components/RouteConfigurationPanel.vue'
 import TransactionTimeline from './components/TransactionTimeline.vue'
@@ -15,6 +16,7 @@ import {
   fallbackRoutes,
   latencySteps,
   latencySummary,
+  policySimulationSamples,
   providerScores,
   providerToggles,
   routeConfigImpact,
@@ -38,6 +40,7 @@ import { operationalActions } from './copy'
         <a href="#corridors">Corridors</a>
         <a href="#transactions">Transactions</a>
         <a href="#routing-policy">Routing Policy</a>
+        <a href="#policy-simulator">Simulator</a>
         <a href="#fx-costs">FX & Costs</a>
         <a href="#audit">Audit</a>
       </nav>
@@ -110,6 +113,8 @@ import { operationalActions } from './copy'
           :impact="routeConfigImpact"
           :history="changeHistory"
         />
+
+        <PolicySimulatorPanel :samples="policySimulationSamples" />
 
         <LatencyWaterfall :filters="drilldownFilters" :summary="latencySummary" :steps="latencySteps" />
 

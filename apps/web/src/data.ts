@@ -4,6 +4,7 @@ import type {
   FallbackRoute,
   HealthState,
   LatencyStep,
+  PolicySimulationSample,
   ProviderToggle,
   ScoringWeight,
   TimelineStep,
@@ -215,4 +216,85 @@ export const routeConfigImpact = {
   p95: '-2m 47s',
   cost: '+0.08%',
 }
+
+export const policySimulationSamples: PolicySimulationSample[] = [
+  {
+    reference: 'SIM-EU-NG-1042',
+    corridor: 'EU -> Nigeria',
+    origin: 'Germany',
+    destination: 'Access Bank',
+    amount: 'EUR 2,400',
+    payout: 'Bank account',
+    current: {
+      provider: 'Ria',
+      route: 'Ria -> NIP',
+      score: 63,
+      p95: '4m 18s',
+      cost: '0.74%',
+      state: 'degraded' as HealthState,
+    },
+    proposed: {
+      provider: 'Thunes',
+      route: 'Thunes -> NIP',
+      score: 91,
+      p95: '37s',
+      cost: '0.82%',
+      state: 'healthy' as HealthState,
+    },
+    rejectedRoutes: [
+      { provider: 'Ria', route: 'Ria -> NIP', reason: 'Rejected because provider acceptance breached the active p95 policy.' },
+      { provider: 'Remitly', route: 'Remitly -> NIP', reason: 'Rejected because the FX rate is stale for EUR/NGN.' },
+      { provider: 'PAPSS', route: 'PAPSS', reason: 'Rejected because the route does not support EU account payouts.' },
+    ],
+    reportMetrics: [
+      { label: 'Shadow wins', value: '386', detail: 'of 500 sampled transactions' },
+      { label: 'P95 delta', value: '-3m 41s', detail: 'against current policy' },
+      { label: 'Cost delta', value: '+0.08%', detail: 'weighted effective cost' },
+    ],
+    reportRows: [
+      { bucket: 'Healthy payout', currentRoute: 'Ria -> NIP', proposedRoute: 'Thunes -> NIP', result: 'Faster route' },
+      { bucket: 'Stale FX', currentRoute: 'Ria -> NIP', proposedRoute: 'Hold for refresh', result: 'Safer reject' },
+      { bucket: 'Manual review', currentRoute: 'Ria -> NIP', proposedRoute: 'No change', result: 'Policy matched' },
+    ],
+  },
+  {
+    reference: 'SIM-UK-NG-2219',
+    corridor: 'UK -> Nigeria',
+    origin: 'United Kingdom',
+    destination: 'GTBank',
+    amount: 'GBP 850',
+    payout: 'Bank account',
+    current: {
+      provider: 'Remitly',
+      route: 'Remitly -> NIP',
+      score: 87,
+      p95: '49s',
+      cost: '0.91%',
+      state: 'watch' as HealthState,
+    },
+    proposed: {
+      provider: 'Remitly',
+      route: 'Remitly -> NIP',
+      score: 89,
+      p95: '46s',
+      cost: '0.91%',
+      state: 'healthy' as HealthState,
+    },
+    rejectedRoutes: [
+      { provider: 'Ria', route: 'Ria -> NIP', reason: 'Rejected because the circuit breaker is degraded for account payouts.' },
+      { provider: 'PAPSS', route: 'PAPSS', reason: 'Rejected because GBP origination is unsupported.' },
+      { provider: 'Thunes', route: 'Thunes -> NIP', reason: 'Rejected because the selected policy favors lower cost when latency is inside target.' },
+    ],
+    reportMetrics: [
+      { label: 'Shadow wins', value: '74', detail: 'of 500 sampled transactions' },
+      { label: 'P95 delta', value: '-3s', detail: 'against current policy' },
+      { label: 'Cost delta', value: '0.00%', detail: 'weighted effective cost' },
+    ],
+    reportRows: [
+      { bucket: 'Normal traffic', currentRoute: 'Remitly -> NIP', proposedRoute: 'Remitly -> NIP', result: 'No change' },
+      { bucket: 'Webhook lag', currentRoute: 'Remitly -> NIP', proposedRoute: 'Thunes -> NIP', result: 'Canary only' },
+      { bucket: 'FX refresh', currentRoute: 'Remitly -> NIP', proposedRoute: 'Remitly -> NIP', result: 'Policy matched' },
+    ],
+  },
+]
 

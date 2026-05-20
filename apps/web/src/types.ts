@@ -54,3 +54,45 @@ export type ChangeHistoryItem = {
   summary: string
 }
 
+export type PolicyRouteDecision = {
+  provider: string
+  route: string
+  score: number
+  p95: string
+  cost: string
+  state: HealthState
+}
+
+export type PolicyRejectedRoute = {
+  provider: string
+  route: string
+  reason: string
+}
+
+export type ShadowReportMetric = {
+  label: string
+  value: string
+  detail: string
+}
+
+export type ShadowReportRow = {
+  bucket: string
+  currentRoute: string
+  proposedRoute: string
+  result: string
+}
+
+export type PolicySimulationSample = {
+  reference: string
+  corridor: string
+  origin: string
+  destination: string
+  amount: string
+  payout: string
+  current: PolicyRouteDecision
+  proposed: PolicyRouteDecision
+  rejectedRoutes: PolicyRejectedRoute[]
+  reportMetrics: ShadowReportMetric[]
+  reportRows: ShadowReportRow[]
+}
+

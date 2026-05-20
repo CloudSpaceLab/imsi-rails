@@ -766,6 +766,260 @@ p {
   font-weight: 800;
 }
 
+.simulator-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.35fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.simulator-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 248, 235, 0.035);
+}
+
+.simulator-card h3 {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+.simulator-card:last-child {
+  grid-column: 1 / -1;
+}
+
+.simulator-card:nth-child(3) {
+  grid-column: 1 / -1;
+}
+
+.simulator-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.simulator-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  color: var(--mint);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.simulator-switch input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--mint);
+}
+
+.simulator-field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.simulator-field span,
+.sample-grid dt,
+.route-compare dt,
+.report-metrics dt {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.simulator-field select {
+  min-height: 40px;
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: #0d1016;
+  color: var(--text);
+  padding: 0 10px;
+}
+
+.sample-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.sample-grid div,
+.route-compare article,
+.report-metrics div {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(8, 9, 12, 0.32);
+}
+
+.sample-grid div {
+  padding: 10px;
+}
+
+.sample-grid dd,
+.route-compare dd,
+.report-metrics dd {
+  margin: 5px 0 0;
+  font-weight: 800;
+}
+
+.sample-grid dd,
+.route-compare strong,
+.route-compare small,
+.rejection-list strong,
+.rejection-list span,
+.report-table span,
+.report-table strong {
+  overflow-wrap: anywhere;
+}
+
+.route-compare {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.route-compare article {
+  padding: 12px;
+}
+
+.route-compare__proposed {
+  border-color: rgba(59, 228, 172, 0.45);
+  background: rgba(59, 228, 172, 0.06);
+}
+
+.route-compare__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.route-compare__head span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.route-compare strong,
+.route-compare small {
+  display: block;
+}
+
+.route-compare small {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.route-compare dl,
+.report-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 14px 0 0;
+}
+
+.route-compare dl div {
+  min-width: 0;
+}
+
+.rejection-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rejection-list li {
+  padding: 10px;
+  border-left: 3px solid var(--amber);
+  border-radius: 8px;
+  background: rgba(8, 9, 12, 0.32);
+}
+
+.rejection-list strong,
+.rejection-list span {
+  display: block;
+}
+
+.rejection-list span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.rejection-list p {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+
+.report-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  border: 1px solid rgba(83, 199, 232, 0.45);
+  border-radius: 999px;
+  color: var(--cyan);
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.report-metrics {
+  margin-bottom: 12px;
+}
+
+.report-metrics div {
+  padding: 10px;
+}
+
+.report-metrics span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.report-table {
+  display: grid;
+  gap: 6px;
+}
+
+.report-table__row {
+  display: grid;
+  grid-template-columns: 1.1fr 1.1fr 1.1fr 0.9fr;
+  gap: 10px;
+  align-items: center;
+  min-height: 42px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(8, 9, 12, 0.32);
+}
+
+.report-table__row--head {
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .provider-card {
   padding: 14px;
   border: 1px solid var(--line);
@@ -902,6 +1156,7 @@ p {
   .summary-grid,
   .content-grid,
   .provider-grid,
+  .simulator-layout,
   .config-grid,
   .filter-bar,
   .latency-summary {
@@ -909,8 +1164,28 @@ p {
   }
 
   .preset-row,
-  .impact-grid {
+  .impact-grid,
+  .sample-grid,
+  .route-compare,
+  .route-compare dl,
+  .rejection-list,
+  .report-metrics,
+  .report-table__row {
     grid-template-columns: 1fr;
+  }
+
+  .report-table__row--head {
+    display: none;
+  }
+
+  .report-table [role="cell"]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 4px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
   }
 
   .fallback-list li {
