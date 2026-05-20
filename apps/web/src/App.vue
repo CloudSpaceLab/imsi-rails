@@ -8,6 +8,7 @@ import PolicySimulatorPanel from './components/PolicySimulatorPanel.vue'
 import ProviderScorecards from './components/ProviderScorecards.vue'
 import RouteConfigurationPanel from './components/RouteConfigurationPanel.vue'
 import TransactionTimeline from './components/TransactionTimeline.vue'
+import UiButton from './components/UiButton.vue'
 import {
   changeHistory,
   corridors,
@@ -29,7 +30,7 @@ import { operationalActions } from './copy'
 </script>
 
 <template>
-  <div class="app-shell">
+  <div class="app-shell" data-bank-theme="imsi">
     <aside class="sidebar" aria-label="Product navigation">
       <a class="brand" href="/" aria-label="imsi-rails">
         <span class="brand__mark" aria-hidden="true"></span>
@@ -85,7 +86,7 @@ import { operationalActions } from './copy'
               <h2 id="corridors-title">Route board</h2>
               <p>15 min window</p>
             </div>
-            <button type="button" class="action-button">{{ operationalActions.shiftTraffic }}</button>
+            <UiButton>{{ operationalActions.shiftTraffic }}</UiButton>
           </header>
           <CorridorMatrix :rows="corridors" />
         </section>
@@ -99,8 +100,8 @@ import { operationalActions } from './copy'
             <strong>Move 25% of EU -> Nigeria account payouts off Ria.</strong>
             <p>Ria missed the 90s P95 target for 15 min. Thunes is available and has fresh FX.</p>
             <div class="button-row">
-              <button type="button" class="action-button">{{ operationalActions.previewPolicy }}</button>
-              <button type="button" class="ghost-button">{{ operationalActions.exportEvidence }}</button>
+              <UiButton>{{ operationalActions.previewPolicy }}</UiButton>
+              <UiButton variant="secondary">{{ operationalActions.exportEvidence }}</UiButton>
             </div>
           </div>
         </aside>

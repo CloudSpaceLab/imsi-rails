@@ -53,7 +53,7 @@ export const corridors = [
     p95: '4m 18s',
     cost: '0.74%',
     split: '25 / 75',
-    recommendation: 'Shift traffic',
+    recommendation: 'Shift',
   },
   {
     corridor: 'Kenya -> Nigeria',

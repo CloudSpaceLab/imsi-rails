@@ -9,12 +9,12 @@ export const healthStates = {
 } as const
 
 export const operationalActions = {
-  shiftTraffic: 'Shift traffic',
-  pauseNewTraffic: 'Pause new traffic',
-  previewPolicy: 'Test change',
-  rollbackPolicy: 'Roll back',
+  shiftTraffic: 'Shift',
+  pauseNewTraffic: 'Pause',
+  previewPolicy: 'Test',
+  rollbackPolicy: 'Rollback',
   exportEvidence: 'Export',
-  openIncident: 'Open incident',
+  openIncident: 'Open',
 } as const
 
 export const rejectionCopy = {

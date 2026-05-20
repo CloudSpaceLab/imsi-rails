@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import HealthBadge from './HealthBadge.vue'
+import UiButton from './UiButton.vue'
 import type { PolicyRouteDecision, PolicySimulationSample } from '../types'
 
 const props = defineProps<{
@@ -33,8 +34,8 @@ const runSimulation = () => {
         <p>{{ runReference }} / {{ sample.reference }}</p>
       </div>
       <div class="button-row">
-        <button type="button" class="ghost-button">Export results</button>
-        <button type="button" class="action-button" @click="runSimulation">Run test</button>
+        <UiButton variant="secondary">Export</UiButton>
+        <UiButton @click="runSimulation">Run</UiButton>
       </div>
     </header>
 

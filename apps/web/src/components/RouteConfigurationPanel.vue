@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import HealthBadge from './HealthBadge.vue'
+import UiButton from './UiButton.vue'
 import type { ChangeHistoryItem, FallbackRoute, ProviderToggle, ScoringWeight, TrafficSplitPreset } from '../types'
 
 defineProps<{
@@ -23,7 +24,7 @@ defineProps<{
         <h2 id="routing-policy-title">Routing rules</h2>
         <p>EU -> Nigeria / bank account</p>
       </div>
-      <button type="button" class="action-button">Check impact</button>
+      <UiButton>Check</UiButton>
     </header>
 
     <div class="config-grid">
@@ -52,8 +53,8 @@ defineProps<{
             </div>
             <HealthBadge :state="route.state" />
             <div class="rank-actions">
-              <button type="button" :aria-label="`Move ${route.provider} up`" :title="`Move ${route.provider} up`">^</button>
-              <button type="button" :aria-label="`Move ${route.provider} down`" :title="`Move ${route.provider} down`">v</button>
+              <UiButton variant="icon" size="sm" :aria-label="`Move ${route.provider} up`" :title="`Move ${route.provider} up`">^</UiButton>
+              <UiButton variant="icon" size="sm" :aria-label="`Move ${route.provider} down`" :title="`Move ${route.provider} down`">v</UiButton>
             </div>
           </li>
         </ol>
@@ -62,10 +63,10 @@ defineProps<{
       <section class="config-block" aria-labelledby="split-title">
         <h3 id="split-title">Traffic split</h3>
         <div class="preset-row" role="group" aria-label="Traffic split presets">
-          <button v-for="preset in presets" :key="preset.label" type="button" :class="{ 'is-selected': preset.active }">
+          <UiButton v-for="preset in presets" :key="preset.label" variant="choice" :selected="preset.active">
             <strong>{{ preset.label }}</strong>
             <span>{{ preset.split }}</span>
-          </button>
+          </UiButton>
         </div>
       </section>
 
