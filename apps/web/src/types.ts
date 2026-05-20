@@ -96,3 +96,31 @@ export type PolicySimulationSample = {
   reportRows: ShadowReportRow[]
 }
 
+export type FxCostRoute = {
+  provider: string
+  route: string
+  pair: string
+  rate: string
+  updatedAt: string
+  state: HealthState
+  fee: string
+  spread: string
+  effectiveCost: string
+  payoutTime: string
+  cheapest: boolean
+  recommended: boolean
+  note: string
+}
+
+export type FxCostBoard = {
+  corridor: string
+  pair: string
+  window: string
+  refreshedAt: string
+  cheapestProvider: string
+  recommendedProvider: string
+  rateAlert: string
+  decision: string
+  routes: FxCostRoute[]
+}
+

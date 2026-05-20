@@ -48,3 +48,4 @@ Implementation notes:
 - [Provider and corridor scorecards](docs/implementation-notes/provider-corridor-scorecards.md)
 - [Route configuration UI](docs/implementation-notes/route-configuration-ui.md)
 - [Policy simulator and shadow routing](docs/implementation-notes/policy-simulator-shadow-routing.md)
+- [FX and cost board](docs/implementation-notes/fx-cost-board.md)

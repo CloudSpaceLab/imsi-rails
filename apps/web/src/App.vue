@@ -2,6 +2,7 @@
 import CorridorMatrix from './components/CorridorMatrix.vue'
 import DataFreshness from './components/DataFreshness.vue'
 import DowntimeTimeline from './components/DowntimeTimeline.vue'
+import FxCostBoard from './components/FxCostBoard.vue'
 import HealthBadge from './components/HealthBadge.vue'
 import LatencyWaterfall from './components/LatencyWaterfall.vue'
 import PolicySimulatorPanel from './components/PolicySimulatorPanel.vue'
@@ -15,6 +16,7 @@ import {
   downtimeEvents,
   drilldownFilters,
   fallbackRoutes,
+  fxCostBoard,
   latencySteps,
   latencySummary,
   policySimulationSamples,
@@ -116,6 +118,8 @@ import { operationalActions } from './copy'
         />
 
         <PolicySimulatorPanel :samples="policySimulationSamples" />
+
+        <FxCostBoard :board="fxCostBoard" />
 
         <LatencyWaterfall :filters="drilldownFilters" :summary="latencySummary" :steps="latencySteps" />
 

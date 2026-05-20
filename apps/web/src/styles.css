@@ -1061,6 +1061,116 @@ p {
   text-transform: uppercase;
 }
 
+.fx-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.6fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.fx-decision,
+.fx-alert,
+.fx-table {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 248, 235, 0.035);
+}
+
+.fx-decision {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px;
+}
+
+.fx-decision div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(8, 9, 12, 0.32);
+}
+
+.fx-decision span,
+.fx-table small,
+.fx-table__row--head span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.fx-decision strong,
+.fx-table strong {
+  display: block;
+}
+
+.fx-decision p {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.fx-alert {
+  padding: 14px;
+  border-color: rgba(255, 107, 95, 0.32);
+}
+
+.fx-alert strong {
+  display: block;
+  margin-top: 12px;
+}
+
+.fx-alert p {
+  margin: 8px 0 0;
+}
+
+.fx-table {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+}
+
+.fx-table__row {
+  display: grid;
+  grid-template-columns: 1.2fr 0.9fr 0.8fr 0.6fr 0.6fr 0.6fr 0.7fr 1fr;
+  gap: 10px;
+  align-items: center;
+  min-height: 58px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(8, 9, 12, 0.32);
+}
+
+.fx-table__row--head {
+  min-height: 0;
+  border: 0;
+  background: transparent;
+}
+
+.fx-table span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.fx-table small {
+  display: block;
+  margin-top: 4px;
+}
+
+.fx-table__call {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.fx-table__call > strong {
+  color: var(--mint);
+}
+
 .provider-card {
   padding: 14px;
   border: 1px solid var(--line);
@@ -1198,6 +1308,7 @@ p {
   .content-grid,
   .provider-grid,
   .simulator-layout,
+  .fx-layout,
   .config-grid,
   .filter-bar,
   .latency-summary {
@@ -1211,15 +1322,19 @@ p {
   .route-compare dl,
   .rejection-list,
   .report-metrics,
-  .report-table__row {
+  .report-table__row,
+  .fx-decision,
+  .fx-table__row {
     grid-template-columns: 1fr;
   }
 
-  .report-table__row--head {
+  .report-table__row--head,
+  .fx-table__row--head {
     display: none;
   }
 
-  .report-table [role="cell"]::before {
+  .report-table [role="cell"]::before,
+  .fx-table [role="cell"]::before {
     content: attr(data-label);
     display: block;
     margin-bottom: 4px;
@@ -1227,6 +1342,11 @@ p {
     font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;
+  }
+
+  .fx-decision p,
+  .fx-table {
+    grid-column: auto;
   }
 
   .fallback-list li {
