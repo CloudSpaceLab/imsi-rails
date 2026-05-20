@@ -6,6 +6,8 @@ Created in GitHub on 2026-05-19 for `CloudSpaceLab/imsi-rails` as issues #1-#22 
 
 Updated on 2026-05-19 with design-language implementation issues #23-#24.
 
+Updated on 2026-05-20 with UI/UX revamp epic #37 and child issues #38-#51 across milestone `M1.5: UI/UX Revamp`.
+
 ## Milestones
 
 ### M0: Foundation and Landing Page
@@ -28,6 +30,17 @@ Goal:
 Exit:
 
 - sandbox transaction can be routed and inspected in UI
+
+### M1.5: UI/UX Revamp
+
+Goal:
+
+- rebuild the product UI from a static light admin prototype into a premium dark-first bank operations control room
+
+Exit:
+
+- primary screens are workflow-based, audit-safe, responsive, keyboard reachable, and screenshot-verified
+- issue #37 tracks the epic and issues #38-#51 track the implementation slices
 
 ### M2: Reliability Intelligence
 
@@ -70,6 +83,29 @@ Exit:
 - security, performance, deployment, and operating runbooks are ready
 
 ## Issues
+
+### 37. UI/UX revamp epic: rebuild bank-grade control room experience
+
+Milestone: M1.5: UI/UX Revamp
+
+Labels: `frontend`, `ui`, `design`, `P0`
+
+Child issues:
+
+- #38 UXR-01 Frontend ADR and UX architecture freeze
+- #39 UXR-02 Dark-first product design tokens
+- #40 UXR-03 Core UI primitive rebuild
+- #41 UXR-04 App shell and route-based navigation
+- #42 UXR-05 Control Room redesign
+- #43 UXR-06 Corridor matrix and provider ranking redesign
+- #44 UXR-07 Safe route configuration workflow
+- #45 UXR-08 Policy simulator and shadow report redesign
+- #46 UXR-09 FX and cost board redesign
+- #47 UXR-10 Latency and downtime diagnostics redesign
+- #48 UXR-11 Transaction trace and audit drawer redesign
+- #49 UXR-12 Incident detail and evidence export UX
+- #50 UXR-13 UI data contracts and scenario fixtures
+- #51 UXR-14 Accessibility, visual regression, and performance QA
 
 ### 1. Create architecture ADRs and performance budgets
 

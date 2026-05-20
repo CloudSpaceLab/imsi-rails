@@ -2,12 +2,13 @@
 defineProps<{
   updated: string
   stale?: boolean
+  mode?: string
 }>()
 </script>
 
 <template>
   <span class="freshness" :class="{ 'freshness--stale': stale }">
     <span aria-hidden="true"></span>
-    {{ stale ? 'Stale data' : 'Live' }} - {{ updated }}
+    {{ stale ? 'Stale data' : 'Updated' }} - {{ updated }}<small v-if="mode">{{ mode }}</small>
   </span>
 </template>
