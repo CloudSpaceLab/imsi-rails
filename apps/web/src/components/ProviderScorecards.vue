@@ -21,8 +21,8 @@ defineProps<{
   <section class="panel" aria-labelledby="provider-scorecards-title">
     <header class="panel__header">
       <div>
-        <h2 id="provider-scorecards-title">Provider Scorecards</h2>
-        <p>Objective corridor performance</p>
+        <h2 id="provider-scorecards-title">Provider performance</h2>
+        <p>15 min provider view</p>
       </div>
       <label class="window-select">
         <span>Window</span>

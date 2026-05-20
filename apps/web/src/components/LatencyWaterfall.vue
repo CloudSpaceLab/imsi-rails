@@ -33,7 +33,7 @@ const badgeState = (state: HealthState) => state
   <section class="panel panel--wide" id="latency" aria-labelledby="latency-title">
     <header class="panel__header">
       <div>
-        <h2 id="latency-title">Latency Waterfall</h2>
+        <h2 id="latency-title">Where time is going</h2>
         <p>{{ filters.provider }} / {{ filters.corridor }} / {{ filters.destinationBank }} / {{ filters.window }}</p>
       </div>
       <HealthBadge state="degraded" window="15 min" />
@@ -76,7 +76,7 @@ const badgeState = (state: HealthState) => state
 
     <div class="latency-summary" aria-label="Latency summary">
       <div>
-        <span>End-to-end</span>
+        <span>Total</span>
         <strong>{{ summary.endToEnd }}</strong>
       </div>
       <div>
@@ -88,7 +88,7 @@ const badgeState = (state: HealthState) => state
         <strong>{{ summary.slowestStep }}</strong>
       </div>
       <div>
-        <span>Affected</span>
+        <span>Txns affected</span>
         <strong>{{ summary.affectedTransactions }}</strong>
       </div>
     </div>

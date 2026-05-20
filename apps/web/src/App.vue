@@ -36,12 +36,12 @@ import { operationalActions } from './copy'
         <span>imsi-rails</span>
       </a>
       <nav>
-        <a class="is-active" href="#control-room">Control Room</a>
+        <a class="is-active" href="#control-room">Live view</a>
         <a href="#corridors">Corridors</a>
         <a href="#transactions">Transactions</a>
-        <a href="#routing-policy">Routing Policy</a>
-        <a href="#policy-simulator">Simulator</a>
-        <a href="#fx-costs">FX & Costs</a>
+        <a href="#routing-policy">Rules</a>
+        <a href="#policy-simulator">Test</a>
+        <a href="#fx-costs">FX/Cost</a>
         <a href="#audit">Audit</a>
       </nav>
     </aside>
@@ -49,15 +49,15 @@ import { operationalActions } from './copy'
     <main class="workspace" id="control-room">
       <header class="topbar">
         <div>
-          <p class="eyebrow">International Transfer Reliability</p>
-          <h1>Control Room</h1>
+          <p class="eyebrow">Live routing</p>
+          <h1>Operations</h1>
         </div>
         <DataFreshness :updated="summary.lastUpdated" />
       </header>
 
       <section class="summary-grid" aria-label="Operational summary">
         <article class="summary-card summary-card--primary">
-          <span>Global health</span>
+          <span>Routes healthy</span>
           <strong>{{ summary.globalHealth }}</strong>
           <HealthBadge state="healthy" window="15 min" :updated="summary.lastUpdated" />
         </article>
@@ -67,7 +67,7 @@ import { operationalActions } from './copy'
           <small>{{ summary.transactionsToday }} transactions</small>
         </article>
         <article class="summary-card">
-          <span>P95 time-to-credit</span>
+          <span>P95 credit time</span>
           <strong>{{ summary.p95CreditTime }}</strong>
           <small>account payouts</small>
         </article>
@@ -82,7 +82,7 @@ import { operationalActions } from './copy'
         <section class="panel panel--wide" id="corridors" aria-labelledby="corridors-title">
           <header class="panel__header">
             <div>
-              <h2 id="corridors-title">Corridor Matrix</h2>
+              <h2 id="corridors-title">Route board</h2>
               <p>15 min window</p>
             </div>
             <button type="button" class="action-button">{{ operationalActions.shiftTraffic }}</button>
@@ -92,12 +92,12 @@ import { operationalActions } from './copy'
 
         <aside class="panel recommendation-panel" aria-labelledby="recommendation-title">
           <header class="panel__header">
-            <h2 id="recommendation-title">Recommended Action</h2>
+            <h2 id="recommendation-title">Action needed</h2>
             <HealthBadge state="degraded" window="15 min" />
           </header>
           <div class="recommendation">
-            <strong>Shift 25% EU -> Nigeria account traffic away from Ria.</strong>
-            <p>P95 time-to-credit breached policy for 15 minutes. Thunes is the next eligible route with higher reliability and fresh FX.</p>
+            <strong>Move 25% of EU -> Nigeria account payouts off Ria.</strong>
+            <p>Ria missed the 90s P95 target for 15 min. Thunes is available and has fresh FX.</p>
             <div class="button-row">
               <button type="button" class="action-button">{{ operationalActions.previewPolicy }}</button>
               <button type="button" class="ghost-button">{{ operationalActions.exportEvidence }}</button>
@@ -125,7 +125,7 @@ import { operationalActions } from './copy'
         <section class="panel" id="transactions" aria-labelledby="trace-title">
           <header class="panel__header">
             <div>
-              <h2 id="trace-title">Transaction Trace</h2>
+              <h2 id="trace-title">Transaction trail</h2>
               <p>IMSI-txn_000000000001</p>
             </div>
             <HealthBadge state="watch" window="current" />

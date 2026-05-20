@@ -12,7 +12,7 @@ const runCount = ref(1)
 const shadowOnly = ref(true)
 
 const sample = computed(() => props.samples[selectedIndex.value] ?? props.samples[0])
-const runReference = computed(() => `shadow-run-${String(runCount.value).padStart(3, '0')}`)
+const runReference = computed(() => `test-${String(runCount.value).padStart(3, '0')}`)
 
 const decisionFields = (decision: PolicyRouteDecision) => [
   { label: 'Score', value: String(decision.score) },
@@ -29,27 +29,27 @@ const runSimulation = () => {
   <section class="panel panel--full" id="policy-simulator" aria-labelledby="policy-simulator-title">
     <header class="panel__header">
       <div>
-        <h2 id="policy-simulator-title">Policy Simulator</h2>
+        <h2 id="policy-simulator-title">Test a route change</h2>
         <p>{{ runReference }} / {{ sample.reference }}</p>
       </div>
       <div class="button-row">
-        <button type="button" class="ghost-button">Export shadow report</button>
-        <button type="button" class="action-button" @click="runSimulation">Run simulation</button>
+        <button type="button" class="ghost-button">Export results</button>
+        <button type="button" class="action-button" @click="runSimulation">Run test</button>
       </div>
     </header>
 
     <div class="simulator-layout">
       <section class="simulator-card simulator-card--sample" aria-labelledby="sample-title">
         <div class="simulator-card__top">
-          <h3 id="sample-title">Sample Transaction</h3>
+          <h3 id="sample-title">Test transaction</h3>
           <label class="simulator-switch">
             <input v-model="shadowOnly" type="checkbox" />
-            <span>{{ shadowOnly ? 'Shadow only' : 'Production armed' }}</span>
+            <span>{{ shadowOnly ? 'Test only' : 'Can affect live' }}</span>
           </label>
         </div>
 
         <label class="simulator-field">
-          <span>Reference</span>
+          <span>Transaction</span>
           <select v-model.number="selectedIndex" aria-label="Sample transaction">
             <option v-for="(item, index) in samples" :key="item.reference" :value="index">
               {{ item.reference }}
@@ -79,18 +79,18 @@ const runSimulation = () => {
             <dd>{{ sample.payout }}</dd>
           </div>
           <div>
-            <dt>Production</dt>
-            <dd>{{ shadowOnly ? 'Unchanged' : 'Pending approval' }}</dd>
+            <dt>Live traffic</dt>
+            <dd>{{ shadowOnly ? 'No change' : 'Approval needed' }}</dd>
           </div>
         </dl>
       </section>
 
       <section class="simulator-card simulator-card--compare" aria-labelledby="compare-title">
-        <h3 id="compare-title">Route Comparison</h3>
+        <h3 id="compare-title">Route result</h3>
         <div class="route-compare">
           <article>
             <div class="route-compare__head">
-              <span>Current</span>
+              <span>Live route</span>
               <HealthBadge :state="sample.current.state" />
             </div>
             <strong>{{ sample.current.route }}</strong>
@@ -105,7 +105,7 @@ const runSimulation = () => {
 
           <article class="route-compare__proposed">
             <div class="route-compare__head">
-              <span>Proposed</span>
+              <span>Test route</span>
               <HealthBadge :state="sample.proposed.state" />
             </div>
             <strong>{{ sample.proposed.route }}</strong>
@@ -121,7 +121,7 @@ const runSimulation = () => {
       </section>
 
       <section class="simulator-card" aria-labelledby="reject-title">
-        <h3 id="reject-title">Rejected Routes</h3>
+        <h3 id="reject-title">Why other routes lost</h3>
         <ol class="rejection-list">
           <li v-for="route in sample.rejectedRoutes" :key="`${sample.reference}-${route.provider}`">
             <strong>{{ route.provider }}</strong>
@@ -133,8 +133,8 @@ const runSimulation = () => {
 
       <section class="simulator-card" aria-labelledby="report-title">
         <div class="simulator-card__top">
-          <h3 id="report-title">Shadow Report</h3>
-          <span class="report-state">Reportable</span>
+          <h3 id="report-title">Test results</h3>
+          <span class="report-state">Ready to export</span>
         </div>
 
         <dl class="report-metrics">
@@ -145,18 +145,18 @@ const runSimulation = () => {
           </div>
         </dl>
 
-        <div class="report-table" role="table" aria-label="Shadow routing results">
+        <div class="report-table" role="table" aria-label="Test route results">
           <div class="report-table__row report-table__row--head" role="row">
-            <span role="columnheader">Bucket</span>
-            <span role="columnheader">Current</span>
-            <span role="columnheader">Proposed</span>
-            <span role="columnheader">Result</span>
+            <span role="columnheader">Case</span>
+            <span role="columnheader">Live</span>
+            <span role="columnheader">Test</span>
+            <span role="columnheader">Outcome</span>
           </div>
           <div v-for="row in sample.reportRows" :key="`${sample.reference}-${row.bucket}`" class="report-table__row" role="row">
-            <span role="cell" data-label="Bucket">{{ row.bucket }}</span>
-            <span role="cell" data-label="Current">{{ row.currentRoute }}</span>
-            <span role="cell" data-label="Proposed">{{ row.proposedRoute }}</span>
-            <strong role="cell" data-label="Result">{{ row.result }}</strong>
+            <span role="cell" data-label="Case">{{ row.bucket }}</span>
+            <span role="cell" data-label="Live">{{ row.currentRoute }}</span>
+            <span role="cell" data-label="Test">{{ row.proposedRoute }}</span>
+            <strong role="cell" data-label="Outcome">{{ row.result }}</strong>
           </div>
         </div>
       </section>
