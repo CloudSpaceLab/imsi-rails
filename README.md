@@ -47,3 +47,4 @@ Implementation notes:
 - [Latency and downtime drilldowns](docs/implementation-notes/latency-downtime-drilldowns.md)
 - [Provider and corridor scorecards](docs/implementation-notes/provider-corridor-scorecards.md)
 - [Route configuration UI](docs/implementation-notes/route-configuration-ui.md)
+- [Policy simulator and shadow routing](docs/implementation-notes/policy-simulator-shadow-routing.md)

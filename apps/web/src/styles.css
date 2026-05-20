@@ -1,5 +1,7 @@
 :root {
   color-scheme: dark;
+  --font-ui: Inter, Aptos, "Segoe UI Variable", "Segoe UI", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, ui-monospace, monospace;
   --ink: #08090c;
   --surface: #10131a;
   --surface-strong: #171b24;
@@ -7,11 +9,22 @@
   --line-strong: #3b414e;
   --text: #f7f2e8;
   --muted: #a8a79f;
-  --mint: #3be4ac;
-  --amber: #f1b84b;
-  --coral: #ff6b5f;
-  --cyan: #53c7e8;
-  --violet: #a98bff;
+  /* Bank tenants can override these tokens without touching component CSS. */
+  --bank-primary: #3be4ac;
+  --bank-primary-text: #06100c;
+  --bank-primary-soft: rgba(59, 228, 172, 0.08);
+  --bank-primary-border: rgba(59, 228, 172, 0.55);
+  --bank-accent: #53c7e8;
+  --bank-accent-soft: rgba(83, 199, 232, 0.12);
+  --bank-accent-border: rgba(83, 199, 232, 0.45);
+  --bank-warning: #f1b84b;
+  --bank-danger: #ff6b5f;
+  --bank-recovery: #a98bff;
+  --mint: var(--bank-primary);
+  --amber: var(--bank-warning);
+  --coral: var(--bank-danger);
+  --cyan: var(--bank-accent);
+  --violet: var(--bank-recovery);
 }
 
 * {
@@ -22,7 +35,8 @@ body {
   margin: 0;
   background: var(--ink);
   color: var(--text);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-ui);
+  font-feature-settings: "tnum";
   letter-spacing: 0;
 }
 
@@ -41,6 +55,16 @@ a {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
+}
+
+.app-shell[data-bank-theme="imsi"] {
+  --bank-primary: #3be4ac;
+  --bank-primary-text: #06100c;
+  --bank-primary-soft: rgba(59, 228, 172, 0.08);
+  --bank-primary-border: rgba(59, 228, 172, 0.55);
+  --bank-accent: #53c7e8;
+  --bank-accent-soft: rgba(83, 199, 232, 0.12);
+  --bank-accent-border: rgba(83, 199, 232, 0.45);
 }
 
 .sidebar {
@@ -142,12 +166,14 @@ p {
 h1 {
   margin-bottom: 0;
   font-size: 34px;
+  font-weight: 820;
   line-height: 1.05;
 }
 
 h2 {
   margin-bottom: 0;
   font-size: 16px;
+  font-weight: 780;
 }
 
 p {
@@ -185,6 +211,7 @@ p {
   display: block;
   margin: 10px 0;
   font-size: 28px;
+  font-variant-numeric: tabular-nums;
 }
 
 .summary-card--primary strong {
@@ -219,36 +246,76 @@ p {
   font-size: 13px;
 }
 
-.action-button,
-.ghost-button,
-.text-action {
+.ui-button {
   min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   border-radius: 8px;
   cursor: pointer;
-}
-
-.action-button {
-  border: 1px solid var(--mint);
-  background: var(--mint);
-  color: #06100c;
-  padding: 0 14px;
-  font-weight: 800;
+  font-weight: 780;
+  line-height: 1;
   white-space: nowrap;
 }
 
-.ghost-button {
+.ui-button:focus-visible {
+  outline: 2px solid var(--bank-accent);
+  outline-offset: 2px;
+}
+
+.ui-button--primary {
+  border: 1px solid var(--mint);
+  background: var(--mint);
+  color: var(--bank-primary-text);
+  padding: 0 14px;
+}
+
+.ui-button--secondary {
   border: 1px solid var(--line-strong);
   background: transparent;
   color: var(--text);
   padding: 0 14px;
 }
 
-.text-action {
+.ui-button--plain {
+  min-height: 28px;
   border: 0;
   background: transparent;
   color: var(--mint);
-  font-weight: 800;
   padding: 0;
+}
+
+.ui-button--icon {
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--text);
+  padding: 0;
+}
+
+.ui-button--choice {
+  min-height: 62px;
+  flex-direction: column;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  white-space: normal;
+  padding: 10px;
+}
+
+.ui-button--choice.is-selected {
+  border-color: var(--bank-primary-border);
+  background: var(--bank-primary-soft);
+}
+
+.ui-button--sm {
+  min-height: 28px;
+  font-size: 13px;
 }
 
 .health-badge,
@@ -303,15 +370,15 @@ p {
 
 .freshness {
   padding: 0 10px;
-  border: 1px solid rgba(59, 228, 172, 0.28);
-  background: rgba(59, 228, 172, 0.07);
+  border: 1px solid var(--bank-primary-border);
+  background: var(--bank-primary-soft);
   font-size: 12px;
   font-weight: 800;
 }
 
 .route-score {
   padding: 0 9px;
-  background: rgba(83, 199, 232, 0.12);
+  background: var(--bank-accent-soft);
   color: var(--cyan);
 }
 
@@ -643,7 +710,7 @@ p {
   width: 24px;
   height: 24px;
   border-radius: 8px;
-  background: rgba(83, 199, 232, 0.12);
+  background: var(--bank-accent-soft);
   color: var(--cyan);
   font-size: 12px;
   font-weight: 800;
@@ -654,36 +721,10 @@ p {
   gap: 4px;
 }
 
-.rank-actions button {
-  width: 26px;
-  height: 26px;
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text);
-  cursor: pointer;
-}
-
 .preset-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-}
-
-.preset-row button {
-  min-height: 62px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text);
-  cursor: pointer;
-  text-align: left;
-  padding: 10px;
-}
-
-.preset-row button.is-selected {
-  border-color: rgba(59, 228, 172, 0.7);
-  background: rgba(59, 228, 172, 0.08);
 }
 
 .preset-row strong,
@@ -764,6 +805,260 @@ p {
   color: var(--muted);
   font-size: 12px;
   font-weight: 800;
+}
+
+.simulator-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.35fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.simulator-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 248, 235, 0.035);
+}
+
+.simulator-card h3 {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+.simulator-card:last-child {
+  grid-column: 1 / -1;
+}
+
+.simulator-card:nth-child(3) {
+  grid-column: 1 / -1;
+}
+
+.simulator-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.simulator-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  color: var(--mint);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.simulator-switch input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--mint);
+}
+
+.simulator-field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.simulator-field span,
+.sample-grid dt,
+.route-compare dt,
+.report-metrics dt {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.simulator-field select {
+  min-height: 40px;
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: #0d1016;
+  color: var(--text);
+  padding: 0 10px;
+}
+
+.sample-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.sample-grid div,
+.route-compare article,
+.report-metrics div {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(8, 9, 12, 0.32);
+}
+
+.sample-grid div {
+  padding: 10px;
+}
+
+.sample-grid dd,
+.route-compare dd,
+.report-metrics dd {
+  margin: 5px 0 0;
+  font-weight: 800;
+}
+
+.sample-grid dd,
+.route-compare strong,
+.route-compare small,
+.rejection-list strong,
+.rejection-list span,
+.report-table span,
+.report-table strong {
+  overflow-wrap: anywhere;
+}
+
+.route-compare {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.route-compare article {
+  padding: 12px;
+}
+
+.route-compare__proposed {
+  border-color: var(--bank-primary-border);
+  background: var(--bank-primary-soft);
+}
+
+.route-compare__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.route-compare__head span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.route-compare strong,
+.route-compare small {
+  display: block;
+}
+
+.route-compare small {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.route-compare dl,
+.report-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 14px 0 0;
+}
+
+.route-compare dl div {
+  min-width: 0;
+}
+
+.rejection-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rejection-list li {
+  padding: 10px;
+  border-left: 3px solid var(--amber);
+  border-radius: 8px;
+  background: rgba(8, 9, 12, 0.32);
+}
+
+.rejection-list strong,
+.rejection-list span {
+  display: block;
+}
+
+.rejection-list span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.rejection-list p {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+
+.report-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  border: 1px solid var(--bank-accent-border);
+  border-radius: 999px;
+  color: var(--cyan);
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.report-metrics {
+  margin-bottom: 12px;
+}
+
+.report-metrics div {
+  padding: 10px;
+}
+
+.report-metrics span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.report-table {
+  display: grid;
+  gap: 6px;
+}
+
+.report-table__row {
+  display: grid;
+  grid-template-columns: 1.1fr 1.1fr 1.1fr 0.9fr;
+  gap: 10px;
+  align-items: center;
+  min-height: 42px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(8, 9, 12, 0.32);
+}
+
+.report-table__row--head {
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .provider-card {
@@ -902,6 +1197,7 @@ p {
   .summary-grid,
   .content-grid,
   .provider-grid,
+  .simulator-layout,
   .config-grid,
   .filter-bar,
   .latency-summary {
@@ -909,8 +1205,28 @@ p {
   }
 
   .preset-row,
-  .impact-grid {
+  .impact-grid,
+  .sample-grid,
+  .route-compare,
+  .route-compare dl,
+  .rejection-list,
+  .report-metrics,
+  .report-table__row {
     grid-template-columns: 1fr;
+  }
+
+  .report-table__row--head {
+    display: none;
+  }
+
+  .report-table [role="cell"]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 4px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
   }
 
   .fallback-list li {

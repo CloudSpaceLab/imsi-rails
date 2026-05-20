@@ -11,7 +11,7 @@ defineProps<{
   <section class="panel" id="downtime" aria-labelledby="downtime-title">
     <header class="panel__header">
       <div>
-        <h2 id="downtime-title">Downtime Timeline</h2>
+        <h2 id="downtime-title">Incident log</h2>
         <p>Ria / EU -> Nigeria</p>
       </div>
       <HealthBadge state="watch" window="live" />

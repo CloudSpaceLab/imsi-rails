@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import HealthBadge from './HealthBadge.vue'
 import RouteScoreChip from './RouteScoreChip.vue'
+import UiButton from './UiButton.vue'
 import type { HealthState } from '../types'
 
 defineProps<{
@@ -43,7 +44,7 @@ defineProps<{
       <span role="cell" data-label="Cost">{{ row.cost }}</span>
       <span role="cell" data-label="Split">{{ row.split }}</span>
       <span role="cell" data-label="Action">
-        <button type="button" class="text-action">{{ row.recommendation }}</button>
+        <UiButton variant="plain" size="sm">{{ row.recommendation }}</UiButton>
       </span>
     </div>
   </div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import HealthBadge from './HealthBadge.vue'
+import UiButton from './UiButton.vue'
 import type { ChangeHistoryItem, FallbackRoute, ProviderToggle, ScoringWeight, TrafficSplitPreset } from '../types'
 
 defineProps<{
@@ -20,15 +21,15 @@ defineProps<{
   <section class="panel panel--full" id="routing-policy" aria-labelledby="routing-policy-title">
     <header class="panel__header">
       <div>
-        <h2 id="routing-policy-title">Route Configuration</h2>
+        <h2 id="routing-policy-title">Routing rules</h2>
         <p>EU -> Nigeria / bank account</p>
       </div>
-      <button type="button" class="action-button">Preview impact</button>
+      <UiButton>Check</UiButton>
     </header>
 
     <div class="config-grid">
       <section class="config-block" aria-labelledby="provider-toggles-title">
-        <h3 id="provider-toggles-title">Providers</h3>
+        <h3 id="provider-toggles-title">Provider status</h3>
         <div class="toggle-list">
           <label v-for="provider in providers" :key="provider.provider" class="toggle-row">
             <input type="checkbox" :checked="provider.enabled" />
@@ -42,7 +43,7 @@ defineProps<{
       </section>
 
       <section class="config-block" aria-labelledby="fallback-title">
-        <h3 id="fallback-title">Fallback Order</h3>
+        <h3 id="fallback-title">Fallback order</h3>
         <ol class="fallback-list">
           <li v-for="route in fallbackRoutes" :key="route.provider">
             <span class="rank">{{ route.rank }}</span>
@@ -52,25 +53,25 @@ defineProps<{
             </div>
             <HealthBadge :state="route.state" />
             <div class="rank-actions">
-              <button type="button" :aria-label="`Move ${route.provider} up`" :title="`Move ${route.provider} up`">^</button>
-              <button type="button" :aria-label="`Move ${route.provider} down`" :title="`Move ${route.provider} down`">v</button>
+              <UiButton variant="icon" size="sm" :aria-label="`Move ${route.provider} up`" :title="`Move ${route.provider} up`">^</UiButton>
+              <UiButton variant="icon" size="sm" :aria-label="`Move ${route.provider} down`" :title="`Move ${route.provider} down`">v</UiButton>
             </div>
           </li>
         </ol>
       </section>
 
       <section class="config-block" aria-labelledby="split-title">
-        <h3 id="split-title">Traffic Split</h3>
+        <h3 id="split-title">Traffic split</h3>
         <div class="preset-row" role="group" aria-label="Traffic split presets">
-          <button v-for="preset in presets" :key="preset.label" type="button" :class="{ 'is-selected': preset.active }">
+          <UiButton v-for="preset in presets" :key="preset.label" variant="choice" :selected="preset.active">
             <strong>{{ preset.label }}</strong>
             <span>{{ preset.split }}</span>
-          </button>
+          </UiButton>
         </div>
       </section>
 
       <section class="config-block" aria-labelledby="weights-title">
-        <h3 id="weights-title">Scoring Weights</h3>
+        <h3 id="weights-title">Route weights</h3>
         <div class="weight-list">
           <label v-for="weight in weights" :key="weight.label">
             <span>{{ weight.label }}</span>
@@ -81,7 +82,7 @@ defineProps<{
       </section>
 
       <section class="config-block" aria-labelledby="impact-title">
-        <h3 id="impact-title">Preview Impact</h3>
+        <h3 id="impact-title">Impact check</h3>
         <dl class="impact-grid">
           <div>
             <dt>Success</dt>
@@ -97,13 +98,13 @@ defineProps<{
           </div>
         </dl>
         <label class="reason-field">
-          <span>Change reason</span>
-          <textarea required rows="3">Ria timeout rate breached policy threshold for 15 minutes.</textarea>
+          <span>Reason</span>
+          <textarea required rows="3">Ria missed the 90s P95 target for 15 minutes.</textarea>
         </label>
       </section>
 
       <section class="config-block" aria-labelledby="history-title">
-        <h3 id="history-title">Change History</h3>
+        <h3 id="history-title">Recent changes</h3>
         <ol class="history-list">
           <li v-for="item in history" :key="`${item.time}-${item.summary}`">
             <time>{{ item.time }}</time>
