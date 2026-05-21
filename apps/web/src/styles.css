@@ -1240,6 +1240,18 @@ table {
   overflow-wrap: anywhere;
 }
 
+.compact-table .country-pair {
+  flex-wrap: wrap;
+}
+
+.compact-table .country-pair span {
+  min-width: 0;
+}
+
+.compact-table .country-pair strong {
+  overflow-wrap: anywhere;
+}
+
 .fx-cost-table {
   min-width: 0;
 }
