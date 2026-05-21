@@ -3,7 +3,6 @@ name: Deploy IMSI dashboard
 on:
   push:
     branches:
-      - main
       - demo
     paths:
       - 'apps/web/**'
