@@ -1231,11 +1231,13 @@ table {
 
 .compact-table {
   min-width: 0;
+  table-layout: fixed;
 }
 
 .compact-table th,
 .compact-table td {
   white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .fx-cost-table {
