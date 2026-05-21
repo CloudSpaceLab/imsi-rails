@@ -237,21 +237,69 @@ const severityRank: Record<HealthState, number> = {
 
 const selectedScreen = computed(() => navigation.find((item) => item.id === activeScreen.value) ?? navigation[0])
 const isPolicyCreateFlow = computed(() => activeScreen.value === 'policy' && route.path === '/policy/new')
-const currentPageTitle = computed(() => (isPolicyCreateFlow.value ? 'New policy' : selectedScreen.value.label))
+const isRouteDetailFlow = computed(() => activeScreen.value === 'corridors' && typeof route.params.routeId === 'string')
+const routeDetailId = computed(() => (typeof route.params.routeId === 'string' ? route.params.routeId : ''))
+const currentPageTitle = computed(() => {
+  if (isPolicyCreateFlow.value) return 'New policy'
+  if (isRouteDetailFlow.value) return 'Route detail'
+  return selectedScreen.value.label
+})
 const currentPageDescription = computed(() =>
   isPolicyCreateFlow.value
     ? 'Define corridor, payout method, primary rail, fallback order, and amount band.'
-    : screenDescriptions[selectedScreen.value.id],
+    : isRouteDetailFlow.value && selectedRouteDetail.value
+      ? `${friendlyCorridorLabel(selectedRouteDetail.value.corridor.corridor)} / ${selectedRouteDetail.value.corridor.selectedRoute}`
+      : screenDescriptions[selectedScreen.value.id],
 )
 const breadcrumbs = computed(() => {
   const crumbs: Array<{ label: string; path?: string }> = [{ label: bankWorkspaceName, path: '/' }]
   crumbs.push({ label: selectedScreen.value.label, path: routeForScreen(selectedScreen.value.id).path })
+  if (isRouteDetailFlow.value) crumbs.push({ label: selectedRouteDetail.value ? friendlyCorridorLabel(selectedRouteDetail.value.corridor.corridor) : 'Route detail' })
   if (isPolicyCreateFlow.value) crumbs.push({ label: 'New policy' })
   return crumbs
 })
 const activeIncident = computed(() => dashboard.incidents[0] ?? null)
 const sortedCorridors = computed(() => [...dashboard.corridors].sort((a, b) => severityRank[a.state] - severityRank[b.state]))
 const sortedProviders = computed(() => [...dashboard.providerScores].sort((a, b) => a.rank - b.rank))
+const routeDetailRows = computed(() =>
+  sortedCorridors.value.map((corridor) => ({
+    id: routeDetailIdFor(corridor),
+    corridor,
+    provider: routeProvider(corridor.selectedRoute),
+    rail: routeRail(corridor.selectedRoute),
+  })),
+)
+const selectedRouteDetail = computed(() => routeDetailRows.value.find((item) => item.id === routeDetailId.value) ?? null)
+const selectedRouteProviderScore = computed(() => {
+  const detail = selectedRouteDetail.value
+  if (!detail) return null
+  return sortedProviders.value.find((provider) => provider.provider.toLowerCase() === detail.provider.toLowerCase()) ?? null
+})
+const selectedRouteFx = computed(() => {
+  const detail = selectedRouteDetail.value
+  if (!detail) return null
+  return dashboard.fxCostBoard.routes.find((route) => route.provider.toLowerCase() === detail.provider.toLowerCase()) ?? null
+})
+const selectedRouteIncidents = computed(() => {
+  const detail = selectedRouteDetail.value
+  if (!detail) return []
+  const corridorKey = normalizeCorridorValue(detail.corridor.corridor)
+  return dashboard.incidents.filter((incident) => normalizeCorridorValue(incident.corridor) === corridorKey)
+})
+const selectedRouteTransactions = computed(() => {
+  const detail = selectedRouteDetail.value
+  if (!detail) return []
+  const provider = detail.provider.toLowerCase()
+  const destination = getCountryIdentity(corridorParts(detail.corridor.corridor).destination).code
+  const origin = getCountryIdentity(corridorParts(detail.corridor.corridor).origin).code
+  return dashboard.transactions.filter((transaction) => {
+    const transactionProvider = routeProvider(transaction.route).toLowerCase()
+    const transactionDestination = getCountryIdentity(transaction.destinationCountry).code
+    const transactionOrigin = getCountryIdentity(transaction.senderCountry).code
+    const originMatches = origin === 'EU' ? ['DE', 'FR', 'ES', 'IT', 'NL', 'EU'].includes(transactionOrigin) : transactionOrigin === origin
+    return transactionProvider === provider && transactionDestination === destination && originMatches
+  })
+})
 const weakestProvider = computed(() => sortedProviders.value[sortedProviders.value.length - 1])
 const primaryIncidentCorridor = computed(() => activeIncident.value?.corridor ?? sortedCorridors.value[0]?.corridor ?? 'European Union -> Nigeria')
 const primaryIncidentRoute = computed(() => sortedCorridors.value.find((corridor) => corridor.corridor === primaryIncidentCorridor.value) ?? sortedCorridors.value[0])
@@ -629,6 +677,10 @@ const openPolicyCreateFlow = () => {
   void router.push({ path: '/policy/new', query: globalDashboardQuery() })
 }
 
+const openRouteDetail = (corridor: { corridor: string; selectedRoute: string }) => {
+  void router.push({ path: `/routes/${routeDetailIdFor(corridor)}`, query: globalDashboardQuery() })
+}
+
 const syncDashboardQuery = () => {
   void router.replace({
     path: route.path,
@@ -717,6 +769,11 @@ const openDrilldown = (drilldown: string) => {
 
 const selectTransaction = (transaction: TransactionRecord) => {
   selectedTransactionReference.value = transaction.reference
+}
+
+const openRouteTransaction = (transaction: TransactionRecord, corridor: string) => {
+  selectTransaction(transaction)
+  activate('transactions', { corridor: normalizeCorridorValue(corridor) })
 }
 
 const goToTransactionPage = (page: number) => {
@@ -987,6 +1044,13 @@ function normalizeCorridorValue(corridor: string) {
       return part.trim().slice(0, 2).toUpperCase()
     })
     .join(' -> ')
+}
+
+function routeDetailIdFor(corridor: { corridor: string; selectedRoute: string }) {
+  return `${normalizeCorridorValue(corridor.corridor)}-${corridor.selectedRoute}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
 }
 
 function isTransactionStalled(transaction: TransactionRecord) {
@@ -1396,6 +1460,166 @@ function baselineRateFor(index: number) {
         </section>
       </section>
 
+      <section v-else-if="activeScreen === 'corridors' && isRouteDetailFlow" class="screen-stack">
+        <section v-if="selectedRouteDetail" class="dashboard-grid">
+          <Panel title="Route summary" eyebrow="Route detail" :accent="selectedRouteDetail.corridor.state" class="span-5">
+            <div class="selected-policy">
+              <RoutePath
+                :origin="corridorParts(selectedRouteDetail.corridor.corridor).origin"
+                :destination="corridorParts(selectedRouteDetail.corridor.corridor).destination"
+                :provider="selectedRouteDetail.provider"
+                :rail="selectedRouteDetail.rail"
+              />
+              <dl class="metric-grid">
+                <div>
+                  <dt>Score</dt>
+                  <dd>{{ selectedRouteDetail.corridor.score }}</dd>
+                </div>
+                <div>
+                  <dt>P95</dt>
+                  <dd>{{ selectedRouteDetail.corridor.p95 }}</dd>
+                </div>
+                <div>
+                  <dt>Cost</dt>
+                  <dd>{{ selectedRouteDetail.corridor.cost }}</dd>
+                </div>
+                <div>
+                  <dt>Traffic split</dt>
+                  <dd>{{ selectedRouteDetail.corridor.split }}</dd>
+                </div>
+              </dl>
+              <aside class="state-note">
+                <AlertTriangle :size="16" aria-hidden="true" />
+                <span>{{ selectedRouteDetail.corridor.risk }}</span>
+                <strong>{{ selectedRouteDetail.corridor.owner }}</strong>
+              </aside>
+              <ActionBar>
+                <UiButton variant="secondary" @click="activate('transactions', { corridor: normalizeCorridorValue(selectedRouteDetail.corridor.corridor) })">View transactions</UiButton>
+                <UiButton variant="secondary" @click="activate('providers', { provider_id: selectedRouteDetail.provider.toLowerCase() })">Provider</UiButton>
+                <UiButton @click="activate('policy', { corridor: normalizeCorridorValue(selectedRouteDetail.corridor.corridor) })">Policy</UiButton>
+              </ActionBar>
+            </div>
+          </Panel>
+
+          <Panel title="Recent route transactions" :eyebrow="`${selectedRouteTransactions.length} matching transfers`" accent="healthy" class="span-7">
+            <DataTable
+              :empty="selectedRouteTransactions.length === 0"
+              empty-title="No matching transactions"
+              empty-description="No recent transfer records match this route in the current data window."
+            >
+              <table>
+                <thead>
+                  <tr>
+                    <th>Reference</th>
+                    <th>Amount</th>
+                    <th>Elapsed</th>
+                    <th>Owner</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="transaction in selectedRouteTransactions"
+                    :key="transaction.reference"
+                    class="click-row"
+                    @click="openRouteTransaction(transaction, selectedRouteDetail.corridor.corridor)"
+                  >
+                    <td>
+                      <strong class="mono">{{ transaction.reference }}</strong>
+                      <small>{{ transaction.providerReference }}</small>
+                    </td>
+                    <td>{{ transaction.amount }}</td>
+                    <td>{{ transaction.totalTime }}</td>
+                    <td>{{ transaction.currentOwner }}</td>
+                    <td><HealthBadge :state="qaStateFor(transaction)" :trigger="qaStatusLabel(transaction)" /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </DataTable>
+          </Panel>
+
+          <Panel title="Provider performance" eyebrow="Route provider" :accent="selectedRouteProviderScore?.state ?? 'unknown'" class="span-6">
+            <div v-if="selectedRouteProviderScore" class="analytics-strip analytics-strip--compact">
+              <article>
+                <span>Success</span>
+                <strong>{{ selectedRouteProviderScore.successRate }}</strong>
+              </article>
+              <article>
+                <span>P50 / P95 / P99</span>
+                <strong>{{ selectedRouteProviderScore.p50 }} / {{ selectedRouteProviderScore.p95 }} / {{ selectedRouteProviderScore.p99 }}</strong>
+              </article>
+              <article>
+                <span>Stuck rate</span>
+                <strong>{{ selectedRouteProviderScore.stuckRate }}</strong>
+              </article>
+              <article>
+                <span>Exceptions</span>
+                <strong>{{ selectedRouteProviderScore.settlementExceptions }}</strong>
+              </article>
+            </div>
+            <EmptyState v-else title="No provider score" description="Provider scorecard data has not been published for this route." />
+          </Panel>
+
+          <Panel title="Incidents and owner" eyebrow="Operational work" :accent="selectedRouteIncidents[0]?.severity ?? selectedRouteDetail.corridor.state" class="span-6">
+            <div class="event-list">
+              <article v-if="selectedRouteIncidents.length === 0" class="state-note">
+                <CheckCircle2 :size="16" aria-hidden="true" />
+                <span>No active incident is linked to this route.</span>
+              </article>
+              <article v-for="incident in selectedRouteIncidents" :key="incident.id" class="state-note">
+                <BellRing :size="16" aria-hidden="true" />
+                <span>{{ incident.title }} / {{ incident.rootCause }}</span>
+                <strong>{{ incident.owner }}</strong>
+              </article>
+            </div>
+          </Panel>
+
+          <Panel title="Policy and fallback" eyebrow="Routing rules" accent="watch" class="span-6">
+            <ol class="rank-list">
+              <li>
+                <span class="rank">#1</span>
+                <ProviderMark :provider="selectedRouteDetail.provider" show-category />
+                <span>{{ selectedRouteDetail.corridor.selectedRoute }}</span>
+                <HealthBadge :state="selectedRouteDetail.corridor.state" :trigger="selectedRouteDetail.corridor.status" />
+              </li>
+              <li v-for="fallback in dashboard.routeConfig.fallbackRoutes" :key="fallback.provider">
+                <span class="rank">#{{ fallback.rank + 1 }}</span>
+                <ProviderMark :provider="fallback.provider" show-category />
+                <span>{{ fallback.route }}</span>
+                <HealthBadge :state="fallback.state" />
+              </li>
+            </ol>
+          </Panel>
+
+          <Panel title="Cost and quote state" eyebrow="Rates and costs" :accent="selectedRouteFx?.state ?? 'unknown'" class="span-6">
+            <div v-if="selectedRouteFx" class="definition-list">
+              <div>
+                <dt>Effective cost</dt>
+                <dd>{{ selectedRouteFx.effectiveCost }}</dd>
+              </div>
+              <div>
+                <dt>Fee / spread</dt>
+                <dd>{{ selectedRouteFx.fee }} / {{ selectedRouteFx.spread }}</dd>
+              </div>
+              <div>
+                <dt>Payout time</dt>
+                <dd>{{ selectedRouteFx.payoutTime }}</dd>
+              </div>
+              <div>
+                <dt>Quote age</dt>
+                <dd>{{ selectedRouteFx.updatedAt }}</dd>
+              </div>
+            </div>
+            <EmptyState v-else title="No quote data" description="No current rate or fee record is available for this route." />
+          </Panel>
+        </section>
+        <Panel v-else title="Route not found" eyebrow="Routes" accent="watch">
+          <EmptyState title="Route not found" description="Choose a route from the route list." :icon="Network">
+            <UiButton @click="activate('corridors')">Back to routes</UiButton>
+          </EmptyState>
+        </Panel>
+      </section>
+
       <section v-else-if="activeScreen === 'corridors'" class="screen-stack">
         <section class="dashboard-grid">
           <Panel title="Corridor route list" eyebrow="Routes" accent="degraded" class="span-12">
@@ -1428,6 +1652,7 @@ function baselineRateFor(index: number) {
                     </td>
                     <td>
                       <ActionBar compact>
+                        <UiButton size="sm" @click="openRouteDetail(corridor)">Open</UiButton>
                         <UiButton size="sm" variant="secondary" @click="activate('transactions', { corridor: normalizeCorridorValue(corridor.corridor) })">Trace</UiButton>
                         <UiButton size="sm" variant="secondary" @click="activate('providers', { provider_id: routeProvider(corridor.selectedRoute).toLowerCase() })">Provider</UiButton>
                         <UiButton size="sm" @click="activate('policy', { corridor: normalizeCorridorValue(corridor.corridor) })">Policy</UiButton>
@@ -1459,6 +1684,7 @@ function baselineRateFor(index: number) {
                 </div>
                 <HealthBadge :state="item.corridor.state" />
                 <ActionBar compact>
+                  <UiButton size="sm" variant="secondary" @click="openRouteDetail(item.corridor)">Open route</UiButton>
                   <UiButton size="sm" variant="secondary" @click="activate('transactions', { corridor: normalizeCorridorValue(item.corridor.corridor) })">Trace</UiButton>
                   <UiButton size="sm" @click="activate('policy', { corridor: normalizeCorridorValue(item.corridor.corridor) })">Open policy</UiButton>
                 </ActionBar>

@@ -184,6 +184,25 @@ describe('premium dashboard workflows', () => {
     expect(router.currentRoute.value.query.focus).toBe('volume')
   })
 
+  it('opens a dedicated route detail page from the route list', async () => {
+    const wrapper = await mountApp('/routes')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Corridor route list')
+    const openButton = wrapper.findAll('button').find((button) => button.text() === 'Open')
+    expect(openButton).toBeTruthy()
+    await openButton?.trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toMatch(/^\/routes\//)
+    expect(wrapper.text()).toContain('Route detail')
+    expect(wrapper.text()).toContain('Route summary')
+    expect(wrapper.text()).toContain('Recent route transactions')
+    expect(wrapper.text()).toContain('Provider performance')
+    expect(wrapper.text()).toContain('Policy and fallback')
+    expect(wrapper.text()).toContain('Cost and quote state')
+  })
+
   it('keeps data state quiet but URL-backed', async () => {
     const wrapper = await mountApp('/?scenario=healthy')
     await flushPromises()

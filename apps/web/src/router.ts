@@ -21,6 +21,13 @@ const routes: RouteRecordRaw[] = screenRoutes.map((screen) => ({
 }))
 
 routes.push({
+  path: '/routes/:routeId',
+  name: 'route-detail',
+  component: { template: '<span />' },
+  meta: { screen: 'corridors', label: 'Route detail' },
+})
+
+routes.push({
   path: '/policy/new',
   name: 'policy-new',
   component: { template: '<span />' },
