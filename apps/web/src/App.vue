@@ -105,9 +105,6 @@ const selectedCorridor = ref(String(route.query.corridor ?? 'all'))
 const selectedPayoutMethod = ref(String(route.query.payout_method ?? 'all'))
 const analysisLens = ref(String(route.query.analysis_lens ?? 'reliability'))
 const dataState = ref<UiScenario>(normalizeDataState(route.query.scenario))
-const comparedCurrencies = ref<string[]>(['USD', 'NGN', 'GBP'])
-const currencyToAdd = ref('EUR')
-const currencyTimeseries = ref<Record<string, DashboardTimeseriesPoint[]>>({})
 const qaThresholdSeconds = ref(dashboard.qaPolicy.thresholdSeconds)
 const warningThresholdSeconds = ref(dashboard.qaPolicy.warningSeconds)
 const savedQaThresholdSeconds = ref(dashboard.qaPolicy.thresholdSeconds)
@@ -253,20 +250,6 @@ const currencies = computed(() => unique(dashboard.transactions.flatMap((transac
 const fxCurrencies = ['USD', 'EUR', 'GBP', 'KES', 'NGN']
 const destinationTypes = computed(() => unique(dashboard.transactions.map((transaction) => transaction.destinationType)))
 const dashboardCurrencies = ['USD', 'NGN', 'EUR', 'GBP', 'KES']
-const currencyChartPalette: Record<string, string> = {
-  USD: '#56d6ff',
-  NGN: '#27d39a',
-  GBP: '#f4c15d',
-  EUR: '#a78bfa',
-  KES: '#ff8a65',
-}
-const currencyDisplayRates: Record<string, number> = {
-  USD: 1,
-  NGN: 1560,
-  EUR: 0.92,
-  GBP: 0.78,
-  KES: 129,
-}
 const dashboardRanges = [
   { label: 'Today', value: 'today' },
   { label: '24 hours', value: '24h' },
@@ -386,23 +369,79 @@ const transactionStatusCounts = computed(() =>
 
 const apiMetricTiles = computed(() => dashboardSummary.value?.tiles ?? [])
 const providerComparisons = computed(() => dashboardSummary.value?.providers ?? [])
-const availableCurrencyCharts = computed(() => dashboardCurrencies.filter((currency) => !comparedCurrencies.value.includes(currency)))
-const currencyChartSeries = computed(() =>
-  comparedCurrencies.value.map((currency) => {
-    const points = currencyTimeseries.value[currency] ?? convertTimeseriesCurrency(dashboardTimeseries.value, dashboardCurrency.value, currency)
-    const total = points.reduce((sum, point) => sum + point.volume, 0)
-    const latest = points[points.length - 1]?.volume ?? 0
-    return {
-      currency,
-      points,
-      values: points.map((point) => point.volume),
-      label: `${currency} processed value trend`,
-      color: currencyChartPalette[currency] ?? '#56d6ff',
-      totalLabel: formatCurrencyShort(total, currency),
-      latestLabel: `${formatCurrencyShort(latest, currency)} latest interval`,
-    }
-  }),
-)
+const volumeAnalytics = computed(() => {
+  const analytics = dashboardSummary.value?.analytics
+  const totalVolume = analytics?.processed_volume ?? dashboardTimeseries.value.reduce((sum, point) => sum + point.volume, 0)
+  const processedCount = analytics?.processed_count ?? dashboardTimeseries.value.reduce((sum, point) => sum + point.processed_count, 0)
+  const latestVolume = dashboardTimeseries.value[dashboardTimeseries.value.length - 1]?.volume ?? 0
+  return {
+    totalVolume,
+    processedCount,
+    latestVolume,
+    totalLabel: formatCurrencyShort(totalVolume, dashboardCurrency.value),
+    latestLabel: `${formatCurrencyShort(latestVolume, dashboardCurrency.value)} latest interval`,
+    countLabel: `${Math.round(processedCount).toLocaleString()} transfers`,
+  }
+})
+const providerVolumeRows = computed(() => {
+  const rows = (providerComparisons.value.length
+    ? providerComparisons.value.map((provider) => ({
+        id: provider.provider_id,
+        provider: provider.provider_name,
+        corridor: provider.corridor,
+        volume: provider.processed_volume,
+        count: provider.processed_count,
+        state: provider.state,
+      }))
+    : sortedProviders.value.map((provider) => {
+        const share = parsePercent(provider.trafficShare)
+        return {
+          id: provider.provider.toLowerCase(),
+          provider: provider.provider,
+          corridor: provider.corridor,
+          volume: volumeAnalytics.value.totalVolume * (share / 100),
+          count: volumeAnalytics.value.processedCount * (share / 100),
+          state: provider.state,
+        }
+      }))
+    .sort((a, b) => b.volume - a.volume)
+    .slice(0, 4)
+  const maxVolume = Math.max(...rows.map((row) => row.volume), 1)
+  return rows.map((row) => ({
+    ...row,
+    volumeLabel: formatCurrencyShort(row.volume, dashboardCurrency.value),
+    countLabel: `${Math.round(row.count).toLocaleString()} transfers`,
+    width: percentWidth((row.volume / maxVolume) * 100),
+  }))
+})
+const routeVolumeRows = computed(() => {
+  const fallbackShares = [34, 27, 21, 18]
+  const rows = sortedCorridors.value
+    .map((corridor, index) => {
+      const provider = routeProvider(corridor.selectedRoute)
+      const providerScore = sortedProviders.value.find((score) => score.provider.toLowerCase() === provider.toLowerCase())
+      const providerComparison = providerComparisons.value.find((item) => item.provider_name.toLowerCase() === provider.toLowerCase())
+      const share = providerScore ? parsePercent(providerScore.trafficShare) : fallbackShares[index] ?? 10
+      const volume = providerComparison?.processed_volume ?? volumeAnalytics.value.totalVolume * (share / 100)
+      return {
+        id: `${corridor.corridor}-${corridor.selectedRoute}`,
+        corridor: corridor.corridor,
+        provider,
+        route: corridor.selectedRoute,
+        risk: corridor.risk,
+        state: corridor.state,
+        volume,
+      }
+    })
+    .sort((a, b) => b.volume - a.volume)
+    .slice(0, 4)
+  const maxVolume = Math.max(...rows.map((row) => row.volume), 1)
+  return rows.map((row) => ({
+    ...row,
+    volumeLabel: formatCurrencyShort(row.volume, dashboardCurrency.value),
+    width: percentWidth((row.volume / maxVolume) * 100),
+  }))
+})
 const operationsSnapshot = computed(() => {
   const route = primaryIncidentRoute.value
   const incident = activeIncident.value
@@ -593,37 +632,12 @@ const applyDashboardState = (scenario: UiScenario) => {
   }
 }
 
-const syncCurrencyToAdd = () => {
-  currencyToAdd.value = availableCurrencyCharts.value[0] ?? ''
-}
-
-const refreshCurrencyTimeseries = async (seedCurrency = dashboardCurrency.value, seedPoints = dashboardTimeseries.value) => {
-  if (!sessionUser.value) return
-  const next: Record<string, DashboardTimeseriesPoint[]> = {}
-  await Promise.all(
-    comparedCurrencies.value.map(async (currency) => {
-      if (currency === seedCurrency && seedPoints.length) {
-        next[currency] = seedPoints
-        return
-      }
-      try {
-        next[currency] = await getDashboardTimeseries({ ...dashboardQuery.value, currency })
-      } catch {
-        next[currency] = convertTimeseriesCurrency(seedPoints, seedCurrency, currency)
-      }
-    }),
-  )
-  currencyTimeseries.value = next
-  syncCurrencyToAdd()
-}
-
 const refreshDashboard = async () => {
   if (!sessionUser.value) return
   try {
     const [summary, timeseries] = await Promise.all([getDashboardSummary(dashboardQuery.value), getDashboardTimeseries(dashboardQuery.value)])
     dashboardSummary.value = summary
     dashboardTimeseries.value = timeseries
-    await refreshCurrencyTimeseries(dashboardCurrency.value, timeseries)
     dashboard.summary.lastUpdated = new Date(summary.generated_at).toLocaleTimeString('en-GB', { timeZone: 'UTC' }) + ' UTC'
     dashboard.summary.connection.mode = usingSampleData ? 'static' : 'api'
     dashboard.summary.connection.freshness = 'fresh'
@@ -681,16 +695,6 @@ const openDrilldown = (drilldown: string) => {
       ...globalDashboardQuery(),
     },
   })
-}
-
-const addCurrencyChart = () => {
-  if (!currencyToAdd.value || comparedCurrencies.value.includes(currencyToAdd.value)) return
-  comparedCurrencies.value = [...comparedCurrencies.value, currencyToAdd.value]
-}
-
-const removeCurrencyChart = (currency: string) => {
-  if (comparedCurrencies.value.length <= 1) return
-  comparedCurrencies.value = comparedCurrencies.value.filter((item) => item !== currency)
 }
 
 const selectTransaction = (transaction: TransactionRecord) => {
@@ -839,15 +843,6 @@ watch(dataState, () => {
 })
 
 watch(
-  comparedCurrencies,
-  () => {
-    syncCurrencyToAdd()
-    void refreshCurrencyTimeseries()
-  },
-  { deep: true },
-)
-
-watch(
   () => route.query,
   (query) => {
     const nextRange = typeof query.range === 'string' ? query.range : 'today'
@@ -932,17 +927,9 @@ function formatCurrencyShort(value: number, currency: string) {
   return `${currency} ${value.toFixed(0)}`
 }
 
-function convertCurrencyAmount(value: number, from: string, to: string) {
-  const fromRate = currencyDisplayRates[from] ?? 1
-  const toRate = currencyDisplayRates[to] ?? 1
-  return (value / fromRate) * toRate
-}
-
-function convertTimeseriesCurrency(points: DashboardTimeseriesPoint[], from: string, to: string) {
-  return points.map((point) => ({
-    ...point,
-    volume: convertCurrencyAmount(point.volume, from, to),
-  }))
+function parsePercent(value: string) {
+  const parsed = Number(value.replace(/[^\d.]/g, ''))
+  return Number.isFinite(parsed) ? parsed : 0
 }
 
 function normalizeDataState(value: unknown): UiScenario {
@@ -1207,40 +1194,69 @@ function baselineRateFor(index: number) {
         </section>
 
         <section class="dashboard-grid">
-          <Panel title="Currency volume comparison" eyebrow="Top currencies" accent="healthy" class="span-12">
-            <div class="currency-chart-toolbar">
-              <span class="dashboard-chip">Processed value by interval</span>
-              <label>
-                <span>Add currency</span>
-                <select v-model="currencyToAdd" aria-label="Add currency comparison" :disabled="availableCurrencyCharts.length === 0">
-                  <option v-for="currency in availableCurrencyCharts" :key="currency" :value="currency">{{ currency }}</option>
-                </select>
-              </label>
-              <UiButton size="sm" variant="secondary" :disabled="!currencyToAdd" @click="addCurrencyChart">
-                <Plus :size="15" aria-hidden="true" />
-                Add chart
-              </UiButton>
-            </div>
-            <div class="currency-chart-grid">
-              <article v-for="chart in currencyChartSeries" :key="chart.currency" class="currency-chart-card">
+          <Panel title="Transfer volume overview" :eyebrow="`Selected range / ${dashboardCurrency}`" accent="healthy" class="span-12">
+            <div class="volume-command-grid">
+              <article class="volume-widget volume-widget--trend">
                 <header>
-                  <div>
-                    <span>{{ chart.currency }}</span>
-                    <strong>{{ chart.totalLabel }}</strong>
-                    <small>{{ chart.latestLabel }}</small>
-                  </div>
-                  <UiButton
-                    v-if="comparedCurrencies.length > 1"
-                    size="sm"
-                    variant="ghost"
-                    :aria-label="`Remove ${chart.currency} comparison`"
-                    :title="`Remove ${chart.currency}`"
-                    @click="removeCurrencyChart(chart.currency)"
-                  >
-                    <X :size="15" aria-hidden="true" />
-                  </UiButton>
+                  <span>Total volume for all transfers</span>
+                  <strong>{{ volumeAnalytics.totalLabel }}</strong>
+                  <small>{{ volumeAnalytics.countLabel }} / {{ volumeAnalytics.latestLabel }}</small>
                 </header>
-                <RealtimeLineChart :points="chart.points" metric="volume" :values="chart.values" :label="chart.label" :color="chart.color" :height="132" />
+                <RealtimeLineChart
+                  :points="dashboardTimeseries"
+                  metric="volume"
+                  :label="`Total transfer volume trend in ${dashboardCurrency}`"
+                  color="#56d6ff"
+                  :height="156"
+                />
+              </article>
+
+              <article class="volume-widget">
+                <header>
+                  <span>Volume per top providers</span>
+                  <strong>{{ providerVolumeRows[0]?.provider ?? 'No provider' }}</strong>
+                  <small>{{ providerVolumeRows[0]?.volumeLabel ?? 'No processed volume' }}</small>
+                </header>
+                <div class="volume-rank-list">
+                  <button
+                    v-for="provider in providerVolumeRows"
+                    :key="provider.id"
+                    type="button"
+                    class="volume-rank-row"
+                    @click="activate('providers', { provider_id: provider.id })"
+                  >
+                    <span>
+                      <ProviderMark :provider="provider.provider" />
+                      <small>{{ provider.corridor }}</small>
+                    </span>
+                    <strong>{{ provider.volumeLabel }}</strong>
+                    <em :style="{ width: provider.width }"></em>
+                  </button>
+                </div>
+              </article>
+
+              <article class="volume-widget">
+                <header>
+                  <span>Volume per top routes</span>
+                  <strong>{{ routeVolumeRows[0]?.route ?? 'No route' }}</strong>
+                  <small>{{ routeVolumeRows[0]?.volumeLabel ?? 'No processed volume' }}</small>
+                </header>
+                <div class="volume-rank-list">
+                  <button
+                    v-for="routeRow in routeVolumeRows"
+                    :key="routeRow.id"
+                    type="button"
+                    class="volume-rank-row"
+                    @click="activate('corridors', { corridor: normalizeCorridorValue(routeRow.corridor), focus: 'volume' })"
+                  >
+                    <span>
+                      <CountryPair :origin="corridorParts(routeRow.corridor).origin" :destination="corridorParts(routeRow.corridor).destination" compact />
+                      <small>{{ routeRow.provider }} / {{ routeRow.risk }}</small>
+                    </span>
+                    <strong>{{ routeRow.volumeLabel }}</strong>
+                    <em :style="{ width: routeRow.width }"></em>
+                  </button>
+                </div>
               </article>
             </div>
           </Panel>

@@ -668,71 +668,92 @@ svg {
   display: block;
 }
 
-.currency-chart-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.currency-chart-toolbar label {
-  flex: 0 1 180px;
+.volume-command-grid {
   display: grid;
-  gap: 6px;
-}
-
-.currency-chart-toolbar label > span {
-  color: var(--muted);
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.currency-chart-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
 }
 
-.currency-chart-card {
+.volume-widget {
   min-width: 0;
   display: grid;
-  gap: 8px;
+  align-content: start;
+  gap: 12px;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: rgba(255, 255, 255, 0.025);
 }
 
-.currency-chart-card header {
-  min-width: 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.currency-chart-card header > div {
+.volume-widget header {
   min-width: 0;
   display: grid;
   gap: 4px;
 }
 
-.currency-chart-card span {
+.volume-widget header > span {
   color: var(--muted);
   font-size: var(--fs-xs);
   font-weight: 800;
   text-transform: uppercase;
 }
 
-.currency-chart-card strong {
+.volume-widget header > strong {
   font-family: var(--font-data);
   font-size: var(--fs-xl);
+  line-height: 1.1;
 }
 
-.currency-chart-card small {
+.volume-widget small {
   color: var(--muted);
+}
+
+.volume-rank-list {
+  display: grid;
+  gap: 8px;
+}
+
+.volume-rank-row {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.volume-rank-row:hover {
+  border-color: rgba(39, 211, 154, 0.34);
+  background: rgba(39, 211, 154, 0.05);
+}
+
+.volume-rank-row > span {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.volume-rank-row > strong {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-data);
+}
+
+.volume-rank-row > em {
+  position: absolute;
+  inset: auto auto 0 0;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--healthy), var(--brand));
 }
 
 dt,
@@ -2032,7 +2053,7 @@ tbody tr:hover,
   .kpi-grid,
   .control-bar,
   .analytics-strip,
-  .currency-chart-grid,
+  .volume-command-grid,
   .operations-picture,
   .fx-rule-grid,
   .fx-decision-grid,
@@ -2103,7 +2124,6 @@ tbody tr:hover,
   }
 
   .provider-context,
-  .currency-chart-toolbar,
   .route-action-main,
   .fx-control-grid {
     grid-template-columns: 1fr;
@@ -2117,11 +2137,7 @@ tbody tr:hover,
     grid-column: 2;
   }
 
-  .currency-chart-toolbar {
-    align-items: stretch;
-  }
-
-  .currency-chart-toolbar label {
-    flex-basis: 100%;
+  .volume-rank-row {
+    grid-template-columns: 1fr;
   }
 }

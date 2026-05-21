@@ -140,8 +140,12 @@ describe('premium dashboard workflows', () => {
   it('supports dashboard context controls and KPI drilldowns', async () => {
     const wrapper = await mountApp()
     expect(wrapper.find('select[aria-label="Dashboard provider"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Transfer volume overview')
+    expect(wrapper.text()).toContain('Total volume for all transfers')
+    expect(wrapper.text()).toContain('Volume per top providers')
+    expect(wrapper.text()).toContain('Volume per top routes')
     expect(wrapper.text()).toContain('Operations picture')
-    expect(wrapper.text()).toContain('Currency volume comparison')
+    expect(wrapper.text()).not.toContain('Currency volume comparison')
     expect(wrapper.text()).not.toContain('Recommended next action')
     expect(wrapper.text()).toContain('Sample operational data')
     expect(wrapper.text()).not.toContain('mock snapshot')
@@ -153,20 +157,25 @@ describe('premium dashboard workflows', () => {
     expect(router.currentRoute.value.query.currency).toBe('USD')
   })
 
-  it('compares currency volume charts from the control room', async () => {
+  it('opens volume drilldowns from provider and route widgets', async () => {
     const wrapper = await mountApp()
     await flushPromises()
 
-    expect(wrapper.text()).toContain('USD')
-    expect(wrapper.text()).toContain('NGN')
-    expect(wrapper.text()).toContain('GBP')
-
-    await wrapper.get('select[aria-label="Add currency comparison"]').setValue('EUR')
-    await wrapper.findAll('button').find((button) => button.text().includes('Add chart'))?.trigger('click')
+    const providerRow = wrapper.findAll('.volume-rank-row').find((row) => row.text().includes('Thunes'))
+    expect(providerRow).toBeTruthy()
+    await providerRow?.trigger('click')
     await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/providers')
+    expect(router.currentRoute.value.query.provider_id).toBe('thunes')
 
-    expect(wrapper.text()).toContain('EUR')
-    expect(wrapper.find('button[aria-label="Remove EUR comparison"]').exists()).toBe(true)
+    await router.push('/')
+    await flushPromises()
+    const routeRow = wrapper.findAll('.volume-rank-row').find((row) => row.text().includes('Provider acceptance'))
+    expect(routeRow).toBeTruthy()
+    await routeRow?.trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/routes')
+    expect(router.currentRoute.value.query.focus).toBe('volume')
   })
 
   it('keeps data state quiet but URL-backed', async () => {

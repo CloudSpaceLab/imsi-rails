@@ -49,8 +49,12 @@ function toSearchParams(query: DashboardQuery) {
 function mockSummary(query: DashboardQuery = {}): DashboardSummaryResponse {
   const scenario = query.scenario ?? 'degraded-ria'
   const dashboard = getDashboardMock(scenario)
-  const analytics = mockAnalyticsForScenario(scenario)
   const displayCurrency = query.currency ?? 'USD'
+  const baseAnalytics = mockAnalyticsForScenario(scenario)
+  const analytics = {
+    ...baseAnalytics,
+    processed_volume: convertUsdNumber(baseAnalytics.processed_volume, displayCurrency),
+  }
   const p95 = formatDuration(analytics.p95_seconds)
   const p99 = formatDuration(analytics.p99_seconds)
   const failedAndStalled = analytics.failed_count + analytics.stalled_count
@@ -77,17 +81,20 @@ function mockSummary(query: DashboardQuery = {}): DashboardSummaryResponse {
       { id: 'failed', label: 'Stuck or failed', value: failedAndStalled.toLocaleString(), unit: '', state: failedAndStalled ? 'degraded' : 'healthy', trend: 'needs operations review', drilldown: '/transactions?timing=Stalled+only' },
       { id: 'switching', label: 'Failures avoided', value: failuresAvoided, unit: '', state: shiftState, trend: `traffic shifted ${trafficShifted}`, drilldown: '/routes?focus=switching' },
     ],
-    providers: dashboard.providerScores.map((provider) => ({
-      provider_id: provider.provider.toLowerCase(),
-      provider_name: provider.provider,
-      corridor: provider.corridor,
-      processed_count: Number(provider.trafficShare.replace('%', '')) * 100,
-      processed_volume: 1000000,
-      sla_completed_count: 900,
-      sla_rate: Number(provider.successRate.replace('%', '')),
-      p95_seconds: provider.p95.includes('m') ? 258 : Number(provider.p95.replace(/\D/g, '')),
-      state: provider.state,
-    })),
+    providers: dashboard.providerScores.map((provider) => {
+      const share = parsePercentage(provider.trafficShare) / 100
+      return {
+        provider_id: provider.provider.toLowerCase(),
+        provider_name: provider.provider,
+        corridor: provider.corridor,
+        processed_count: Math.round(analytics.processed_count * share),
+        processed_volume: Math.round(analytics.processed_volume * share),
+        sla_completed_count: Math.round(analytics.sla_completed_count * share),
+        sla_rate: Number(provider.successRate.replace('%', '')),
+        p95_seconds: provider.p95.includes('m') ? 258 : Number(provider.p95.replace(/\D/g, '')),
+        state: provider.state,
+      }
+    }),
     generated_at: new Date().toISOString(),
   }
 }
@@ -185,6 +192,14 @@ function convertUsdLabel(label: string, currency: string) {
   if (!Number.isFinite(value)) return label
   const multiplier = label.toUpperCase().includes('M') ? 1_000_000 : label.toUpperCase().includes('K') ? 1_000 : 1
   const usd = value * multiplier
+  const converted = convertUsdNumber(usd, currency)
+  if (converted >= 1_000_000_000) return `${currency} ${(converted / 1_000_000_000).toFixed(1)}B`
+  if (converted >= 1_000_000) return `${currency} ${(converted / 1_000_000).toFixed(1)}M`
+  if (converted >= 1_000) return `${currency} ${(converted / 1_000).toFixed(0)}K`
+  return `${currency} ${converted.toFixed(0)}`
+}
+
+function convertUsdNumber(usd: number, currency: string) {
   const rates: Record<string, number> = {
     USD: 1,
     NGN: 1560,
@@ -192,10 +207,11 @@ function convertUsdLabel(label: string, currency: string) {
     GBP: 0.78,
     KES: 129,
   }
-  const converted = usd * (rates[currency] ?? 1)
-  if (converted >= 1_000_000_000) return `${currency} ${(converted / 1_000_000_000).toFixed(1)}B`
-  if (converted >= 1_000_000) return `${currency} ${(converted / 1_000_000).toFixed(1)}M`
-  if (converted >= 1_000) return `${currency} ${(converted / 1_000).toFixed(0)}K`
-  return `${currency} ${converted.toFixed(0)}`
+  return usd * (rates[currency] ?? 1)
+}
+
+function parsePercentage(value: string) {
+  const parsed = Number(value.replace(/[^\d.]/g, ''))
+  return Number.isFinite(parsed) ? parsed : 0
 }
 
