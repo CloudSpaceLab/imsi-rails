@@ -105,6 +105,9 @@ const selectedCorridor = ref(String(route.query.corridor ?? 'all'))
 const selectedPayoutMethod = ref(String(route.query.payout_method ?? 'all'))
 const analysisLens = ref(String(route.query.analysis_lens ?? 'reliability'))
 const dataState = ref<UiScenario>(normalizeDataState(route.query.scenario))
+const comparedCurrencies = ref<string[]>(['USD', 'NGN', 'GBP'])
+const currencyToAdd = ref('EUR')
+const currencyTimeseries = ref<Record<string, DashboardTimeseriesPoint[]>>({})
 const qaThresholdSeconds = ref(dashboard.qaPolicy.thresholdSeconds)
 const warningThresholdSeconds = ref(dashboard.qaPolicy.warningSeconds)
 const savedQaThresholdSeconds = ref(dashboard.qaPolicy.thresholdSeconds)
@@ -250,6 +253,20 @@ const currencies = computed(() => unique(dashboard.transactions.flatMap((transac
 const fxCurrencies = ['USD', 'EUR', 'GBP', 'KES', 'NGN']
 const destinationTypes = computed(() => unique(dashboard.transactions.map((transaction) => transaction.destinationType)))
 const dashboardCurrencies = ['USD', 'NGN', 'EUR', 'GBP', 'KES']
+const currencyChartPalette: Record<string, string> = {
+  USD: '#56d6ff',
+  NGN: '#27d39a',
+  GBP: '#f4c15d',
+  EUR: '#a78bfa',
+  KES: '#ff8a65',
+}
+const currencyDisplayRates: Record<string, number> = {
+  USD: 1,
+  NGN: 1560,
+  EUR: 0.92,
+  GBP: 0.78,
+  KES: 129,
+}
 const dashboardRanges = [
   { label: 'Today', value: 'today' },
   { label: '24 hours', value: '24h' },
@@ -369,6 +386,23 @@ const transactionStatusCounts = computed(() =>
 
 const apiMetricTiles = computed(() => dashboardSummary.value?.tiles ?? [])
 const providerComparisons = computed(() => dashboardSummary.value?.providers ?? [])
+const availableCurrencyCharts = computed(() => dashboardCurrencies.filter((currency) => !comparedCurrencies.value.includes(currency)))
+const currencyChartSeries = computed(() =>
+  comparedCurrencies.value.map((currency) => {
+    const points = currencyTimeseries.value[currency] ?? convertTimeseriesCurrency(dashboardTimeseries.value, dashboardCurrency.value, currency)
+    const total = points.reduce((sum, point) => sum + point.volume, 0)
+    const latest = points[points.length - 1]?.volume ?? 0
+    return {
+      currency,
+      points,
+      values: points.map((point) => point.volume),
+      label: `${currency} processed value trend`,
+      color: currencyChartPalette[currency] ?? '#56d6ff',
+      totalLabel: formatCurrencyShort(total, currency),
+      latestLabel: `${formatCurrencyShort(latest, currency)} latest interval`,
+    }
+  }),
+)
 const operationsSnapshot = computed(() => {
   const route = primaryIncidentRoute.value
   const incident = activeIncident.value
@@ -387,10 +421,10 @@ const operationsSnapshot = computed(() => {
       state: route?.state ?? ('healthy' as HealthState),
     },
     {
-      label: 'Available action',
-      value: dashboard.recommendation.nextAction,
-      detail: dashboard.recommendation.evidence,
-      state: dashboard.recommendation.state,
+      label: 'Latency owner',
+      value: incident?.owner ?? 'No active owner',
+      detail: incident ? `${incident.startedAt} / ${incident.status}` : 'No escalated latency work',
+      state: incident?.severity ?? ('healthy' as HealthState),
     },
     {
       label: 'Settlement work',
@@ -400,14 +434,6 @@ const operationsSnapshot = computed(() => {
     },
   ]
 })
-const liveChartMetric = computed(() => (analysisLens.value === 'sla' ? 'sla_rate' : analysisLens.value === 'volume' || analysisLens.value === 'cost' ? 'volume' : 'p95_seconds'))
-const liveChartLabel = computed(() =>
-  analysisLens.value === 'sla'
-    ? 'Live SLA completion rate'
-    : analysisLens.value === 'volume' || analysisLens.value === 'cost'
-      ? 'Live processed value'
-      : 'Live P95 credit-time pressure',
-)
 const routePageCount = computed(() => Math.max(1, Math.ceil(sortedCorridors.value.length / routePageSize.value)))
 const pagedCorridors = computed(() => {
   const start = (routePage.value - 1) * routePageSize.value
@@ -567,12 +593,37 @@ const applyDashboardState = (scenario: UiScenario) => {
   }
 }
 
+const syncCurrencyToAdd = () => {
+  currencyToAdd.value = availableCurrencyCharts.value[0] ?? ''
+}
+
+const refreshCurrencyTimeseries = async (seedCurrency = dashboardCurrency.value, seedPoints = dashboardTimeseries.value) => {
+  if (!sessionUser.value) return
+  const next: Record<string, DashboardTimeseriesPoint[]> = {}
+  await Promise.all(
+    comparedCurrencies.value.map(async (currency) => {
+      if (currency === seedCurrency && seedPoints.length) {
+        next[currency] = seedPoints
+        return
+      }
+      try {
+        next[currency] = await getDashboardTimeseries({ ...dashboardQuery.value, currency })
+      } catch {
+        next[currency] = convertTimeseriesCurrency(seedPoints, seedCurrency, currency)
+      }
+    }),
+  )
+  currencyTimeseries.value = next
+  syncCurrencyToAdd()
+}
+
 const refreshDashboard = async () => {
   if (!sessionUser.value) return
   try {
     const [summary, timeseries] = await Promise.all([getDashboardSummary(dashboardQuery.value), getDashboardTimeseries(dashboardQuery.value)])
     dashboardSummary.value = summary
     dashboardTimeseries.value = timeseries
+    await refreshCurrencyTimeseries(dashboardCurrency.value, timeseries)
     dashboard.summary.lastUpdated = new Date(summary.generated_at).toLocaleTimeString('en-GB', { timeZone: 'UTC' }) + ' UTC'
     dashboard.summary.connection.mode = usingSampleData ? 'static' : 'api'
     dashboard.summary.connection.freshness = 'fresh'
@@ -630,6 +681,16 @@ const openDrilldown = (drilldown: string) => {
       ...globalDashboardQuery(),
     },
   })
+}
+
+const addCurrencyChart = () => {
+  if (!currencyToAdd.value || comparedCurrencies.value.includes(currencyToAdd.value)) return
+  comparedCurrencies.value = [...comparedCurrencies.value, currencyToAdd.value]
+}
+
+const removeCurrencyChart = (currency: string) => {
+  if (comparedCurrencies.value.length <= 1) return
+  comparedCurrencies.value = comparedCurrencies.value.filter((item) => item !== currency)
 }
 
 const selectTransaction = (transaction: TransactionRecord) => {
@@ -778,6 +839,15 @@ watch(dataState, () => {
 })
 
 watch(
+  comparedCurrencies,
+  () => {
+    syncCurrencyToAdd()
+    void refreshCurrencyTimeseries()
+  },
+  { deep: true },
+)
+
+watch(
   () => route.query,
   (query) => {
     const nextRange = typeof query.range === 'string' ? query.range : 'today'
@@ -851,6 +921,28 @@ function formatDuration(seconds: number) {
   const minutes = Math.floor(seconds / 60)
   const remainingSeconds = seconds % 60
   return remainingSeconds ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`
+}
+
+function formatCurrencyShort(value: number, currency: string) {
+  const abs = Math.abs(value)
+  const digits = abs >= 1_000_000 ? 1 : 0
+  if (abs >= 1_000_000_000) return `${currency} ${(value / 1_000_000_000).toFixed(1)}B`
+  if (abs >= 1_000_000) return `${currency} ${(value / 1_000_000).toFixed(digits)}M`
+  if (abs >= 1_000) return `${currency} ${(value / 1_000).toFixed(0)}K`
+  return `${currency} ${value.toFixed(0)}`
+}
+
+function convertCurrencyAmount(value: number, from: string, to: string) {
+  const fromRate = currencyDisplayRates[from] ?? 1
+  const toRate = currencyDisplayRates[to] ?? 1
+  return (value / fromRate) * toRate
+}
+
+function convertTimeseriesCurrency(points: DashboardTimeseriesPoint[], from: string, to: string) {
+  return points.map((point) => ({
+    ...point,
+    volume: convertCurrencyAmount(point.volume, from, to),
+  }))
 }
 
 function normalizeDataState(value: unknown): UiScenario {
@@ -1124,41 +1216,43 @@ function baselineRateFor(index: number) {
                 <small>{{ item.detail }}</small>
               </article>
             </div>
-            <RealtimeLineChart :points="dashboardTimeseries" :metric="liveChartMetric" :label="liveChartLabel" />
           </Panel>
 
-          <Panel title="Recommended next action" eyebrow="Triage" :accent="dashboard.recommendation.state" class="span-5">
-            <div class="recommendation-card">
-              <HealthBadge :state="dashboard.recommendation.state" window="15 min" />
-              <h3>{{ dashboard.recommendation.title }}</h3>
-              <p>{{ dashboard.recommendation.trigger }}</p>
-              <dl class="metric-grid metric-grid--three">
-                <div>
-                  <dt>Traffic</dt>
-                  <dd>{{ dashboard.recommendation.affectedTraffic }}</dd>
-                </div>
-                <div>
-                  <dt>Value</dt>
-                  <dd>{{ dashboard.recommendation.affectedValue }}</dd>
-                </div>
-                <div>
-                  <dt>Evidence</dt>
-                  <dd>{{ dashboard.recommendation.evidence }}</dd>
-                </div>
-              </dl>
-              <RoutePath
-                :origin="corridorParts(primaryIncidentCorridor).origin"
-                :destination="corridorParts(primaryIncidentCorridor).destination"
-                :provider="routeProvider(dashboard.recommendation.suggestedRoute)"
-                :rail="routeRail(dashboard.recommendation.suggestedRoute)"
-              />
-              <ActionBar>
-                <UiButton @click="activate('policy')">
-                  Review policy
-                  <ArrowRight :size="15" aria-hidden="true" />
-                </UiButton>
-                <UiButton variant="secondary" @click="activate('transactions')">Trace affected transfers</UiButton>
-              </ActionBar>
+          <Panel title="Currency volume comparison" eyebrow="Top currencies" accent="healthy" class="span-12">
+            <div class="currency-chart-toolbar">
+              <span class="dashboard-chip">Processed value by interval</span>
+              <label>
+                <span>Add currency</span>
+                <select v-model="currencyToAdd" aria-label="Add currency comparison" :disabled="availableCurrencyCharts.length === 0">
+                  <option v-for="currency in availableCurrencyCharts" :key="currency" :value="currency">{{ currency }}</option>
+                </select>
+              </label>
+              <UiButton size="sm" variant="secondary" :disabled="!currencyToAdd" @click="addCurrencyChart">
+                <Plus :size="15" aria-hidden="true" />
+                Add chart
+              </UiButton>
+            </div>
+            <div class="currency-chart-grid">
+              <article v-for="chart in currencyChartSeries" :key="chart.currency" class="currency-chart-card">
+                <header>
+                  <div>
+                    <span>{{ chart.currency }}</span>
+                    <strong>{{ chart.totalLabel }}</strong>
+                    <small>{{ chart.latestLabel }}</small>
+                  </div>
+                  <UiButton
+                    v-if="comparedCurrencies.length > 1"
+                    size="sm"
+                    variant="ghost"
+                    :aria-label="`Remove ${chart.currency} comparison`"
+                    :title="`Remove ${chart.currency}`"
+                    @click="removeCurrencyChart(chart.currency)"
+                  >
+                    <X :size="15" aria-hidden="true" />
+                  </UiButton>
+                </header>
+                <RealtimeLineChart :points="chart.points" metric="volume" :values="chart.values" :label="chart.label" :color="chart.color" :height="132" />
+              </article>
             </div>
           </Panel>
 
@@ -2056,6 +2150,40 @@ function baselineRateFor(index: number) {
           <KpiTile label="Total providers" :value="sortedProviders.length" detail="Connected provider routes" tone="brand" :icon="Network" />
           <KpiTile label="Traffic window" value="15m" detail="Success, P95, stuck rate" tone="recovery" :icon="TimerReset" />
         </section>
+        <Panel title="Provider routing actions" eyebrow="Provider dashboard" :accent="dashboard.recommendation.state">
+          <div class="recommendation-card">
+            <HealthBadge :state="dashboard.recommendation.state" window="15 min" />
+            <h3>{{ dashboard.recommendation.title }}</h3>
+            <p>{{ dashboard.recommendation.trigger }}</p>
+            <dl class="metric-grid metric-grid--three">
+              <div>
+                <dt>Traffic</dt>
+                <dd>{{ dashboard.recommendation.affectedTraffic }}</dd>
+              </div>
+              <div>
+                <dt>Value</dt>
+                <dd>{{ dashboard.recommendation.affectedValue }}</dd>
+              </div>
+              <div>
+                <dt>Evidence</dt>
+                <dd>{{ dashboard.recommendation.evidence }}</dd>
+              </div>
+            </dl>
+            <RoutePath
+              :origin="corridorParts(primaryIncidentCorridor).origin"
+              :destination="corridorParts(primaryIncidentCorridor).destination"
+              :provider="routeProvider(dashboard.recommendation.suggestedRoute)"
+              :rail="routeRail(dashboard.recommendation.suggestedRoute)"
+            />
+            <ActionBar>
+              <UiButton @click="activate('policy')">
+                Review policy
+                <ArrowRight :size="15" aria-hidden="true" />
+              </UiButton>
+              <UiButton variant="secondary" @click="activate('transactions')">Trace affected transfers</UiButton>
+            </ActionBar>
+          </div>
+        </Panel>
         <Panel v-if="providerComparisons.length" title="Selected IMTO analytics" :eyebrow="`${dateRange} / ${dashboardCurrency}`" accent="healthy">
           <DataTable :empty="providerComparisons.length === 0" empty-title="No provider analytics" empty-description="No provider records match the current dashboard context.">
             <table>

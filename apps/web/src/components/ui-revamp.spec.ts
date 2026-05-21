@@ -141,6 +141,8 @@ describe('premium dashboard workflows', () => {
     const wrapper = await mountApp()
     expect(wrapper.find('select[aria-label="Dashboard provider"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('Operations picture')
+    expect(wrapper.text()).toContain('Currency volume comparison')
+    expect(wrapper.text()).not.toContain('Recommended next action')
     expect(wrapper.text()).toContain('Sample operational data')
     expect(wrapper.text()).not.toContain('mock snapshot')
 
@@ -151,19 +153,50 @@ describe('premium dashboard workflows', () => {
     expect(router.currentRoute.value.query.currency).toBe('USD')
   })
 
+  it('compares currency volume charts from the control room', async () => {
+    const wrapper = await mountApp()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('USD')
+    expect(wrapper.text()).toContain('NGN')
+    expect(wrapper.text()).toContain('GBP')
+
+    await wrapper.get('select[aria-label="Add currency comparison"]').setValue('EUR')
+    await wrapper.findAll('button').find((button) => button.text().includes('Add chart'))?.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('EUR')
+    expect(wrapper.find('button[aria-label="Remove EUR comparison"]').exists()).toBe(true)
+  })
+
   it('keeps data state quiet but URL-backed', async () => {
     const wrapper = await mountApp('/?scenario=healthy')
     await flushPromises()
 
     const dataState = wrapper.get('select[aria-label="Data state"]')
     expect((dataState.element as HTMLSelectElement).value).toBe('healthy')
-    expect(wrapper.text()).toContain('No route action needed')
     expect(wrapper.text()).not.toContain('scenario')
 
     await dataState.setValue('traffic-shift')
     await flushPromises()
     expect(router.currentRoute.value.query.scenario).toBe('traffic-shift')
+
+    await wrapper.findAll('button.nav-item').find((item) => item.text().includes('Providers'))?.trigger('click')
+    await flushPromises()
     expect(wrapper.text()).toContain('Traffic shift is reducing failed credits')
+  })
+
+  it('keeps provider actions on the provider dashboard', async () => {
+    const wrapper = await mountApp('/')
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Provider routing actions')
+
+    await wrapper.findAll('button.nav-item').find((item) => item.text().includes('Providers'))?.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Provider routing actions')
+    expect(wrapper.text()).toContain('Trace affected transfers')
   })
 
   it('cleans page-specific query state when navigating between work areas', async () => {

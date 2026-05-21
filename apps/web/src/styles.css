@@ -668,6 +668,73 @@ svg {
   display: block;
 }
 
+.currency-chart-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.currency-chart-toolbar label {
+  flex: 0 1 180px;
+  display: grid;
+  gap: 6px;
+}
+
+.currency-chart-toolbar label > span {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.currency-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.currency-chart-card {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.currency-chart-card header {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.currency-chart-card header > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.currency-chart-card span {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.currency-chart-card strong {
+  font-family: var(--font-data);
+  font-size: var(--fs-xl);
+}
+
+.currency-chart-card small {
+  color: var(--muted);
+}
+
 dt,
 .form-grid label > span,
 .policy-edit-grid label > span {
@@ -1965,6 +2032,7 @@ tbody tr:hover,
   .kpi-grid,
   .control-bar,
   .analytics-strip,
+  .currency-chart-grid,
   .operations-picture,
   .fx-rule-grid,
   .fx-decision-grid,
@@ -2035,6 +2103,7 @@ tbody tr:hover,
   }
 
   .provider-context,
+  .currency-chart-toolbar,
   .route-action-main,
   .fx-control-grid {
     grid-template-columns: 1fr;
@@ -2046,5 +2115,13 @@ tbody tr:hover,
 
   .state-note strong {
     grid-column: 2;
+  }
+
+  .currency-chart-toolbar {
+    align-items: stretch;
+  }
+
+  .currency-chart-toolbar label {
+    flex-basis: 100%;
   }
 }

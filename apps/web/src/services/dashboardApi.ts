@@ -94,10 +94,18 @@ function mockSummary(query: DashboardQuery = {}): DashboardSummaryResponse {
 
 function mockTimeseries(query: DashboardQuery = {}): DashboardTimeseriesPoint[] {
   const dashboard = getDashboardMock(query.scenario ?? 'degraded-ria')
+  const rates: Record<string, number> = {
+    USD: 1,
+    NGN: 1560,
+    EUR: 0.92,
+    GBP: 0.78,
+    KES: 129,
+  }
+  const rate = rates[query.currency ?? 'USD'] ?? 1
   return dashboard.visuals.volumeTrend.map((point, index) => ({
     time: new Date(Date.now() - (8 - index) * 60 * 60 * 1000).toISOString(),
     processed_count: point.value,
-    volume: point.value * 420,
+    volume: point.value * 420 * rate,
     sla_rate: dashboard.visuals.completionTrend[index]?.value ?? 95,
     p95_seconds: [42, 48, 51, 88, 96, 144, 258, 180][index] ?? 90,
     state: dashboard.visuals.hourHealth[index]?.state ?? 'healthy',
