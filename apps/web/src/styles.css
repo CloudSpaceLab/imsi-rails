@@ -657,10 +657,14 @@ svg {
   min-height: 180px;
 }
 
+.realtime-chart__canvas:empty {
+  min-height: 0 !important;
+}
+
 .realtime-chart__fallback {
   display: none;
   width: 100%;
-  height: 110px;
+  height: 180px;
   margin-top: 8px;
 }
 
