@@ -238,10 +238,19 @@ const severityRank: Record<HealthState, number> = {
 const selectedScreen = computed(() => navigation.find((item) => item.id === activeScreen.value) ?? navigation[0])
 const isPolicyCreateFlow = computed(() => activeScreen.value === 'policy' && route.path === '/policy/new')
 const isRouteDetailFlow = computed(() => activeScreen.value === 'corridors' && typeof route.params.routeId === 'string')
+const isProviderDetailFlow = computed(() => activeScreen.value === 'providers' && typeof route.params.providerId === 'string')
+const isIncidentDetailFlow = computed(() => activeScreen.value === 'incidents' && typeof route.params.incidentId === 'string')
+const isReconciliationDetailFlow = computed(() => activeScreen.value === 'reconciliation' && typeof route.params.reference === 'string')
 const routeDetailId = computed(() => (typeof route.params.routeId === 'string' ? route.params.routeId : ''))
+const providerDetailId = computed(() => (typeof route.params.providerId === 'string' ? route.params.providerId : ''))
+const incidentDetailId = computed(() => (typeof route.params.incidentId === 'string' ? route.params.incidentId : ''))
+const reconciliationReference = computed(() => (typeof route.params.reference === 'string' ? route.params.reference : ''))
 const currentPageTitle = computed(() => {
   if (isPolicyCreateFlow.value) return 'New policy'
   if (isRouteDetailFlow.value) return 'Route detail'
+  if (isProviderDetailFlow.value) return 'Provider detail'
+  if (isIncidentDetailFlow.value) return 'Incident detail'
+  if (isReconciliationDetailFlow.value) return 'Settlement break'
   return selectedScreen.value.label
 })
 const currentPageDescription = computed(() =>
@@ -249,12 +258,21 @@ const currentPageDescription = computed(() =>
     ? 'Define corridor, payout method, primary rail, fallback order, and amount band.'
     : isRouteDetailFlow.value && selectedRouteDetail.value
       ? `${friendlyCorridorLabel(selectedRouteDetail.value.corridor.corridor)} / ${selectedRouteDetail.value.corridor.selectedRoute}`
+      : isProviderDetailFlow.value && selectedProviderDetail.value
+        ? `${selectedProviderDetail.value.provider} / ${friendlyCorridorLabel(selectedProviderDetail.value.corridor)}`
+        : isIncidentDetailFlow.value && selectedIncidentDetail.value
+          ? `${selectedIncidentDetail.value.id} / ${selectedIncidentDetail.value.owner}`
+          : isReconciliationDetailFlow.value && selectedReconciliationItem.value
+            ? `${selectedReconciliationItem.value.reference} / ${selectedReconciliationItem.value.owner}`
       : screenDescriptions[selectedScreen.value.id],
 )
 const breadcrumbs = computed(() => {
   const crumbs: Array<{ label: string; path?: string }> = [{ label: bankWorkspaceName, path: '/' }]
   crumbs.push({ label: selectedScreen.value.label, path: routeForScreen(selectedScreen.value.id).path })
   if (isRouteDetailFlow.value) crumbs.push({ label: selectedRouteDetail.value ? friendlyCorridorLabel(selectedRouteDetail.value.corridor.corridor) : 'Route detail' })
+  if (isProviderDetailFlow.value) crumbs.push({ label: selectedProviderDetail.value?.provider ?? 'Provider detail' })
+  if (isIncidentDetailFlow.value) crumbs.push({ label: selectedIncidentDetail.value?.id ?? 'Incident detail' })
+  if (isReconciliationDetailFlow.value) crumbs.push({ label: selectedReconciliationItem.value?.reference ?? 'Settlement break' })
   if (isPolicyCreateFlow.value) crumbs.push({ label: 'New policy' })
   return crumbs
 })
@@ -290,15 +308,78 @@ const selectedRouteTransactions = computed(() => {
   const detail = selectedRouteDetail.value
   if (!detail) return []
   const provider = detail.provider.toLowerCase()
-  const destination = getCountryIdentity(corridorParts(detail.corridor.corridor).destination).code
-  const origin = getCountryIdentity(corridorParts(detail.corridor.corridor).origin).code
   return dashboard.transactions.filter((transaction) => {
     const transactionProvider = routeProvider(transaction.route).toLowerCase()
-    const transactionDestination = getCountryIdentity(transaction.destinationCountry).code
-    const transactionOrigin = getCountryIdentity(transaction.senderCountry).code
-    const originMatches = origin === 'EU' ? ['DE', 'FR', 'ES', 'IT', 'NL', 'EU'].includes(transactionOrigin) : transactionOrigin === origin
-    return transactionProvider === provider && transactionDestination === destination && originMatches
+    return transactionProvider === provider && transactionMatchesCorridor(transaction, detail.corridor.corridor)
   })
+})
+const providerDetailRows = computed(() =>
+  sortedProviders.value.map((provider) => ({
+    id: providerIdFor(provider.provider),
+    provider,
+  })),
+)
+const selectedProviderDetail = computed(() => providerDetailRows.value.find((item) => item.id === providerDetailId.value)?.provider ?? null)
+const selectedProviderComparison = computed(() => {
+  const provider = selectedProviderDetail.value
+  if (!provider) return null
+  return providerComparisons.value.find((comparison) => providerIdFor(comparison.provider_name) === providerIdFor(provider.provider)) ?? null
+})
+const selectedProviderRoutes = computed(() => {
+  const provider = selectedProviderDetail.value
+  if (!provider) return []
+  return sortedCorridors.value.filter((corridor) => providerIdFor(routeProvider(corridor.selectedRoute)) === providerIdFor(provider.provider))
+})
+const selectedProviderTransactions = computed(() => {
+  const provider = selectedProviderDetail.value
+  if (!provider) return []
+  const providerId = providerIdFor(provider.provider)
+  return dashboard.transactions.filter((transaction) => providerIdFor(transaction.provider) === providerId || providerIdFor(routeProvider(transaction.route)) === providerId)
+})
+const selectedProviderIncidents = computed(() => {
+  const routes = selectedProviderRoutes.value.map((item) => normalizeCorridorValue(item.corridor))
+  return dashboard.incidents.filter((incident) => routes.includes(normalizeCorridorValue(incident.corridor)))
+})
+const selectedProviderReconciliation = computed(() => {
+  const provider = selectedProviderDetail.value
+  if (!provider) return []
+  return dashboard.reconciliation.filter((item) => providerIdFor(item.provider) === providerIdFor(provider.provider))
+})
+const selectedProviderFxRoutes = computed(() => {
+  const provider = selectedProviderDetail.value
+  if (!provider) return []
+  return dashboard.fxCostBoard.routes.filter((route) => providerIdFor(route.provider) === providerIdFor(provider.provider))
+})
+const selectedIncidentDetail = computed(() => dashboard.incidents.find((incident) => incident.id.toLowerCase() === incidentDetailId.value.toLowerCase()) ?? null)
+const selectedIncidentRoute = computed(() => {
+  const incident = selectedIncidentDetail.value
+  if (!incident) return null
+  return sortedCorridors.value.find((corridor) => normalizeCorridorValue(corridor.corridor) === normalizeCorridorValue(incident.corridor)) ?? null
+})
+const selectedIncidentTransactions = computed(() => {
+  const incident = selectedIncidentDetail.value
+  if (!incident) return []
+  return dashboard.transactions.filter((transaction) => transactionMatchesCorridor(transaction, incident.corridor))
+})
+const selectedIncidentBreaks = computed(() => {
+  const route = selectedIncidentRoute.value
+  if (!route) return []
+  const provider = routeProvider(route.selectedRoute)
+  return dashboard.reconciliation.filter((item) => providerIdFor(item.provider) === providerIdFor(provider))
+})
+const selectedReconciliationItem = computed(
+  () => dashboard.reconciliation.find((item) => item.reference.toLowerCase() === reconciliationReference.value.toLowerCase()) ?? null,
+)
+const selectedReconciliationTransaction = computed(() => {
+  const item = selectedReconciliationItem.value
+  if (!item) return null
+  const providerId = providerIdFor(item.provider)
+  return (
+    dashboard.transactions.find((transaction) => transaction.providerReference.includes(item.reference) || transaction.bankReference.includes(item.reference)) ??
+    dashboard.transactions.find((transaction) => providerIdFor(transaction.provider) === providerId && transaction.amount === item.amount) ??
+    dashboard.transactions.find((transaction) => providerIdFor(transaction.provider) === providerId) ??
+    null
+  )
 })
 const weakestProvider = computed(() => sortedProviders.value[sortedProviders.value.length - 1])
 const primaryIncidentCorridor = computed(() => activeIncident.value?.corridor ?? sortedCorridors.value[0]?.corridor ?? 'European Union -> Nigeria')
@@ -681,6 +762,18 @@ const openRouteDetail = (corridor: { corridor: string; selectedRoute: string }) 
   void router.push({ path: `/routes/${routeDetailIdFor(corridor)}`, query: globalDashboardQuery() })
 }
 
+const openProviderDetail = (provider: string) => {
+  void router.push({ path: `/providers/${providerIdFor(provider)}`, query: { ...globalDashboardQuery(), provider_id: providerIdFor(provider) } })
+}
+
+const openIncidentDetail = (incidentId: string) => {
+  void router.push({ path: `/incidents/${incidentId}`, query: globalDashboardQuery() })
+}
+
+const openReconciliationDetail = (reference: string) => {
+  void router.push({ path: `/reconcile/${reference}`, query: globalDashboardQuery() })
+}
+
 const syncDashboardQuery = () => {
   void router.replace({
     path: route.path,
@@ -774,6 +867,11 @@ const selectTransaction = (transaction: TransactionRecord) => {
 const openRouteTransaction = (transaction: TransactionRecord, corridor: string) => {
   selectTransaction(transaction)
   activate('transactions', { corridor: normalizeCorridorValue(corridor) })
+}
+
+const openProviderTransaction = (transaction: TransactionRecord) => {
+  selectTransaction(transaction)
+  activate('transactions', { provider_id: providerIdFor(transaction.provider) })
 }
 
 const goToTransactionPage = (page: number) => {
@@ -1053,6 +1151,23 @@ function routeDetailIdFor(corridor: { corridor: string; selectedRoute: string })
     .replace(/^-|-$/g, '')
 }
 
+function providerIdFor(provider: string) {
+  return provider
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+function transactionMatchesCorridor(transaction: TransactionRecord, corridor: string) {
+  const parts = corridorParts(corridor)
+  const destination = getCountryIdentity(parts.destination).code
+  const origin = getCountryIdentity(parts.origin).code
+  const transactionDestination = getCountryIdentity(transaction.destinationCountry).code
+  const transactionOrigin = getCountryIdentity(transaction.senderCountry).code
+  const originMatches = origin === 'EU' ? ['DE', 'FR', 'ES', 'IT', 'NL', 'EU'].includes(transactionOrigin) : transactionOrigin === origin
+  return transactionDestination === destination && originMatches
+}
+
 function isTransactionStalled(transaction: TransactionRecord) {
   return transaction.qaStatus === 'stalled' || transaction.destinationCreditedAt === 'pending'
 }
@@ -1322,7 +1437,7 @@ function baselineRateFor(index: number) {
                     :key="provider.id"
                     type="button"
                     class="volume-rank-row"
-                    @click="activate('providers', { provider_id: provider.id })"
+                    @click="openProviderDetail(provider.provider)"
                   >
                     <span>
                       <ProviderMark :provider="provider.provider" />
@@ -1495,7 +1610,7 @@ function baselineRateFor(index: number) {
               </aside>
               <ActionBar>
                 <UiButton variant="secondary" @click="activate('transactions', { corridor: normalizeCorridorValue(selectedRouteDetail.corridor.corridor) })">View transactions</UiButton>
-                <UiButton variant="secondary" @click="activate('providers', { provider_id: selectedRouteDetail.provider.toLowerCase() })">Provider</UiButton>
+                <UiButton variant="secondary" @click="openProviderDetail(selectedRouteDetail.provider)">Provider</UiButton>
                 <UiButton @click="activate('policy', { corridor: normalizeCorridorValue(selectedRouteDetail.corridor.corridor) })">Policy</UiButton>
               </ActionBar>
             </div>
@@ -1507,7 +1622,7 @@ function baselineRateFor(index: number) {
               empty-title="No matching transactions"
               empty-description="No recent transfer records match this route in the current data window."
             >
-              <table>
+              <table class="compact-table">
                 <thead>
                   <tr>
                     <th>Reference</th>
@@ -1654,7 +1769,7 @@ function baselineRateFor(index: number) {
                       <ActionBar compact>
                         <UiButton size="sm" @click="openRouteDetail(corridor)">Open</UiButton>
                         <UiButton size="sm" variant="secondary" @click="activate('transactions', { corridor: normalizeCorridorValue(corridor.corridor) })">Trace</UiButton>
-                        <UiButton size="sm" variant="secondary" @click="activate('providers', { provider_id: routeProvider(corridor.selectedRoute).toLowerCase() })">Provider</UiButton>
+                        <UiButton size="sm" variant="secondary" @click="openProviderDetail(routeProvider(corridor.selectedRoute))">Provider</UiButton>
                         <UiButton size="sm" @click="activate('policy', { corridor: normalizeCorridorValue(corridor.corridor) })">Policy</UiButton>
                       </ActionBar>
                     </td>
@@ -2166,6 +2281,150 @@ function baselineRateFor(index: number) {
         </section>
       </section>
 
+      <section v-else-if="activeScreen === 'incidents' && isIncidentDetailFlow" class="screen-stack">
+        <section v-if="selectedIncidentDetail" class="dashboard-grid">
+          <Panel title="Incident summary" eyebrow="Incident detail" :accent="selectedIncidentDetail.severity" class="span-5">
+            <div class="incident-summary">
+              <HealthBadge :state="selectedIncidentDetail.severity" :trigger="selectedIncidentDetail.status" />
+              <h3>{{ selectedIncidentDetail.title }}</h3>
+              <p>{{ selectedIncidentDetail.rootCause }}</p>
+              <dl class="metric-grid">
+                <div>
+                  <dt>Started</dt>
+                  <dd>{{ selectedIncidentDetail.startedAt }}</dd>
+                </div>
+                <div>
+                  <dt>Affected</dt>
+                  <dd>{{ selectedIncidentDetail.affectedTransactions }}</dd>
+                </div>
+                <div>
+                  <dt>Value</dt>
+                  <dd>{{ selectedIncidentDetail.affectedValue }}</dd>
+                </div>
+                <div>
+                  <dt>Owner</dt>
+                  <dd>{{ selectedIncidentDetail.owner }}</dd>
+                </div>
+              </dl>
+              <aside class="state-note">
+                <ArrowRight :size="16" aria-hidden="true" />
+                <span>{{ selectedIncidentDetail.nextAction }}</span>
+              </aside>
+              <ActionBar>
+                <UiButton variant="secondary" @click="activate('transactions', { corridor: normalizeCorridorValue(selectedIncidentDetail.corridor) })">Affected transfers</UiButton>
+                <UiButton @click="activate('policy', { corridor: normalizeCorridorValue(selectedIncidentDetail.corridor) })">Policy</UiButton>
+              </ActionBar>
+            </div>
+          </Panel>
+
+          <Panel title="Affected route" eyebrow="Route and policy" :accent="selectedIncidentRoute?.state ?? selectedIncidentDetail.severity" class="span-7">
+            <div v-if="selectedIncidentRoute" class="selected-policy">
+              <RoutePath
+                :origin="corridorParts(selectedIncidentRoute.corridor).origin"
+                :destination="corridorParts(selectedIncidentRoute.corridor).destination"
+                :provider="routeProvider(selectedIncidentRoute.selectedRoute)"
+                :rail="routeRail(selectedIncidentRoute.selectedRoute)"
+              />
+              <dl class="metric-grid metric-grid--four">
+                <div>
+                  <dt>Score</dt>
+                  <dd>{{ selectedIncidentRoute.score }}</dd>
+                </div>
+                <div>
+                  <dt>P95</dt>
+                  <dd>{{ selectedIncidentRoute.p95 }}</dd>
+                </div>
+                <div>
+                  <dt>Traffic</dt>
+                  <dd>{{ selectedIncidentRoute.split }}</dd>
+                </div>
+                <div>
+                  <dt>Status</dt>
+                  <dd>{{ selectedIncidentRoute.status }}</dd>
+                </div>
+              </dl>
+              <ActionBar>
+                <UiButton size="sm" variant="secondary" @click="openRouteDetail(selectedIncidentRoute)">Open route</UiButton>
+                <UiButton size="sm" variant="secondary" @click="openProviderDetail(routeProvider(selectedIncidentRoute.selectedRoute))">Provider</UiButton>
+              </ActionBar>
+            </div>
+            <EmptyState v-else title="Route not linked" description="No configured route matches this incident corridor." />
+          </Panel>
+
+          <Panel title="Affected transfers" :eyebrow="`${selectedIncidentTransactions.length} in current view`" accent="watch" class="span-7">
+            <DataTable :empty="selectedIncidentTransactions.length === 0" empty-title="No affected transfers" empty-description="No recent transfer records match this incident corridor.">
+              <table class="compact-table">
+                <thead>
+                  <tr>
+                    <th>Reference</th>
+                    <th>Provider</th>
+                    <th>Amount</th>
+                    <th>Elapsed</th>
+                    <th>Owner</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="transaction in selectedIncidentTransactions" :key="transaction.reference" class="click-row" @click="openProviderTransaction(transaction)">
+                    <td><strong class="mono">{{ transaction.reference }}</strong></td>
+                    <td><ProviderMark :provider="transaction.provider" /></td>
+                    <td>{{ transaction.amount }}</td>
+                    <td>{{ transaction.totalTime }}</td>
+                    <td>{{ transaction.currentOwner }}</td>
+                    <td><HealthBadge :state="qaStateFor(transaction)" :trigger="qaStatusLabel(transaction)" /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </DataTable>
+          </Panel>
+
+          <Panel title="Root cause timeline" eyebrow="Latency ownership" accent="degraded" class="span-5">
+            <div class="latency-list">
+              <article v-for="step in dashboard.latency.steps" :key="step.label">
+                <div>
+                  <strong>{{ step.label }}</strong>
+                  <small>{{ step.owner }}</small>
+                </div>
+                <span class="progress-track">
+                  <i :class="`progress-fill--${step.state}`" :style="{ width: percentWidth((step.durationMs / Math.max(step.targetMs, 1)) * 40) }"></i>
+                </span>
+                <HealthBadge :state="step.state" :trigger="`${Math.round(step.durationMs / 1000)}s`" />
+              </article>
+            </div>
+          </Panel>
+
+          <Panel title="Settlement impact" :eyebrow="`${selectedIncidentBreaks.length} breaks`" :accent="selectedIncidentBreaks.length ? 'watch' : 'healthy'" class="span-12">
+            <DataTable :empty="selectedIncidentBreaks.length === 0" empty-title="No settlement breaks" empty-description="No reconciliation break is linked to this incident provider.">
+              <table class="compact-table">
+                <thead>
+                  <tr>
+                    <th>Reference</th>
+                    <th>Provider</th>
+                    <th>Reason</th>
+                    <th>Owner</th>
+                    <th>Open</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in selectedIncidentBreaks" :key="item.reference">
+                    <td class="mono">{{ item.reference }}</td>
+                    <td><ProviderMark :provider="item.provider" /></td>
+                    <td><HealthBadge :state="item.state" :trigger="item.reason" /></td>
+                    <td>{{ item.owner }}</td>
+                    <td><UiButton size="sm" variant="secondary" @click="openReconciliationDetail(item.reference)">Open break</UiButton></td>
+                  </tr>
+                </tbody>
+              </table>
+            </DataTable>
+          </Panel>
+        </section>
+        <Panel v-else title="Incident not found" eyebrow="Incidents" accent="watch">
+          <EmptyState title="Incident not found" description="Choose an incident from the incident list." :icon="BellRing">
+            <UiButton @click="activate('incidents')">Back to incidents</UiButton>
+          </EmptyState>
+        </Panel>
+      </section>
+
       <section v-else-if="activeScreen === 'incidents'" class="screen-stack">
         <section class="dashboard-grid">
           <Panel title="Current incident" eyebrow="Open work" :accent="activeIncident?.severity ?? 'healthy'" class="span-5">
@@ -2189,6 +2448,7 @@ function baselineRateFor(index: number) {
                 </div>
               </dl>
               <ActionBar>
+                <UiButton variant="secondary" @click="openIncidentDetail(activeIncident.id)">Open incident</UiButton>
                 <UiButton @click="activate('policy')">Review policy</UiButton>
                 <UiButton variant="secondary" @click="activate('transactions')">Trace transfers</UiButton>
               </ActionBar>
@@ -2205,6 +2465,7 @@ function baselineRateFor(index: number) {
                     <th>Affected</th>
                     <th>Next team</th>
                     <th>State</th>
+                    <th>Open</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2219,6 +2480,7 @@ function baselineRateFor(index: number) {
                     <td>{{ incident.affectedTransactions }} / {{ incident.affectedValue }}</td>
                     <td>{{ incident.owner }}</td>
                     <td><HealthBadge :state="incident.severity" :trigger="incident.status" /></td>
+                    <td><UiButton size="sm" variant="secondary" @click="openIncidentDetail(incident.id)">Open</UiButton></td>
                   </tr>
                 </tbody>
               </table>
@@ -2361,6 +2623,120 @@ function baselineRateFor(index: number) {
         </section>
       </section>
 
+      <section v-else-if="activeScreen === 'reconciliation' && isReconciliationDetailFlow" class="screen-stack">
+        <section v-if="selectedReconciliationItem" class="dashboard-grid">
+          <Panel title="Break summary" eyebrow="Reconciliation detail" :accent="selectedReconciliationItem.state" class="span-5">
+            <div class="selected-policy">
+              <h3 class="mono">{{ selectedReconciliationItem.reference }}</h3>
+              <ProviderMark :provider="selectedReconciliationItem.provider" show-category />
+              <dl class="metric-grid">
+                <div>
+                  <dt>Amount</dt>
+                  <dd>{{ selectedReconciliationItem.amount }}</dd>
+                </div>
+                <div>
+                  <dt>Age</dt>
+                  <dd>{{ selectedReconciliationItem.age }}</dd>
+                </div>
+                <div>
+                  <dt>Owner</dt>
+                  <dd>{{ selectedReconciliationItem.owner }}</dd>
+                </div>
+                <div>
+                  <dt>State</dt>
+                  <dd>{{ stateLabel(selectedReconciliationItem.state) }}</dd>
+                </div>
+              </dl>
+              <aside class="state-note">
+                <ReceiptText :size="16" aria-hidden="true" />
+                <span>{{ selectedReconciliationItem.reason }}</span>
+              </aside>
+              <ActionBar>
+                <UiButton variant="secondary" @click="openProviderDetail(selectedReconciliationItem.provider)">Provider</UiButton>
+                <UiButton v-if="selectedReconciliationTransaction" @click="openProviderTransaction(selectedReconciliationTransaction)">Open transfer</UiButton>
+              </ActionBar>
+            </div>
+          </Panel>
+
+          <Panel title="Linked transfer" eyebrow="Trace" :accent="selectedReconciliationTransaction ? qaStateFor(selectedReconciliationTransaction) : 'unknown'" class="span-7">
+            <div v-if="selectedReconciliationTransaction" class="transaction-detail">
+              <div class="detail-heading">
+                <div>
+                  <span>{{ selectedReconciliationTransaction.senderCountry }} -> {{ selectedReconciliationTransaction.destinationCountry }}</span>
+                  <h3 class="mono">{{ selectedReconciliationTransaction.reference }}</h3>
+                  <p>{{ selectedReconciliationTransaction.amount }} / {{ selectedReconciliationTransaction.beneficiary }}</p>
+                </div>
+                <HealthBadge :state="qaStateFor(selectedReconciliationTransaction)" :trigger="qaStatusLabel(selectedReconciliationTransaction)" />
+              </div>
+              <dl class="metric-grid metric-grid--four">
+                <div>
+                  <dt>Provider ref</dt>
+                  <dd class="mono">{{ selectedReconciliationTransaction.providerReference }}</dd>
+                </div>
+                <div>
+                  <dt>Bank ref</dt>
+                  <dd class="mono">{{ selectedReconciliationTransaction.bankReference }}</dd>
+                </div>
+                <div>
+                  <dt>Elapsed</dt>
+                  <dd>{{ selectedReconciliationTransaction.totalTime }}</dd>
+                </div>
+                <div>
+                  <dt>Owner</dt>
+                  <dd>{{ selectedReconciliationTransaction.currentOwner }}</dd>
+                </div>
+              </dl>
+            </div>
+            <EmptyState v-else title="No linked transfer" description="No transaction reference could be matched to this break in the current data window." />
+          </Panel>
+
+          <Panel title="Evidence to check" eyebrow="Closure checklist" accent="healthy" class="span-7">
+            <div class="resolution-grid">
+              <article>
+                <BadgeCheck :size="18" aria-hidden="true" />
+                <strong>References</strong>
+                <small>Match switch, provider, bank posting, and settlement batch IDs.</small>
+              </article>
+              <article>
+                <CircleDollarSign :size="18" aria-hidden="true" />
+                <strong>Amount and FX</strong>
+                <small>Confirm amount, currency, rate timestamp, fee, and spread.</small>
+              </article>
+              <article>
+                <Clock3 :size="18" aria-hidden="true" />
+                <strong>Beneficiary outcome</strong>
+                <small>Confirm credit, reversal, or unresolved posting owner.</small>
+              </article>
+              <article>
+                <History :size="18" aria-hidden="true" />
+                <strong>Resolution note</strong>
+                <small>Record owner, supporting reference, and closure reason.</small>
+              </article>
+            </div>
+          </Panel>
+
+          <Panel title="Next action" eyebrow="Work queue" :accent="selectedReconciliationItem.state" class="span-5">
+            <div class="event-list">
+              <article class="state-note">
+                <ArrowRight :size="16" aria-hidden="true" />
+                <span v-if="selectedReconciliationItem.reason.includes('bank credit pending')">Confirm posting outcome with {{ selectedReconciliationItem.owner }} before closing.</span>
+                <span v-else-if="selectedReconciliationItem.reason.includes('FX')">Confirm FX timestamp and booked rate with Treasury Ops.</span>
+                <span v-else>Request provider settlement file and attach the matching batch reference.</span>
+              </article>
+              <ActionBar>
+                <UiButton variant="secondary">Assign</UiButton>
+                <UiButton>Mark resolved</UiButton>
+              </ActionBar>
+            </div>
+          </Panel>
+        </section>
+        <Panel v-else title="Break not found" eyebrow="Reconciliation" accent="watch">
+          <EmptyState title="Break not found" description="Choose a settlement break from the reconciliation work queue." :icon="ReceiptText">
+            <UiButton @click="activate('reconciliation')">Back to reconcile</UiButton>
+          </EmptyState>
+        </Panel>
+      </section>
+
       <section v-else-if="activeScreen === 'reconciliation'" class="screen-stack">
         <section class="dashboard-grid">
           <Panel title="Settlement breaks to clear" eyebrow="Reconciliation" accent="watch" class="span-8">
@@ -2403,6 +2779,7 @@ function baselineRateFor(index: number) {
                     <td>{{ item.owner }}</td>
                     <td>
                       <ActionBar compact>
+                        <UiButton size="sm" variant="secondary" @click="openReconciliationDetail(item.reference)">Open</UiButton>
                         <UiButton size="sm" variant="secondary" @click="activate('transactions')">Trace</UiButton>
                         <UiButton size="sm">Resolve</UiButton>
                       </ActionBar>
@@ -2460,6 +2837,162 @@ function baselineRateFor(index: number) {
         </section>
       </section>
 
+      <section v-else-if="activeScreen === 'providers' && isProviderDetailFlow" class="screen-stack">
+        <section v-if="selectedProviderDetail" class="dashboard-grid">
+          <Panel title="Provider summary" eyebrow="Provider detail" :accent="selectedProviderDetail.state" class="span-5">
+            <div class="selected-policy">
+              <ProviderMark :provider="selectedProviderDetail.provider" show-category size="lg" />
+              <dl class="metric-grid">
+                <div>
+                  <dt>Success</dt>
+                  <dd>{{ selectedProviderDetail.successRate }}</dd>
+                </div>
+                <div>
+                  <dt>P95 / P99</dt>
+                  <dd>{{ selectedProviderDetail.p95 }} / {{ selectedProviderDetail.p99 }}</dd>
+                </div>
+                <div>
+                  <dt>Traffic</dt>
+                  <dd>{{ selectedProviderDetail.trafficShare }}</dd>
+                </div>
+                <div v-if="selectedProviderComparison">
+                  <dt>Processed</dt>
+                  <dd>{{ selectedProviderComparison.processed_count.toLocaleString() }}</dd>
+                </div>
+                <div>
+                  <dt>Exceptions</dt>
+                  <dd>{{ selectedProviderDetail.settlementExceptions }}</dd>
+                </div>
+              </dl>
+              <aside class="state-note">
+                <TimerReset :size="16" aria-hidden="true" />
+                <span>Support response target {{ selectedProviderDetail.supportSla }}.</span>
+                <strong>{{ stateLabel(selectedProviderDetail.state) }}</strong>
+              </aside>
+              <ActionBar>
+                <UiButton variant="secondary" @click="activate('transactions', { provider_id: providerIdFor(selectedProviderDetail.provider) })">Transactions</UiButton>
+                <UiButton variant="secondary" @click="activate('reconciliation')">Breaks</UiButton>
+                <UiButton @click="activate('policy', { provider_id: providerIdFor(selectedProviderDetail.provider) })">Policies</UiButton>
+              </ActionBar>
+            </div>
+          </Panel>
+
+          <Panel title="Routes using this provider" :eyebrow="`${selectedProviderRoutes.length} routes`" accent="healthy" class="span-7">
+            <DataTable :empty="selectedProviderRoutes.length === 0" empty-title="No active routes" empty-description="This provider is not selected on any configured route in the current view.">
+              <table class="compact-table">
+                <thead>
+                  <tr>
+                    <th>Route</th>
+                    <th>Score</th>
+                    <th>Traffic split</th>
+                    <th>Risk</th>
+                    <th>Open</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="corridor in selectedProviderRoutes" :key="`${corridor.corridor}-${corridor.selectedRoute}`">
+                    <td>
+                      <CountryPair :origin="corridorParts(corridor.corridor).origin" :destination="corridorParts(corridor.corridor).destination" compact />
+                      <small>{{ routeRail(corridor.selectedRoute) || corridor.payout }}</small>
+                    </td>
+                    <td><RouteScoreChip :score="corridor.score" :reason="corridor.risk" :confidence="corridor.status" /></td>
+                    <td>{{ corridor.split }}</td>
+                    <td><HealthBadge :state="corridor.state" :trigger="corridor.risk" /></td>
+                    <td><UiButton size="sm" variant="secondary" @click="openRouteDetail(corridor)">Open route</UiButton></td>
+                  </tr>
+                </tbody>
+              </table>
+            </DataTable>
+          </Panel>
+
+          <Panel title="Recent transfers" :eyebrow="`${selectedProviderTransactions.length} matching transfers`" accent="watch" class="span-7">
+            <DataTable :empty="selectedProviderTransactions.length === 0" empty-title="No transfers" empty-description="No recent transfer records match this provider.">
+              <table class="compact-table">
+                <thead>
+                  <tr>
+                    <th>Reference</th>
+                    <th>Amount</th>
+                    <th>Corridor</th>
+                    <th>Elapsed</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="transaction in selectedProviderTransactions" :key="transaction.reference" class="click-row" @click="openProviderTransaction(transaction)">
+                    <td>
+                      <strong class="mono">{{ transaction.reference }}</strong>
+                      <small>{{ transaction.providerReference }}</small>
+                    </td>
+                    <td>{{ transaction.amount }}</td>
+                    <td>
+                      <CountryPair :origin="transaction.senderCountry" :destination="transaction.destinationCountry" compact />
+                    </td>
+                    <td>{{ transaction.totalTime }}</td>
+                    <td><HealthBadge :state="qaStateFor(transaction)" :trigger="qaStatusLabel(transaction)" /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </DataTable>
+          </Panel>
+
+          <Panel title="Settlement breaks" :eyebrow="`${selectedProviderReconciliation.length} open`" :accent="selectedProviderReconciliation.length ? 'watch' : 'healthy'" class="span-5">
+            <div class="event-list">
+              <article v-if="selectedProviderReconciliation.length === 0" class="state-note">
+                <FileCheck2 :size="16" aria-hidden="true" />
+                <span>No open reconciliation break is linked to this provider.</span>
+              </article>
+              <article v-for="item in selectedProviderReconciliation" :key="item.reference" class="state-note">
+                <ReceiptText :size="16" aria-hidden="true" />
+                <span>{{ item.reference }} / {{ item.reason }}</span>
+                <UiButton size="sm" variant="secondary" @click="openReconciliationDetail(item.reference)">Open</UiButton>
+              </article>
+            </div>
+          </Panel>
+
+          <Panel title="Incidents" :eyebrow="`${selectedProviderIncidents.length} linked`" :accent="selectedProviderIncidents[0]?.severity ?? selectedProviderDetail.state" class="span-6">
+            <div class="event-list">
+              <article v-if="selectedProviderIncidents.length === 0" class="state-note">
+                <CheckCircle2 :size="16" aria-hidden="true" />
+                <span>No active incident is linked to this provider.</span>
+              </article>
+              <article v-for="incident in selectedProviderIncidents" :key="incident.id" class="state-note">
+                <BellRing :size="16" aria-hidden="true" />
+                <span>{{ incident.title }} / {{ incident.owner }}</span>
+                <UiButton size="sm" variant="secondary" @click="openIncidentDetail(incident.id)">Open</UiButton>
+              </article>
+            </div>
+          </Panel>
+
+          <Panel title="Rates and cost" eyebrow="Current quotes" :accent="selectedProviderFxRoutes[0]?.state ?? 'unknown'" class="span-6">
+            <DataTable :empty="selectedProviderFxRoutes.length === 0" empty-title="No quote data" empty-description="No current rate or fee record is available for this provider.">
+              <table class="compact-table">
+                <thead>
+                  <tr>
+                    <th>Route</th>
+                    <th>Effective cost</th>
+                    <th>Speed</th>
+                    <th>Freshness</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="quote in selectedProviderFxRoutes" :key="quote.route">
+                    <td>{{ quote.route }}</td>
+                    <td><strong>{{ quote.effectiveCost }}</strong></td>
+                    <td>{{ quote.payoutTime }}</td>
+                    <td><HealthBadge :state="quote.state" :trigger="quote.updatedAt" /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </DataTable>
+          </Panel>
+        </section>
+        <Panel v-else title="Provider not found" eyebrow="Providers" accent="watch">
+          <EmptyState title="Provider not found" description="Choose a provider from the scorecard." :icon="Network">
+            <UiButton @click="activate('providers')">Back to providers</UiButton>
+          </EmptyState>
+        </Panel>
+      </section>
+
       <section v-else-if="activeScreen === 'providers'" class="screen-stack">
         <section class="kpi-grid">
           <KpiTile label="Best SLA" :value="sortedProviders[0]?.provider ?? 'None'" :detail="`${sortedProviders[0]?.p95 ?? '-'} P95`" tone="healthy" :icon="CheckCircle2" />
@@ -2467,7 +3000,7 @@ function baselineRateFor(index: number) {
           <KpiTile label="Total providers" :value="sortedProviders.length" detail="Connected provider routes" tone="brand" :icon="Network" />
           <KpiTile label="Measurement window" value="15m" detail="Success, P95, stuck rate" tone="recovery" :icon="TimerReset" />
         </section>
-        <Panel title="Provider action queue" eyebrow="SLA and exceptions" :accent="dashboard.recommendation.state">
+        <Panel title="Provider work queue" eyebrow="SLA and exceptions" :accent="dashboard.recommendation.state">
           <div class="recommendation-card">
             <HealthBadge :state="dashboard.recommendation.state" window="15 min" />
             <h3>{{ dashboard.recommendation.title }}</h3>
@@ -2513,6 +3046,7 @@ function baselineRateFor(index: number) {
                   <th>Completed in SLA</th>
                   <th>P95</th>
                   <th>State</th>
+                  <th>Open</th>
                 </tr>
               </thead>
               <tbody>
@@ -2524,6 +3058,7 @@ function baselineRateFor(index: number) {
                   <td>{{ provider.sla_completed_count.toLocaleString() }} / {{ provider.sla_rate.toFixed(1) }}%</td>
                   <td>{{ formatDuration(provider.p95_seconds) }}</td>
                   <td><HealthBadge :state="provider.state" /></td>
+                  <td><UiButton size="sm" variant="secondary" @click="openProviderDetail(provider.provider_name)">Open</UiButton></td>
                 </tr>
               </tbody>
             </table>
@@ -2542,6 +3077,7 @@ function baselineRateFor(index: number) {
                   <th>Traffic</th>
                   <th>Reconciliation</th>
                   <th>State</th>
+                  <th>Open</th>
                 </tr>
               </thead>
               <tbody>
@@ -2556,6 +3092,7 @@ function baselineRateFor(index: number) {
                   <td>{{ provider.trafficShare }}</td>
                   <td>{{ provider.settlementExceptions }} breaks</td>
                   <td><HealthBadge :state="provider.state" /></td>
+                  <td><UiButton size="sm" variant="secondary" @click="openProviderDetail(provider.provider)">Open</UiButton></td>
                 </tr>
               </tbody>
             </table>

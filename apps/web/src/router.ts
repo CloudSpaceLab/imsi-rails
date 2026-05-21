@@ -28,6 +28,27 @@ routes.push({
 })
 
 routes.push({
+  path: '/providers/:providerId',
+  name: 'provider-detail',
+  component: { template: '<span />' },
+  meta: { screen: 'providers', label: 'Provider detail' },
+})
+
+routes.push({
+  path: '/incidents/:incidentId',
+  name: 'incident-detail',
+  component: { template: '<span />' },
+  meta: { screen: 'incidents', label: 'Incident detail' },
+})
+
+routes.push({
+  path: '/reconcile/:reference',
+  name: 'reconciliation-detail',
+  component: { template: '<span />' },
+  meta: { screen: 'reconciliation', label: 'Reconciliation detail' },
+})
+
+routes.push({
   path: '/policy/new',
   name: 'policy-new',
   component: { template: '<span />' },

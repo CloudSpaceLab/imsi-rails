@@ -171,8 +171,10 @@ describe('premium dashboard workflows', () => {
     expect(providerRow).toBeTruthy()
     await providerRow?.trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.path).toBe('/providers')
+    expect(router.currentRoute.value.path).toBe('/providers/thunes')
     expect(router.currentRoute.value.query.provider_id).toBe('thunes')
+    expect(wrapper.text()).toContain('Provider detail')
+    expect(wrapper.text()).toContain('Routes using this provider')
 
     await router.push('/')
     await flushPromises()
@@ -224,13 +226,41 @@ describe('premium dashboard workflows', () => {
     const wrapper = await mountApp('/')
     await flushPromises()
 
-    expect(wrapper.text()).not.toContain('Provider action queue')
+    expect(wrapper.text()).not.toContain('Provider work queue')
 
     await wrapper.findAll('button.nav-item').find((item) => item.text().includes('Providers'))?.trigger('click')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Provider action queue')
+    expect(wrapper.text()).toContain('Provider work queue')
     expect(wrapper.text()).toContain('Trace affected transfers')
+  })
+
+  it('opens focused provider, incident, and reconciliation detail workspaces', async () => {
+    let wrapper = await mountApp('/providers/thunes')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Provider detail')
+    expect(wrapper.text()).toContain('Provider summary')
+    expect(wrapper.text()).toContain('Routes using this provider')
+    expect(wrapper.text()).toContain('Recent transfers')
+
+    wrapper.unmount()
+    wrapper = await mountApp('/incidents/INC-2026-0520-014')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Incident detail')
+    expect(wrapper.text()).toContain('Incident summary')
+    expect(wrapper.text()).toContain('Affected route')
+    expect(wrapper.text()).toContain('Root cause timeline')
+
+    wrapper.unmount()
+    wrapper = await mountApp('/reconcile/REC-7781')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Settlement break')
+    expect(wrapper.text()).toContain('Break summary')
+    expect(wrapper.text()).toContain('Linked transfer')
+    expect(wrapper.text()).toContain('Evidence to check')
   })
 
   it('cleans page-specific query state when navigating between work areas', async () => {

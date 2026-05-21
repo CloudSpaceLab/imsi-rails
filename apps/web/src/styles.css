@@ -1229,6 +1229,15 @@ table {
   border-collapse: collapse;
 }
 
+.compact-table {
+  min-width: 0;
+}
+
+.compact-table th,
+.compact-table td {
+  white-space: normal;
+}
+
 .fx-cost-table {
   min-width: 0;
 }
@@ -1666,7 +1675,6 @@ tbody tr:hover,
 }
 
 .provider-row,
-.latency-list article,
 .route-compare-row {
   display: grid;
   grid-template-columns: minmax(170px, 1fr) minmax(120px, 1fr) auto auto;
@@ -1676,6 +1684,28 @@ tbody tr:hover,
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: rgba(255, 255, 255, 0.025);
+}
+
+.latency-list article {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(80px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.latency-list article > div {
+  min-width: 0;
+}
+
+.latency-list strong,
+.latency-list small {
+  display: block;
+  overflow-wrap: anywhere;
 }
 
 .action-queue article {
@@ -2153,6 +2183,29 @@ tbody tr:hover,
   .event-list li {
     grid-template-columns: 1fr;
     align-items: start;
+  }
+
+  .compact-table {
+    min-width: 0;
+  }
+
+  .compact-table thead {
+    display: none;
+  }
+
+  .compact-table tr,
+  .compact-table td {
+    display: block;
+  }
+
+  .compact-table tr {
+    padding: 10px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .compact-table td {
+    padding: 7px 0;
+    border-bottom: 0;
   }
 
   h1 {
