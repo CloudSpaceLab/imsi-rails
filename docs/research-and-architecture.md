@@ -19,25 +19,28 @@ The architecture should:
 
 ### Backend Hot Path
 
-Use Rust with Tokio and Axum for the routing, switching, circuit breaker, and adapter runtime.
+Use Go for the routing, switching, circuit breaker, adapter runtime, authentication, RBAC, LDAP/AD onboarding, and dashboard API.
 
 Why:
 
-- Rust is designed for memory-efficient, reliable software without a garbage collector.
-- Tokio provides async networking primitives and a work-stealing runtime suitable for high concurrency.
-- Axum is built on Tokio, Hyper, and Tower, which gives us composable middleware for auth, rate limits, tracing, timeouts, and retries.
+- Go produces small operationally simple services: compiled binaries, easy containerization, strong standard-library HTTP support, and mature libraries for Postgres, NATS, LDAP, OIDC, SFTP, XML/SOAP, and observability.
+- The existing implementation already has Go transaction intake, route selection, health ingestion, and circuit breaker services with tests.
+- Bank integration work is more likely to be limited by provider/bank systems and security review than raw routing compute.
+- Go is easier to hire for and maintain in bank-integration teams while keeping lower operational overhead than heavier enterprise stacks.
 - A compiled single-binary service is easier to deploy in controlled bank infrastructure than a large runtime-heavy stack.
 
 Alternative:
 
-- Go is acceptable if hiring speed is more important than memory predictability. The recommendation remains Rust for the transaction routing core because the product promise depends on low CPU, low memory, and stable latency.
+- Rust remains a future option for extremely performance-sensitive components, but it is no longer the default backend path for the pilot.
+- Node.js/TypeScript is acceptable for UI-adjacent BFF work, but not for the core switching runtime.
 
 Sources:
 
-- Rust: https://www.rust-lang.org/
-- Rust ownership: https://doc.rust-lang.org/book/ch04-00-understanding-ownership.html
-- Tokio: https://tokio.rs/
-- Axum: https://docs.rs/axum/latest/axum/
+- Go: https://go.dev/
+- Go FAQ: https://go.dev/doc/faq
+- OWASP Authorization Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html
+- go-ldap: https://pkg.go.dev/github.com/go-ldap/ldap/v3
+- go-oidc: https://github.com/coreos/go-oidc
 
 ### Eventing and Streaming
 
@@ -138,14 +141,14 @@ Sources:
 
 ### Frontend
 
-Use SvelteKit for the product application, uPlot for dense latency/time-series charts, and TanStack Table for virtualized operational tables.
+Use Vue 3 with Vite for the product application, Vue Router for screen/query state, uPlot for dense latency/time-series charts, and native semantic tables until row volume requires virtualization.
 
 Why:
 
-- Svelte compiles UI components into lean JavaScript.
-- SvelteKit supports robust app patterns, SSR/prerendering where needed, routing, and performance-oriented builds.
+- The existing product shell is Vue 3/Vite and already has tested control-room, transaction, provider, policy, FX, reconciliation, and audit surfaces.
+- Vue Router gives route-backed drilldowns without a framework migration.
 - uPlot is small and optimized for time-series charts.
-- TanStack Table is headless, giving control over dense bank-grade table UX without shipping a heavy component system.
+- Native semantic tables keep the pilot bundle small; add virtualization when operational tables exceed 1,000 rows.
 
 Dashboard guidance:
 
@@ -157,8 +160,8 @@ Dashboard guidance:
 
 Sources:
 
-- Svelte overview: https://svelte.dev/docs/svelte/overview
-- SvelteKit introduction: https://svelte.dev/docs/kit/introduction
+- Vue: https://vuejs.org/
+- Vue Router: https://router.vuejs.org/
 - uPlot: https://github.com/leeoniya/uPlot
 - TanStack Table: https://tanstack.com/table/v8/docs/overview
 - Apache ECharts canvas/SVG guidance: https://echarts.apache.org/handbook/en/best-practices/canvas-vs-svg/

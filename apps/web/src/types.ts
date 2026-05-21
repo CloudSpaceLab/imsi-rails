@@ -15,6 +15,108 @@ export type UiScenario = 'healthy' | 'degraded' | 'blocked' | 'stale-fx' | 'empt
 
 export type DataViewState = 'ready' | 'loading' | 'empty' | 'stale' | 'error' | 'permission-denied'
 
+export type Permission =
+  | 'dashboard:read'
+  | 'transactions:read'
+  | 'transactions:trace'
+  | 'providers:manage'
+  | 'policy:draft'
+  | 'policy:approve'
+  | 'policy:activate'
+  | 'incidents:manage'
+  | 'reconciliation:manage'
+  | 'fx:read'
+  | 'audit:read'
+  | 'audit:export'
+  | 'users:manage'
+  | 'identity:manage'
+
+export type Role =
+  | 'platform_admin'
+  | 'bank_admin'
+  | 'ops_lead'
+  | 'ops_analyst'
+  | 'compliance_officer'
+  | 'treasury_finance'
+  | 'auditor'
+  | 'viewer'
+  | 'demo_viewer'
+
+export type SessionUser = {
+  id: string
+  bank_id: string
+  username: string
+  email: string
+  display_name: string
+  roles: Role[]
+  permissions: Permission[]
+  auth_provider: string
+}
+
+export type DashboardContext = {
+  from: string
+  to: string
+  timezone: string
+  provider_id?: string
+  corridor?: string
+  payout_method?: string
+  currency: string
+  analysis_lens: string
+}
+
+export type DashboardAnalytics = {
+  processed_count: number
+  processed_volume: number
+  completed_count: number
+  sla_completed_count: number
+  sla_rate: number
+  failed_count: number
+  stalled_count: number
+  pending_count: number
+  p50_seconds: number
+  p95_seconds: number
+  p99_seconds: number
+}
+
+export type MetricTile = {
+  id: string
+  label: string
+  value: string
+  unit: string
+  state: HealthState
+  trend: string
+  drilldown: string
+}
+
+export type DashboardTimeseriesPoint = {
+  time: string
+  processed_count: number
+  volume: number
+  sla_rate: number
+  p95_seconds: number
+  state: HealthState
+}
+
+export type ProviderComparison = {
+  provider_id: string
+  provider_name: string
+  corridor: string
+  processed_count: number
+  processed_volume: number
+  sla_completed_count: number
+  sla_rate: number
+  p95_seconds: number
+  state: HealthState
+}
+
+export type DashboardSummaryResponse = {
+  context: DashboardContext
+  analytics: DashboardAnalytics
+  tiles: MetricTile[]
+  providers: ProviderComparison[]
+  generated_at: string
+}
+
 export type ProviderIdentity = {
   id: string
   name: string
@@ -33,7 +135,7 @@ export type CountryIdentity = {
 }
 
 export type DataConnection = {
-  mode: 'polling' | 'static'
+  mode: 'polling' | 'static' | 'api' | 'sse'
   freshness: 'fresh' | 'stale' | 'estimated' | 'unavailable'
   updatedAt: string
   nextPollIn: string

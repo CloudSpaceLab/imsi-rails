@@ -1,0 +1,83 @@
+name: Deploy IMSI dashboard
+
+on:
+  push:
+    branches:
+      - main
+      - demo
+    paths:
+      - 'apps/web/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/deploy-imsi.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: imsi-dashboard-${{ github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  DEPLOY_PATH: /var/www/imsi.cloudspacetechs.com
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm run web:test
+
+      - name: Build
+        env:
+          VITE_IMSI_DATA_MODE: ${{ github.ref_name == 'demo' && 'mock' || '' }}
+        run: npm run web:build
+
+      - name: Configure SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          test -n "$DEPLOY_HOST"
+          test -n "$DEPLOY_SSH_KEY"
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/imsi_deploy_key
+          chmod 600 ~/.ssh/imsi_deploy_key
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload release
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          RELEASE: ${{ github.run_id }}-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_HOST"
+          test -n "$DEPLOY_USER"
+          case "$DEPLOY_PATH" in
+            /var/www/imsi.cloudspacetechs.com) ;;
+            *) echo "Refusing unexpected deploy path: $DEPLOY_PATH"; exit 1 ;;
+          esac
+
+          SSH="ssh -i ~/.ssh/imsi_deploy_key -o IdentitiesOnly=yes"
+          RSYNC_SSH="ssh -i ~/.ssh/imsi_deploy_key -o IdentitiesOnly=yes"
+          TARGET="$DEPLOY_USER@$DEPLOY_HOST"
+
+          $SSH "$TARGET" "mkdir -p '$DEPLOY_PATH/releases/$RELEASE'"
+          rsync -az --delete -e "$RSYNC_SSH" apps/web/dist/ "$TARGET:$DEPLOY_PATH/releases/$RELEASE/"
+          $SSH "$TARGET" "ln -sfn '$DEPLOY_PATH/releases/$RELEASE' '$DEPLOY_PATH/current' && cd '$DEPLOY_PATH/releases' && ls -dt */ | tail -n +6 | xargs -r rm -rf"
+
+      - name: Smoke test
+        run: curl -fsSI https://imsi.cloudspacetechs.com/ >/dev/null

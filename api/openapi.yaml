@@ -1,0 +1,1022 @@
+openapi: 3.1.0
+info:
+  title: imsi-rails Bank API
+  version: 0.1.0
+  summary: Bank-facing API for transaction intake, route selection, and reliability health ingestion.
+  license:
+    name: Proprietary
+servers:
+  - url: https://api.imsi-rails.example
+security:
+  - cookieAuth: []
+paths:
+  /v1/transactions:
+    post:
+      summary: Submit a transaction for route selection
+      operationId: submitTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitTransactionRequest"
+      responses:
+        "201":
+          description: Transaction accepted and routed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubmitTransactionResponse"
+        "200":
+          description: Idempotent replay of a previously accepted request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubmitTransactionResponse"
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/transactions/{transaction_id}:
+    get:
+      summary: Retrieve transaction intake and route-decision state
+      operationId: getTransaction
+      parameters:
+        - name: transaction_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Transaction record.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionRecord"
+        "404":
+          description: Transaction was not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/health/samples:
+    post:
+      summary: Ingest a provider or route health sample
+      operationId: ingestHealthSample
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IngestHealthSampleRequest"
+      responses:
+        "201":
+          description: Health sample recorded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngestHealthSampleResponse"
+        "400":
+          description: Invalid sample.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/health/routes/{route_id}:
+    get:
+      summary: Retrieve latest route health state and snapshot
+      operationId: getRouteHealth
+      parameters:
+        - name: route_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Latest route health.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouteHealthResponse"
+        "404":
+          description: Route health was not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/auth/login:
+    post:
+      summary: Create a local password session
+      operationId: loginLocal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authenticated session user. The server also sets an HttpOnly session cookie.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+        "401":
+          description: Invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/auth/ldap/login:
+    post:
+      summary: Create a session by authenticating against LDAP or Active Directory
+      operationId: loginLDAP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authenticated session user with roles mapped from LDAP groups.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+  /v1/auth/oidc/google/start:
+    get:
+      summary: Start Google OpenID Connect login
+      operationId: startGoogleOIDC
+      parameters:
+        - name: bank_id
+          in: query
+          schema:
+            type: string
+        - name: return_to
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Redirect URL and state value.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                  state:
+                    type: string
+  /v1/auth/oidc/google/callback:
+    get:
+      summary: Complete Google OpenID Connect login
+      operationId: completeGoogleOIDC
+      parameters:
+        - name: bank_id
+          in: query
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Authenticated session user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+  /v1/auth/logout:
+    post:
+      summary: Delete the current server-side session
+      operationId: logout
+      responses:
+        "200":
+          description: Session deleted.
+  /v1/auth/me:
+    get:
+      summary: Get the current session user
+      operationId: getCurrentUser
+      responses:
+        "200":
+          description: Current session user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+        "401":
+          description: No valid session.
+  /v1/admin/users:
+    get:
+      summary: List users visible to the caller
+      operationId: listUsers
+      responses:
+        "200":
+          description: Users.
+    post:
+      summary: Create a local user
+      operationId: createUser
+      responses:
+        "201":
+          description: User created.
+  /v1/admin/roles:
+    get:
+      summary: List RBAC roles and permissions
+      operationId: listRoles
+      responses:
+        "200":
+          description: Roles.
+  /v1/admin/identity-providers:
+    get:
+      summary: List configured identity providers
+      operationId: listIdentityProviders
+      responses:
+        "200":
+          description: Identity providers.
+    post:
+      summary: Create or update an identity provider
+      operationId: upsertIdentityProvider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthProviderConfig"
+      responses:
+        "200":
+          description: Saved provider.
+  /v1/admin/identity-providers/{id}/test:
+    post:
+      summary: Validate identity provider configuration without changing users
+      operationId: testIdentityProvider
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Provider validation result.
+  /v1/admin/identity-providers/{id}/preview-groups:
+    post:
+      summary: Preview LDAP group to role mappings
+      operationId: previewIdentityProviderGroups
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Group mapping preview.
+  /v1/dashboard/summary:
+    get:
+      summary: Retrieve selected-context dashboard summary, tiles, and provider comparisons
+      operationId: getDashboardSummary
+      parameters:
+        - $ref: "#/components/parameters/DashboardRange"
+        - $ref: "#/components/parameters/DashboardProvider"
+        - $ref: "#/components/parameters/DashboardCorridor"
+        - $ref: "#/components/parameters/DashboardPayout"
+        - $ref: "#/components/parameters/DashboardCurrency"
+        - $ref: "#/components/parameters/DashboardLens"
+      responses:
+        "200":
+          description: Dashboard summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+  /v1/dashboard/analytics:
+    get:
+      summary: Retrieve selected-context dashboard analytics
+      operationId: getDashboardAnalytics
+      responses:
+        "200":
+          description: Dashboard analytics.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardAnalytics"
+  /v1/dashboard/timeseries:
+    get:
+      summary: Retrieve downsampled dashboard time-series points
+      operationId: getDashboardTimeseries
+      responses:
+        "200":
+          description: Dashboard time-series points.
+  /v1/dashboard/live:
+    get:
+      summary: Stream dashboard summary deltas as Server-Sent Events
+      operationId: streamDashboardLive
+      responses:
+        "200":
+          description: SSE stream of dashboard.summary events.
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: imsi_session
+  parameters:
+    DashboardRange:
+      name: range
+      in: query
+      schema:
+        type: string
+        enum: [today, 24h, 7d, 30d]
+    DashboardProvider:
+      name: provider_id
+      in: query
+      schema:
+        type: string
+    DashboardCorridor:
+      name: corridor
+      in: query
+      schema:
+        type: string
+    DashboardPayout:
+      name: payout_method
+      in: query
+      schema:
+        type: string
+    DashboardCurrency:
+      name: currency
+      in: query
+      schema:
+        type: string
+    DashboardLens:
+      name: analysis_lens
+      in: query
+      schema:
+        type: string
+  schemas:
+    LoginRequest:
+      type: object
+      required: [bank_id, username, password]
+      properties:
+        bank_id:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+    SessionUser:
+      type: object
+      required: [id, bank_id, username, roles, permissions, auth_provider]
+      properties:
+        id:
+          type: string
+        bank_id:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        display_name:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        permissions:
+          type: array
+          items:
+            type: string
+        auth_provider:
+          type: string
+    AuthProviderConfig:
+      type: object
+      required: [bank_id, type, enabled]
+      properties:
+        id:
+          type: string
+        bank_id:
+          type: string
+        type:
+          type: string
+          enum: [local, ldap, google_oidc]
+        name:
+          type: string
+        enabled:
+          type: boolean
+    DashboardSummary:
+      type: object
+      properties:
+        context:
+          $ref: "#/components/schemas/DashboardContext"
+        analytics:
+          $ref: "#/components/schemas/DashboardAnalytics"
+        tiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetricTile"
+    DashboardContext:
+      type: object
+      properties:
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+        provider_id:
+          type: string
+        corridor:
+          type: string
+        payout_method:
+          type: string
+        currency:
+          type: string
+        analysis_lens:
+          type: string
+    DashboardAnalytics:
+      type: object
+      properties:
+        processed_count:
+          type: integer
+        processed_volume:
+          type: number
+        completed_count:
+          type: integer
+        sla_completed_count:
+          type: integer
+        sla_rate:
+          type: number
+        failed_count:
+          type: integer
+        stalled_count:
+          type: integer
+        pending_count:
+          type: integer
+        p50_seconds:
+          type: integer
+        p95_seconds:
+          type: integer
+        p99_seconds:
+          type: integer
+    MetricTile:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        value:
+          type: string
+        unit:
+          type: string
+        state:
+          type: string
+        trend:
+          type: string
+        drilldown:
+          type: string
+    SubmitTransactionRequest:
+      type: object
+      required:
+        - bank_id
+        - idempotency_key
+        - sender_country
+        - receiver_country
+        - amount_minor_units
+        - currency
+        - payout_method
+      properties:
+        bank_id:
+          type: string
+        idempotency_key:
+          type: string
+        sender_country:
+          type: string
+          minLength: 2
+          maxLength: 2
+        receiver_country:
+          type: string
+          minLength: 2
+          maxLength: 2
+        amount_minor_units:
+          type: integer
+          minimum: 1
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        payout_method:
+          $ref: "#/components/schemas/PayoutMethod"
+        destination_bank:
+          type: string
+        compliance_manual_review_required:
+          type: boolean
+          default: false
+    SubmitTransactionResponse:
+      type: object
+      required:
+        - transaction_id
+        - switch_reference
+        - state
+        - idempotent_replay
+        - route_decision
+      properties:
+        transaction_id:
+          type: string
+        switch_reference:
+          type: string
+        state:
+          $ref: "#/components/schemas/TransactionState"
+        idempotent_replay:
+          type: boolean
+        selected_route_id:
+          type: string
+        selected_provider_id:
+          type: string
+        route_decision:
+          $ref: "#/components/schemas/RouteDecision"
+    TransactionRecord:
+      type: object
+      required:
+        - transaction_id
+        - switch_reference
+        - bank_id
+        - idempotency_key
+        - state
+        - request
+        - route_decision
+        - created_at
+        - updated_at
+      properties:
+        transaction_id:
+          type: string
+        switch_reference:
+          type: string
+        bank_id:
+          type: string
+        idempotency_key:
+          type: string
+        state:
+          $ref: "#/components/schemas/TransactionState"
+        request:
+          $ref: "#/components/schemas/SubmitTransactionRequest"
+        route_decision:
+          $ref: "#/components/schemas/RouteDecision"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    RouteDecision:
+      type: object
+      required:
+        - transaction_id
+        - policy_id
+        - policy_version
+        - eligible_routes
+        - rejected_routes
+        - decided_at
+        - auto_switching_allowed
+      properties:
+        transaction_id:
+          type: string
+        policy_id:
+          type: string
+        policy_version:
+          type: integer
+        selected_route:
+          $ref: "#/components/schemas/CandidateRouteScore"
+        eligible_routes:
+          type: array
+          items:
+            $ref: "#/components/schemas/CandidateRouteScore"
+        rejected_routes:
+          type: array
+          items:
+            $ref: "#/components/schemas/RejectedRoute"
+        decided_at:
+          type: string
+          format: date-time
+        auto_switching_allowed:
+          type: boolean
+    CandidateRouteScore:
+      type: object
+      properties:
+        route_id:
+          type: string
+        provider_id:
+          type: string
+        total_score_bps:
+          type: integer
+        component_scores:
+          type: object
+          additionalProperties:
+            type: integer
+        primary_reason:
+          type: string
+    RejectedRoute:
+      type: object
+      properties:
+        route_id:
+          type: string
+        provider_id:
+          type: string
+        reason:
+          type: string
+    IngestHealthSampleRequest:
+      type: object
+      required:
+        - provider_id
+        - signal_type
+      properties:
+        provider_id:
+          type: string
+        route_id:
+          type: string
+        corridor:
+          $ref: "#/components/schemas/Corridor"
+        payout_method:
+          $ref: "#/components/schemas/PayoutMethod"
+        signal_type:
+          $ref: "#/components/schemas/HealthSignalType"
+        observed_at:
+          type: string
+          format: date-time
+        window_seconds:
+          type: integer
+          minimum: 0
+        provider_api:
+          $ref: "#/components/schemas/ProviderAPISignal"
+        timeout_rate:
+          $ref: "#/components/schemas/RateSignal"
+        error_rate:
+          $ref: "#/components/schemas/RateSignal"
+        callback_lag:
+          $ref: "#/components/schemas/CallbackLagSignal"
+        transaction_outcome:
+          $ref: "#/components/schemas/TransactionOutcomeSignal"
+    IngestHealthSampleResponse:
+      type: object
+      required:
+        - sample
+      properties:
+        sample:
+          $ref: "#/components/schemas/HealthSample"
+        state_change:
+          $ref: "#/components/schemas/HealthStateChangeEvent"
+        circuit_breaker:
+          $ref: "#/components/schemas/CircuitBreakerRecord"
+        circuit_breaker_change:
+          $ref: "#/components/schemas/CircuitBreakerStateChangeEvent"
+    HealthSample:
+      type: object
+      required:
+        - sample_id
+        - provider_id
+        - signal_type
+        - observed_at
+        - recorded_at
+        - state
+      properties:
+        sample_id:
+          type: string
+        provider_id:
+          type: string
+        route_id:
+          type: string
+        corridor:
+          $ref: "#/components/schemas/Corridor"
+        payout_method:
+          $ref: "#/components/schemas/PayoutMethod"
+        signal_type:
+          $ref: "#/components/schemas/HealthSignalType"
+        observed_at:
+          type: string
+          format: date-time
+        recorded_at:
+          type: string
+          format: date-time
+        window_seconds:
+          type: integer
+        state:
+          $ref: "#/components/schemas/HealthState"
+        provider_api:
+          $ref: "#/components/schemas/ProviderAPISignal"
+        timeout_rate:
+          $ref: "#/components/schemas/RateSignal"
+        error_rate:
+          $ref: "#/components/schemas/RateSignal"
+        callback_lag:
+          $ref: "#/components/schemas/CallbackLagSignal"
+        transaction_outcome:
+          $ref: "#/components/schemas/TransactionOutcomeSignal"
+        route_snapshot:
+          $ref: "#/components/schemas/RouteHealthSnapshot"
+    HealthStateChangeEvent:
+      type: object
+      required:
+        - event_id
+        - sample_id
+        - provider_id
+        - previous_state
+        - current_state
+        - occurred_at
+        - reason
+      properties:
+        event_id:
+          type: string
+        sample_id:
+          type: string
+        provider_id:
+          type: string
+        route_id:
+          type: string
+        previous_state:
+          $ref: "#/components/schemas/HealthState"
+        current_state:
+          $ref: "#/components/schemas/HealthState"
+        occurred_at:
+          type: string
+          format: date-time
+        reason:
+          $ref: "#/components/schemas/HealthSignalType"
+    RouteHealthResponse:
+      type: object
+      required:
+        - route_id
+        - state
+        - snapshot
+        - circuit_breaker
+      properties:
+        route_id:
+          type: string
+        state:
+          $ref: "#/components/schemas/HealthState"
+        snapshot:
+          $ref: "#/components/schemas/RouteHealthSnapshot"
+        circuit_breaker:
+          $ref: "#/components/schemas/CircuitBreakerRecord"
+    CircuitBreakerRecord:
+      type: object
+      required:
+        - route_id
+        - state
+        - reason
+        - snapshot
+        - thresholds
+        - updated_at
+      properties:
+        route_id:
+          type: string
+        state:
+          $ref: "#/components/schemas/CircuitBreakerState"
+        reason:
+          type: string
+        snapshot:
+          $ref: "#/components/schemas/RouteHealthSnapshot"
+        thresholds:
+          $ref: "#/components/schemas/CircuitBreakerThresholds"
+        updated_at:
+          type: string
+          format: date-time
+    CircuitBreakerStateChangeEvent:
+      type: object
+      required:
+        - event_id
+        - route_id
+        - previous_state
+        - current_state
+        - occurred_at
+        - reason
+      properties:
+        event_id:
+          type: string
+        route_id:
+          type: string
+        previous_state:
+          $ref: "#/components/schemas/CircuitBreakerState"
+        current_state:
+          $ref: "#/components/schemas/CircuitBreakerState"
+        occurred_at:
+          type: string
+          format: date-time
+        reason:
+          type: string
+    CircuitBreakerThresholds:
+      type: object
+      required:
+        - degraded_success_rate_bps
+        - blocked_success_rate_bps
+        - degraded_uptime_bps
+        - blocked_uptime_bps
+        - degraded_p95_latency_ms
+        - blocked_p95_latency_ms
+        - recovery_success_rate_bps
+        - recovery_uptime_bps
+        - recovery_p95_latency_ms
+      properties:
+        degraded_success_rate_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        blocked_success_rate_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        degraded_uptime_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        blocked_uptime_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        degraded_p95_latency_ms:
+          type: integer
+        blocked_p95_latency_ms:
+          type: integer
+        recovery_success_rate_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        recovery_uptime_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        recovery_p95_latency_ms:
+          type: integer
+    RouteHealthSnapshot:
+      type: object
+      required:
+        - success_rate_bps
+        - uptime_bps
+        - p95_latency_ms
+        - manual_intervention_bps
+        - settlement_reliability_bps
+        - observed_at
+      properties:
+        success_rate_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        uptime_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        p95_latency_ms:
+          type: integer
+        manual_intervention_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        settlement_reliability_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        observed_at:
+          type: string
+          format: date-time
+    ProviderAPISignal:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - up
+            - degraded
+            - down
+        http_status_code:
+          type: integer
+        latency_ms:
+          type: integer
+    RateSignal:
+      type: object
+      properties:
+        rate_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        affected_count:
+          type: integer
+          minimum: 0
+        total_count:
+          type: integer
+          minimum: 0
+    CallbackLagSignal:
+      type: object
+      required:
+        - p95_lag_ms
+      properties:
+        p95_lag_ms:
+          type: integer
+        max_lag_ms:
+          type: integer
+        delayed_callbacks:
+          type: integer
+        total_callbacks:
+          type: integer
+    TransactionOutcomeSignal:
+      type: object
+      required:
+        - transaction_id
+        - state
+      properties:
+        transaction_id:
+          type: string
+        state:
+          $ref: "#/components/schemas/TransactionState"
+        time_to_credit_ms:
+          type: integer
+        provider_reference:
+          type: string
+    Corridor:
+      type: object
+      required:
+        - origin_country
+        - destination_country
+      properties:
+        origin_country:
+          type: string
+          minLength: 2
+          maxLength: 2
+        destination_country:
+          type: string
+          minLength: 2
+          maxLength: 2
+    HealthSignalType:
+      type: string
+      enum:
+        - provider_api_status
+        - timeout_rate
+        - error_rate
+        - callback_lag
+        - transaction_outcome
+    HealthState:
+      type: string
+      enum:
+        - unknown
+        - healthy
+        - watch
+        - degraded
+    CircuitBreakerState:
+      type: string
+      enum:
+        - unknown
+        - healthy
+        - degraded
+        - blocked
+        - recovery_testing
+    PayoutMethod:
+      type: string
+      enum:
+        - bank_account
+        - cash_pickup
+        - wallet
+        - card
+        - branch
+    TransactionState:
+      type: string
+      enum:
+        - created
+        - accepted
+        - compliance_pending
+        - prefund_pending
+        - sent_to_provider
+        - provider_accepted
+        - received_by_bank
+        - account_validated
+        - payout_submitted
+        - credited
+        - paid_cash
+        - failed
+        - reversed
+        - disputed
+        - reconciled
+    Problem:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            detail:
+              type: string

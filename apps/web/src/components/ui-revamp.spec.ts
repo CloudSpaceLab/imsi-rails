@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import App from '../App.vue'
 import CountryPair from './CountryPair.vue'
 import DataTable from './DataTable.vue'
@@ -9,6 +9,15 @@ import Panel from './Panel.vue'
 import ProviderMark from './ProviderMark.vue'
 import UiButton from './UiButton.vue'
 import { getDashboardMock } from '../services/mockDashboard'
+import { router } from '../router'
+
+async function mountApp(path = '/') {
+  await router.push(path)
+  await router.isReady()
+  const wrapper = mount(App, { global: { plugins: [router] } })
+  await flushPromises()
+  return wrapper
+}
 
 describe('premium dashboard primitives', () => {
   it('renders health metadata accessibly', () => {
@@ -52,12 +61,12 @@ describe('premium dashboard primitives', () => {
     expect(provider.text()).toContain('B2B payout network')
 
     const country = mount(CountryPair, { props: { origin: 'Germany', destination: 'Nigeria' } })
-    expect(country.text()).toContain('🇩🇪')
-    expect(country.text()).toContain('🇳🇬')
     expect(country.text()).toContain('Germany')
     expect(country.text()).toContain('Nigeria')
     expect(country.text()).not.toContain('DE')
     expect(country.text()).not.toContain('NG')
+    expect(country.find('.country-flag--de').exists()).toBe(true)
+    expect(country.find('.country-flag--ng').exists()).toBe(true)
 
     const table = mount(DataTable, {
       props: { empty: true, emptyTitle: 'No rows' },
@@ -76,20 +85,22 @@ describe('premium dashboard workflows', () => {
   })
 
   it('renders all primary pages from the shared shell', async () => {
-    const wrapper = mount(App)
+    const wrapper = await mountApp()
     const pageTitles = ['Control Room', 'Transactions', 'Routes', 'Policy', 'Incidents', 'Rates & costs', 'Reconcile', 'Providers', 'Audit']
 
     for (const title of pageTitles) {
       const button = wrapper.findAll('button.nav-item').find((item) => item.text().includes(title))
       expect(button, `missing nav item ${title}`).toBeTruthy()
       await button?.trigger('click')
+      await flushPromises()
       expect(wrapper.text()).toContain(title)
     }
   })
 
   it('keeps transactions dense, searchable, and traceable', async () => {
-    const wrapper = mount(App)
+    const wrapper = await mountApp()
     await wrapper.findAll('button.nav-item').find((item) => item.text().includes('Transactions'))?.trigger('click')
+    await flushPromises()
 
     expect(wrapper.text()).toContain('Find, filter, trace')
     expect(wrapper.text()).toContain('Trace detail')
@@ -102,8 +113,9 @@ describe('premium dashboard workflows', () => {
   })
 
   it('makes rates comparable from a visible currency baseline', async () => {
-    const wrapper = mount(App)
+    const wrapper = await mountApp()
     await wrapper.findAll('button.nav-item').find((item) => item.text().includes('Rates & costs'))?.trigger('click')
+    await flushPromises()
 
     expect(wrapper.text()).toContain('USD baseline')
     expect(wrapper.find('select[aria-label="Base currency"]').exists()).toBe(true)
@@ -111,8 +123,9 @@ describe('premium dashboard workflows', () => {
   })
 
   it('shows policy save/reset behavior for editable thresholds', async () => {
-    const wrapper = mount(App)
+    const wrapper = await mountApp()
     await wrapper.findAll('button.nav-item').find((item) => item.text().includes('Policy'))?.trigger('click')
+    await flushPromises()
 
     const saveThresholds = wrapper.findAll('button').find((button) => button.text().includes('Save thresholds'))
     expect(saveThresholds?.attributes('disabled')).toBeDefined()
@@ -122,5 +135,36 @@ describe('premium dashboard workflows', () => {
 
     const enabledSaveThresholds = wrapper.findAll('button').find((button) => button.text().includes('Save thresholds'))
     expect(enabledSaveThresholds?.attributes('disabled')).toBeUndefined()
+  })
+
+  it('supports dashboard context controls and KPI drilldowns', async () => {
+    const wrapper = await mountApp()
+    expect(wrapper.find('select[aria-label="Dashboard provider"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Operations picture')
+
+    await wrapper.findAll('.kpi-tile--clickable').at(0)?.trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/transactions')
+  })
+
+  it('shows transaction reporting controls and compact trace expansion', async () => {
+    const wrapper = await mountApp('/transactions')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Export CSV')
+    expect(wrapper.find('select[aria-label="Rows per page"]').exists()).toBe(true)
+    await wrapper.find('tbody tr.click-row').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Open full trace')
+  })
+
+  it('surfaces maker-checker policy controls', async () => {
+    const wrapper = await mountApp('/policy')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Policy inventory')
+    expect(wrapper.text()).toContain('Create corridor policy')
+    expect(wrapper.text()).toContain('pending approval')
+    expect(wrapper.text()).toContain('Activate')
   })
 })

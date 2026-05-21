@@ -57,17 +57,26 @@ export const providerIdentities: Record<string, ProviderIdentity> = {
   },
 }
 
+export function flagForCountryCode(code: string) {
+  const normalized = code.trim().toUpperCase()
+  if (!/^[A-Z]{2}$/.test(normalized) || normalized === 'EU') return normalized || '??'
+  return [...normalized].map((letter) => String.fromCodePoint(127397 + letter.charCodeAt(0))).join('')
+}
+
 export const countryIdentities: Record<string, CountryIdentity> = {
-  eu: { code: 'EU', name: 'European Union', shortName: 'Europe', flag: '🇪🇺' },
-  europe: { code: 'EU', name: 'European Union', shortName: 'Europe', flag: '🇪🇺' },
-  'european union': { code: 'EU', name: 'European Union', shortName: 'Europe', flag: '🇪🇺' },
-  germany: { code: 'DE', name: 'Germany', shortName: 'Germany', flag: '🇩🇪' },
-  nigeria: { code: 'NG', name: 'Nigeria', shortName: 'Nigeria', flag: '🇳🇬' },
-  kenya: { code: 'KE', name: 'Kenya', shortName: 'Kenya', flag: '🇰🇪' },
-  'united kingdom': { code: 'GB', name: 'United Kingdom', shortName: 'United Kingdom', flag: '🇬🇧' },
-  uk: { code: 'GB', name: 'United Kingdom', shortName: 'United Kingdom', flag: '🇬🇧' },
-  'united states': { code: 'US', name: 'United States', shortName: 'United States', flag: '🇺🇸' },
-  us: { code: 'US', name: 'United States', shortName: 'United States', flag: '🇺🇸' },
+  eu: { code: 'EU', name: 'European Union', shortName: 'Europe', flag: 'EU' },
+  europe: { code: 'EU', name: 'European Union', shortName: 'Europe', flag: 'EU' },
+  'european union': { code: 'EU', name: 'European Union', shortName: 'Europe', flag: 'EU' },
+  germany: { code: 'DE', name: 'Germany', shortName: 'Germany', flag: flagForCountryCode('DE') },
+  nigeria: { code: 'NG', name: 'Nigeria', shortName: 'Nigeria', flag: flagForCountryCode('NG') },
+  kenya: { code: 'KE', name: 'Kenya', shortName: 'Kenya', flag: flagForCountryCode('KE') },
+  'united kingdom': { code: 'GB', name: 'United Kingdom', shortName: 'United Kingdom', flag: flagForCountryCode('GB') },
+  uk: { code: 'GB', name: 'United Kingdom', shortName: 'United Kingdom', flag: flagForCountryCode('GB') },
+  gb: { code: 'GB', name: 'United Kingdom', shortName: 'United Kingdom', flag: flagForCountryCode('GB') },
+  'united states': { code: 'US', name: 'United States', shortName: 'United States', flag: flagForCountryCode('US') },
+  us: { code: 'US', name: 'United States', shortName: 'United States', flag: flagForCountryCode('US') },
+  ng: { code: 'NG', name: 'Nigeria', shortName: 'Nigeria', flag: flagForCountryCode('NG') },
+  ke: { code: 'KE', name: 'Kenya', shortName: 'Kenya', flag: flagForCountryCode('KE') },
 }
 
 const normalize = (value: string) => value.trim().toLowerCase()
@@ -101,10 +110,13 @@ export const getProviderIdentity = (provider: string): ProviderIdentity => {
 
 export const getCountryIdentity = (country: string): CountryIdentity => {
   const key = normalize(country)
-  return countryIdentities[key] ?? { code: country.slice(0, 2).toUpperCase(), name: country, shortName: country, flag: '🏳️' }
+  const inferredCode = country.trim().slice(0, 2).toUpperCase()
+  return countryIdentities[key] ?? { code: inferredCode, name: country, shortName: country, flag: flagForCountryCode(inferredCode) }
 }
 
 export const parseCorridor = (corridor: string) => {
-  const [origin = corridor, destination = ''] = corridor.split('->').map((part) => part.trim())
+  const normalized = corridor.replace(/\s+-\>\s+|\s+to\s+/i, ' -> ')
+  const [origin = normalized, destination = ''] = normalized.split('->').map((part) => part.trim())
   return { origin, destination }
 }
+

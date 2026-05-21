@@ -13,6 +13,10 @@ International money transfer reliability infrastructure for banks.
 - [Users, brand, and design language](docs/users-brand-design-language.md)
 - [GitHub issue plan](docs/github-issues.md)
 - [Static landing page](landing/index.html)
+- [Core routing domain notes](docs/implementation-notes/core-routing-domain.md)
+- [Transaction intake API notes](docs/implementation-notes/transaction-intake-api.md)
+- [Health event ingestion notes](docs/implementation-notes/health-event-ingestion.md)
+- [Circuit breaker state machine notes](docs/implementation-notes/circuit-breaker-state-machine.md)
 
 ## Product Positioning
 
@@ -33,13 +37,32 @@ The landing page is intentionally static and dependency-free so it remains fast,
 
 ## Web Control Room
 
-The operational UI prototype lives in `apps/web`.
+The operational UI lives in `apps/web`. The original static demo snapshot is preserved on the `demo-static-dashboard` branch, the public hosted demo is published from the `demo` branch, and production work continues on `feat/production-foundation`.
 
 ```bash
 npm install
 npm run web:dev
 npm run web:build
 ```
+
+The `demo` branch is built by GitHub Actions with `VITE_IMSI_DATA_MODE=mock` and deployed to `https://imsi.cloudspacetechs.com/`. Use `feat/production-foundation` for the API-backed production foundation and update `demo` when the hosted demo should move forward.
+
+## Production API
+
+The Go API combines transaction intake, route selection, health ingestion, circuit breakers, local login, LDAP/AD login, Google OIDC hooks, RBAC, admin identity endpoints, and dashboard analytics/SSE.
+
+```bash
+go test ./...
+go run ./cmd/imsi-api
+```
+
+Seed local admin:
+
+- bank: `bank-demo`
+- username: `admin`
+- password: `admin123`
+
+Set `VITE_IMSI_API_BASE=http://127.0.0.1:8080` for the Vue app when running against the Go API. Tests use mock fixtures automatically.
 
 Implementation notes:
 
