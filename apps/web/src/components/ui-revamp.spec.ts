@@ -141,10 +141,42 @@ describe('premium dashboard workflows', () => {
     const wrapper = await mountApp()
     expect(wrapper.find('select[aria-label="Dashboard provider"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('Operations picture')
+    expect(wrapper.text()).toContain('Sample operational data')
+    expect(wrapper.text()).not.toContain('mock snapshot')
 
     await wrapper.findAll('.kpi-tile--clickable').at(0)?.trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.path).toBe('/transactions')
+    expect(router.currentRoute.value.query.scenario).toBe('degraded-ria')
+    expect(router.currentRoute.value.query.currency).toBe('USD')
+  })
+
+  it('keeps data state quiet but URL-backed', async () => {
+    const wrapper = await mountApp('/?scenario=healthy')
+    await flushPromises()
+
+    const dataState = wrapper.get('select[aria-label="Data state"]')
+    expect((dataState.element as HTMLSelectElement).value).toBe('healthy')
+    expect(wrapper.text()).toContain('No route action needed')
+    expect(wrapper.text()).not.toContain('scenario')
+
+    await dataState.setValue('traffic-shift')
+    await flushPromises()
+    expect(router.currentRoute.value.query.scenario).toBe('traffic-shift')
+    expect(wrapper.text()).toContain('Traffic shift is reducing failed credits')
+  })
+
+  it('cleans page-specific query state when navigating between work areas', async () => {
+    const wrapper = await mountApp('/transactions?timing=Stalled+only&currency=NGN&scenario=traffic-shift')
+    await flushPromises()
+
+    await wrapper.findAll('button.nav-item').find((item) => item.text().includes('Rates & costs'))?.trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/rates')
+    expect(router.currentRoute.value.query.currency).toBe('NGN')
+    expect(router.currentRoute.value.query.scenario).toBe('traffic-shift')
+    expect(router.currentRoute.value.query.timing).toBeUndefined()
   })
 
   it('shows transaction reporting controls and compact trace expansion', async () => {
@@ -156,6 +188,11 @@ describe('premium dashboard workflows', () => {
     await wrapper.find('tbody tr.click-row').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Open full trace')
+    expect(wrapper.text()).toContain('Elapsed')
+    expect(wrapper.text()).toContain('Owner')
+    expect(wrapper.text()).not.toContain('References')
+    expect(wrapper.text()).not.toContain('Route decision')
+    expect(wrapper.text()).not.toContain('QA limit')
   })
 
   it('surfaces maker-checker policy controls', async () => {

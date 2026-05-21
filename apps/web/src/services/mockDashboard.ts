@@ -2,7 +2,7 @@ import { countryIdentities, providerIdentities } from './identity'
 import type { DashboardMock, HealthState, UiScenario } from '../types'
 
 const baseDashboard = (): DashboardMock => ({
-  scenario: 'degraded',
+  scenario: 'degraded-ria',
   viewState: 'ready',
   providerIdentities: Object.values(providerIdentities),
   countryIdentities: Object.values(countryIdentities),
@@ -21,7 +21,7 @@ const baseDashboard = (): DashboardMock => ({
       mode: 'polling',
       freshness: 'fresh',
       updatedAt: '14:32:18 UTC',
-      nextPollIn: 'mock snapshot',
+      nextPollIn: 'Sample operational data',
     },
     metrics: [
       { label: 'Routes healthy', value: '84.6%', detail: '15 min measured window', trend: '-12.6%', state: 'degraded' },
@@ -426,6 +426,7 @@ const baseDashboard = (): DashboardMock => ({
       { label: 'Provider accepted', owner: 'Ria', durationMs: 128_000, targetMs: 30_000, state: 'degraded' },
       { label: 'Webhook callback', owner: 'Ria', durationMs: 84_000, targetMs: 45_000, state: 'watch' },
       { label: 'Bank posting', owner: 'NIP', durationMs: 43_000, targetMs: 60_000, state: 'healthy' },
+      { label: 'Settlement file', owner: 'Settlement Ops', durationMs: 62_000, targetMs: 120_000, state: 'healthy' },
     ],
   },
   downtimeEvents: [
@@ -684,7 +685,120 @@ const baseDashboard = (): DashboardMock => ({
 
 export const getDashboardMock = (scenario: UiScenario = 'degraded'): DashboardMock => {
   const dashboard = baseDashboard()
-  dashboard.scenario = scenario
+  dashboard.scenario = scenario === 'degraded' ? 'degraded-ria' : scenario
+
+  if (scenario === 'healthy') {
+    dashboard.summary.globalHealth = '98.7%'
+    dashboard.summary.p95CreditTime = '1m 8s'
+    dashboard.summary.stuckTransactions = 12
+    dashboard.summary.activeIncidents = 0
+    dashboard.summary.atRiskValue = '$180K'
+    dashboard.summary.topRisk = 'No corridor outside policy'
+    dashboard.summary.safeAction = 'Keep current routing policy active.'
+    dashboard.summary.metrics = [
+      { label: 'Routes healthy', value: '98.7%', detail: '15 min measured window', trend: '+1.4%', state: 'healthy' },
+      { label: 'At-risk value', value: '$180K', detail: '12 transfers pending review', trend: '-$2.5M', state: 'healthy' },
+      { label: 'P95 credit time', value: '1m 8s', detail: 'target 90s account payout', trend: '-3m 10s', state: 'healthy' },
+      { label: 'Shift candidate', value: '0%', detail: 'no shift needed', trend: 'inside policy', state: 'healthy' },
+    ]
+    dashboard.recommendation = {
+      ...dashboard.recommendation,
+      title: 'No route action needed.',
+      trigger: 'All monitored routes are inside the current operating policy.',
+      affectedTraffic: '0 transfers',
+      affectedValue: '$0',
+      currentRoute: 'Ria -> NIP',
+      suggestedRoute: 'Keep current allocation',
+      nextAction: 'Keep monitoring',
+      evidence: 'Success and latency are inside SLA.',
+      state: 'healthy',
+    }
+    dashboard.incidents = []
+    dashboard.reconciliation = dashboard.reconciliation.slice(0, 1).map((item) => ({
+      ...item,
+      age: '8m',
+      reason: 'Provider file awaiting scheduled refresh',
+      state: 'healthy',
+    }))
+    dashboard.corridors = dashboard.corridors.map((corridor) => ({
+      ...corridor,
+      state: corridor.state === 'healthy' ? 'healthy' : 'watch',
+      score: Math.max(corridor.score, 91),
+      risk: 'Inside policy',
+      recommendation: 'Monitor',
+      status: 'Healthy',
+    }))
+    dashboard.providerScores = dashboard.providerScores.map((provider) => ({
+      ...provider,
+      successRate: provider.provider === 'Ria' ? '97.2%' : provider.successRate,
+      p95: provider.provider === 'Ria' ? '1m 6s' : provider.p95,
+      state: provider.state === 'degraded' ? 'watch' : provider.state,
+      settlementExceptions: provider.provider === 'Ria' ? 2 : provider.settlementExceptions,
+    }))
+    dashboard.visuals.hourHealth = dashboard.visuals.hourHealth.map((point) => ({ ...point, state: 'healthy' }))
+  }
+
+  if (scenario === 'traffic-shift') {
+    dashboard.summary.globalHealth = '91.4%'
+    dashboard.summary.p95CreditTime = '2m 12s'
+    dashboard.summary.stuckTransactions = 71
+    dashboard.summary.activeIncidents = 1
+    dashboard.summary.atRiskValue = '$940K'
+    dashboard.summary.topRisk = 'Europe to Nigeria is recovering after a traffic shift'
+    dashboard.summary.safeAction = 'Review a staged increase from 25% to 50% on Thunes.'
+    dashboard.recommendation = {
+      ...dashboard.recommendation,
+      title: 'Traffic shift is reducing failed credits.',
+      trigger: 'Ria callback lag is down, but destination credit tail latency is still above target.',
+      affectedTraffic: '25% shifted',
+      affectedValue: '$940K monitored',
+      currentRoute: 'Ria -> NIP',
+      suggestedRoute: 'Thunes -> NIP',
+      nextAction: 'Hold 25% split for one more window, then test 50%.',
+      evidence: 'Projected 312 failures avoided in the current window.',
+      state: 'recovery',
+    }
+    dashboard.corridors = dashboard.corridors.map((corridor) =>
+      corridor.corridor.includes('European Union') || corridor.corridor.startsWith('EU')
+        ? { ...corridor, state: 'recovery', selectedRoute: 'Thunes -> NIP', score: 86, split: '75% Ria / 25% Thunes', recommendation: 'Hold recovery split', risk: 'Ria callbacks improving', status: 'Recovery testing', owner: 'Route Ops' }
+        : corridor,
+    )
+    dashboard.auditEvents = [
+      { time: '14:28:14', actor: 'Ops lead', action: 'Held recovery split', object: 'Europe to Nigeria 25%', reason: 'P95 improving after shift', state: 'recovery' },
+      ...dashboard.auditEvents,
+    ]
+  }
+
+  if (scenario === 'pilot-report') {
+    dashboard.summary.globalHealth = '96.8%'
+    dashboard.summary.valueToday = '$118.7M'
+    dashboard.summary.transactionsToday = '286,420'
+    dashboard.summary.p95CreditTime = '2m 1s'
+    dashboard.summary.stuckTransactions = 910
+    dashboard.summary.activeIncidents = 1
+    dashboard.summary.atRiskValue = '$1.2M'
+    dashboard.summary.topRisk = 'Ria latency improved after staged shifts'
+    dashboard.summary.safeAction = 'Export the operating evidence for bank review.'
+    dashboard.dateRange.label = '30-day review'
+    dashboard.recommendation = {
+      ...dashboard.recommendation,
+      title: 'Operating evidence is ready for review.',
+      trigger: 'Routing changes reduced avoidable failures and improved SLA completion.',
+      affectedTraffic: '286,420 transfers',
+      affectedValue: '$118.7M processed',
+      currentRoute: 'Mixed provider allocation',
+      suggestedRoute: 'Policy v2026.05.20.14.30',
+      nextAction: 'Review provider scorecards and export the decision log.',
+      evidence: '1,184 failures avoided across the review window.',
+      state: 'healthy',
+    }
+    dashboard.incidents = dashboard.incidents.slice(0, 1).map((incident) => ({
+      ...incident,
+      title: 'Ria callback incident closed with recovery monitoring',
+      status: 'Resolved - monitoring',
+      severity: 'recovery',
+    }))
+  }
 
   if (scenario === 'loading') {
     dashboard.viewState = 'loading'
@@ -694,7 +808,7 @@ export const getDashboardMock = (scenario: UiScenario = 'degraded'): DashboardMo
     dashboard.viewState = 'error'
     dashboard.summary.connection.freshness = 'unavailable'
     dashboard.summary.connection.mode = 'static'
-    dashboard.summary.connection.nextPollIn = 'last safe snapshot'
+    dashboard.summary.connection.nextPollIn = 'last verified state'
   }
 
   if (scenario === 'permission-denied') {

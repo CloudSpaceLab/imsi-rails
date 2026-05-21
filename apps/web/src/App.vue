@@ -63,6 +63,7 @@ import type {
   ScoringWeight,
   SessionUser,
   TransactionRecord,
+  UiScenario,
 } from './types'
 
 type PolicyStatus = 'draft' | 'pending_approval' | 'active' | 'inactive'
@@ -85,7 +86,7 @@ type PolicyRule = {
 
 const route = useRoute()
 const router = useRouter()
-const dashboard = reactive(getDashboardMock())
+const dashboard = reactive(getDashboardMock(normalizeDataState(route.query.scenario)))
 
 const sessionUser = ref<SessionUser | null>(null)
 const authReady = ref(false)
@@ -103,6 +104,7 @@ const selectedProviderId = ref(String(route.query.provider_id ?? 'all'))
 const selectedCorridor = ref(String(route.query.corridor ?? 'all'))
 const selectedPayoutMethod = ref(String(route.query.payout_method ?? 'all'))
 const analysisLens = ref(String(route.query.analysis_lens ?? 'reliability'))
+const dataState = ref<UiScenario>(normalizeDataState(route.query.scenario))
 const qaThresholdSeconds = ref(dashboard.qaPolicy.thresholdSeconds)
 const warningThresholdSeconds = ref(dashboard.qaPolicy.warningSeconds)
 const savedQaThresholdSeconds = ref(dashboard.qaPolicy.thresholdSeconds)
@@ -260,6 +262,12 @@ const analysisLenses = [
   { label: 'Volume', value: 'volume' },
   { label: 'Cost', value: 'cost' },
 ]
+const dataStateOptions: Array<{ label: string; value: UiScenario }> = [
+  { label: 'Current pressure', value: 'degraded-ria' },
+  { label: 'Normal operation', value: 'healthy' },
+  { label: 'Shift in progress', value: 'traffic-shift' },
+  { label: '30-day review', value: 'pilot-report' },
+]
 const providerOptions = computed(() => [
   { label: 'All IMTOs', value: 'all' },
   ...unique(dashboard.providerScores.map((provider) => provider.provider)).map((provider) => ({ label: provider, value: provider.toLowerCase() })),
@@ -359,39 +367,37 @@ const transactionStatusCounts = computed(() =>
   ),
 )
 
-const selectedRangeAnalytics = computed(() => {
-  const api = dashboardSummary.value?.analytics
-  if (api) return api
-  const transactions = filteredTransactions.value.length ? filteredTransactions.value : dashboard.transactions
-  const completed = transactions.filter((transaction) => !isTransactionStalled(transaction) && transaction.destinationCreditedAt !== 'pending')
-  const slaCompleted = completed.filter((transaction) => transactionWithinPolicy(transaction))
-  const failedOrStalled = transactions.filter((transaction) => isTransactionStalled(transaction) || transaction.state === 'blocked')
-  const latencies = completed.map((transaction) => transaction.totalTimeSeconds).sort((a, b) => a - b)
-  return {
-    processed_count: transactions.length,
-    processed_volume: transactions.reduce((total, transaction) => total + parseAmountValue(transaction.amount), 0),
-    completed_count: completed.length,
-    sla_completed_count: slaCompleted.length,
-    sla_rate: completed.length ? (slaCompleted.length / completed.length) * 100 : 0,
-    failed_count: transactions.filter((transaction) => transaction.state === 'degraded').length,
-    stalled_count: failedOrStalled.length,
-    pending_count: transactions.filter((transaction) => transaction.destinationCreditedAt === 'pending').length,
-    p50_seconds: percentile(latencies, 0.5),
-    p95_seconds: percentile(latencies, 0.95),
-    p99_seconds: percentile(latencies, 0.99),
-  }
-})
-
 const apiMetricTiles = computed(() => dashboardSummary.value?.tiles ?? [])
 const providerComparisons = computed(() => dashboardSummary.value?.providers ?? [])
 const operationsSnapshot = computed(() => {
-  const analytics = selectedRangeAnalytics.value
-  const delayed = Math.max(analytics.completed_count - analytics.sla_completed_count, 0)
+  const route = primaryIncidentRoute.value
+  const incident = activeIncident.value
+  const settlementBreak = dashboard.reconciliation[0]
   return [
-    { label: 'SLA misses', value: delayed.toLocaleString(), detail: `${analytics.sla_rate.toFixed(1)}% inside SLA`, state: delayed ? ('watch' as HealthState) : ('healthy' as HealthState) },
-    { label: 'Pending credit', value: analytics.pending_count.toLocaleString(), detail: 'awaiting beneficiary credit', state: analytics.pending_count ? ('degraded' as HealthState) : ('healthy' as HealthState) },
-    { label: 'Recon breaks', value: dashboard.reconciliation.length.toLocaleString(), detail: 'settlement work items', state: dashboard.reconciliation.length ? ('watch' as HealthState) : ('healthy' as HealthState) },
-    { label: 'Owner queue', value: activeIncident.value?.owner ?? 'Route engine', detail: activeIncident.value?.nextAction ?? 'no escalation', state: activeIncident.value?.severity ?? ('healthy' as HealthState) },
+    {
+      label: 'Bottleneck',
+      value: incident?.rootCause ?? 'No active bottleneck',
+      detail: incident?.owner ?? 'Routes inside policy',
+      state: incident?.severity ?? ('healthy' as HealthState),
+    },
+    {
+      label: 'Route to inspect',
+      value: route?.selectedRoute ?? 'No route selected',
+      detail: route ? `${friendlyCorridorLabel(route.corridor)} / ${route.risk}` : 'No route risk',
+      state: route?.state ?? ('healthy' as HealthState),
+    },
+    {
+      label: 'Available action',
+      value: dashboard.recommendation.nextAction,
+      detail: dashboard.recommendation.evidence,
+      state: dashboard.recommendation.state,
+    },
+    {
+      label: 'Settlement work',
+      value: `${dashboard.reconciliation.length} open`,
+      detail: settlementBreak ? `${settlementBreak.reason} / ${settlementBreak.owner}` : 'No settlement break',
+      state: dashboard.reconciliation.length ? ('watch' as HealthState) : ('healthy' as HealthState),
+    },
   ]
 })
 const liveChartMetric = computed(() => (analysisLens.value === 'sla' ? 'sla_rate' : analysisLens.value === 'volume' || analysisLens.value === 'cost' ? 'volume' : 'p95_seconds'))
@@ -444,6 +450,7 @@ const dashboardQuery = computed<DashboardQuery>(() => ({
   payout_method: selectedPayoutMethod.value === 'all' ? undefined : selectedPayoutMethod.value,
   currency: dashboardCurrency.value,
   analysis_lens: analysisLens.value,
+  scenario: dataState.value,
 }))
 
 const hasTransactionFilters = computed(
@@ -510,23 +517,54 @@ const fxComparisonRoutes = computed(() =>
   })),
 )
 
-const activate = (screen: ScreenId) => {
-  void router.push({ path: routeForScreen(screen).path, query: route.query })
+const globalDashboardQuery = () => ({
+  range: dateRange.value,
+  currency: dashboardCurrency.value,
+  provider_id: selectedProviderId.value,
+  corridor: selectedCorridor.value,
+  payout_method: selectedPayoutMethod.value,
+  analysis_lens: analysisLens.value,
+  scenario: dataState.value,
+})
+
+const pageQueryKeys: Record<ScreenId, string[]> = {
+  control: [],
+  corridors: ['focus'],
+  transactions: ['timing', 'metric'],
+  incidents: ['focus'],
+  policy: [],
+  fx: [],
+  reconciliation: [],
+  providers: [],
+  audit: [],
+}
+
+const currentPageQuery = (screen: ScreenId) =>
+  Object.fromEntries(pageQueryKeys[screen].filter((key) => typeof route.query[key] === 'string').map((key) => [key, String(route.query[key])]))
+
+const activate = (screen: ScreenId, extraQuery: Record<string, string> = {}) => {
+  void router.push({ path: routeForScreen(screen).path, query: { ...globalDashboardQuery(), ...extraQuery } })
 }
 
 const syncDashboardQuery = () => {
   void router.replace({
     path: route.path,
     query: {
-      ...route.query,
-      range: dateRange.value,
-      currency: dashboardCurrency.value,
-      provider_id: selectedProviderId.value,
-      corridor: selectedCorridor.value,
-      payout_method: selectedPayoutMethod.value,
-      analysis_lens: analysisLens.value,
+      ...globalDashboardQuery(),
+      ...currentPageQuery(activeScreen.value),
     },
   })
+}
+
+const usingSampleData = import.meta.env.MODE === 'test' || import.meta.env.VITE_IMSI_DATA_MODE === 'mock'
+
+const applyDashboardState = (scenario: UiScenario) => {
+  const next = getDashboardMock(scenario)
+  Object.assign(dashboard, next)
+  selectedAuditTime.value = next.auditEvents[0]?.time ?? ''
+  if (selectedTransactionReference.value && !next.transactions.some((transaction) => transaction.reference === selectedTransactionReference.value)) {
+    selectedTransactionReference.value = ''
+  }
 }
 
 const refreshDashboard = async () => {
@@ -536,10 +574,10 @@ const refreshDashboard = async () => {
     dashboardSummary.value = summary
     dashboardTimeseries.value = timeseries
     dashboard.summary.lastUpdated = new Date(summary.generated_at).toLocaleTimeString('en-GB', { timeZone: 'UTC' }) + ' UTC'
-    dashboard.summary.connection.mode = 'api'
+    dashboard.summary.connection.mode = usingSampleData ? 'static' : 'api'
     dashboard.summary.connection.freshness = 'fresh'
     dashboard.summary.connection.updatedAt = summary.generated_at
-    dashboard.summary.connection.nextPollIn = 'API aggregation'
+    dashboard.summary.connection.nextPollIn = usingSampleData ? 'Sample operational data' : 'API aggregation'
   } catch {
     dashboard.summary.connection.mode = sessionUser.value ? 'api' : dashboard.summary.connection.mode
     dashboard.summary.connection.freshness = 'stale'
@@ -589,12 +627,7 @@ const openDrilldown = (drilldown: string) => {
     path: url.pathname,
     query: {
       ...Object.fromEntries(url.searchParams.entries()),
-      range: dateRange.value,
-      currency: dashboardCurrency.value,
-      provider_id: selectedProviderId.value,
-      corridor: selectedCorridor.value,
-      payout_method: selectedPayoutMethod.value,
-      analysis_lens: analysisLens.value,
+      ...globalDashboardQuery(),
     },
   })
 }
@@ -737,6 +770,34 @@ watch([dateRange, dashboardCurrency, selectedProviderId, selectedCorridor, selec
   reconnectLive()
 })
 
+watch(dataState, () => {
+  applyDashboardState(dataState.value)
+  syncDashboardQuery()
+  void refreshDashboard()
+  reconnectLive()
+})
+
+watch(
+  () => route.query,
+  (query) => {
+    const nextRange = typeof query.range === 'string' ? query.range : 'today'
+    const nextCurrency = typeof query.currency === 'string' ? query.currency : 'USD'
+    const nextProvider = typeof query.provider_id === 'string' ? query.provider_id : 'all'
+    const nextCorridor = typeof query.corridor === 'string' ? query.corridor : 'all'
+    const nextPayout = typeof query.payout_method === 'string' ? query.payout_method : 'all'
+    const nextLens = typeof query.analysis_lens === 'string' ? query.analysis_lens : 'reliability'
+    const nextDataState = normalizeDataState(query.scenario)
+
+    if (dateRange.value !== nextRange) dateRange.value = nextRange
+    if (dashboardCurrency.value !== nextCurrency) dashboardCurrency.value = nextCurrency
+    if (selectedProviderId.value !== nextProvider) selectedProviderId.value = nextProvider
+    if (selectedCorridor.value !== nextCorridor) selectedCorridor.value = nextCorridor
+    if (selectedPayoutMethod.value !== nextPayout) selectedPayoutMethod.value = nextPayout
+    if (analysisLens.value !== nextLens) analysisLens.value = nextLens
+    if (dataState.value !== nextDataState) dataState.value = nextDataState
+  },
+)
+
 watch(
   () => route.query.timing,
   (timing) => {
@@ -792,6 +853,19 @@ function formatDuration(seconds: number) {
   return remainingSeconds ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`
 }
 
+function normalizeDataState(value: unknown): UiScenario {
+  if (value === 'healthy') return 'healthy'
+  if (value === 'traffic-shift') return 'traffic-shift'
+  if (value === 'pilot-report') return 'pilot-report'
+  if (value === 'degraded' || value === 'degraded-ria') return 'degraded-ria'
+  if (value === 'stale-fx') return 'stale-fx'
+  if (value === 'empty') return 'empty'
+  if (value === 'permission-denied') return 'permission-denied'
+  if (value === 'loading') return 'loading'
+  if (value === 'api-failure') return 'api-failure'
+  return 'degraded-ria'
+}
+
 function normalizeCorridorValue(corridor: string) {
   return corridor
     .replace(/\s+to\s+/i, ' -> ')
@@ -806,17 +880,6 @@ function normalizeCorridorValue(corridor: string) {
       return part.trim().slice(0, 2).toUpperCase()
     })
     .join(' -> ')
-}
-
-function parseAmountValue(amount: string) {
-  const parsed = Number(amount.replace(/[^\d.]/g, ''))
-  return Number.isFinite(parsed) ? parsed : 0
-}
-
-function percentile(values: number[], percentileValue: number) {
-  if (!values.length) return 0
-  const index = Math.min(values.length - 1, Math.max(0, Math.ceil(values.length * percentileValue) - 1))
-  return values[index]
 }
 
 function isTransactionStalled(transaction: TransactionRecord) {
@@ -839,12 +902,6 @@ function qaStateFor(transaction: TransactionRecord): HealthState {
   return 'degraded'
 }
 
-function routeDecisionSummary(transaction: TransactionRecord) {
-  if (transaction.destinationCreditedAt === 'pending') return `${transaction.provider} has not confirmed destination credit after ${transaction.totalTime}.`
-  const policyResult = transaction.totalTimeSeconds <= qaThresholdSeconds.value ? 'inside' : 'outside'
-  return `${transaction.provider} completed in ${transaction.totalTime}, ${policyResult} the ${formatDuration(qaThresholdSeconds.value)} QA policy.`
-}
-
 function stateLabel(state: HealthState) {
   const labels: Record<HealthState, string> = {
     healthy: 'Healthy',
@@ -856,6 +913,18 @@ function stateLabel(state: HealthState) {
     stale: 'Stale',
   }
   return labels[state]
+}
+
+function metricIcon(id: string) {
+  if (id === 'tail-latency') return Clock3
+  if (id === 'failed' || id === 'value-risk') return AlertTriangle
+  if (id === 'switching') return ShieldCheck
+  if (id === 'sla') return CheckCircle2
+  return Gauge
+}
+
+function metricTileDetail(tile: { id: string; trend: string }) {
+  return tile.trend
 }
 
 function policyStatusLabel(status: PolicyStatus) {
@@ -956,6 +1025,12 @@ function baselineRateFor(index: number) {
         <span>Data source</span>
         <strong>{{ dashboard.summary.connection.mode }}</strong>
         <small>{{ dashboard.summary.connection.nextPollIn }}</small>
+        <label class="data-state-control">
+          <span>Data state</span>
+          <select v-model="dataState" aria-label="Data state">
+            <option v-for="option in dataStateOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+          </select>
+        </label>
         <strong>{{ sessionUser?.display_name }}</strong>
         <small>{{ sessionUser?.roles.join(', ') }}</small>
         <button type="button" class="sidebar-link" @click="handleLogout">Sign out</button>
@@ -1025,9 +1100,9 @@ function baselineRateFor(index: number) {
             :key="tile.id"
             :label="tile.label"
             :value="`${tile.value}${tile.unit === '%' ? '%' : ''}`"
-            :detail="`${tile.trend} / ${dashboardCurrency}`"
+            :detail="metricTileDetail(tile)"
             :tone="tile.state"
-            :icon="tile.id === 'p95' ? Clock3 : tile.id === 'failed' ? AlertTriangle : Gauge"
+            :icon="metricIcon(tile.id)"
             clickable
             @click="openDrilldown(tile.drilldown)"
           />
@@ -1207,8 +1282,9 @@ function baselineRateFor(index: number) {
                     </td>
                     <td>
                       <ActionBar compact>
-                        <UiButton size="sm" variant="secondary" @click="activate('transactions')">Trace</UiButton>
-                        <UiButton size="sm" @click="activate('policy')">Policy</UiButton>
+                        <UiButton size="sm" variant="secondary" @click="activate('transactions', { corridor: normalizeCorridorValue(corridor.corridor) })">Trace</UiButton>
+                        <UiButton size="sm" variant="secondary" @click="activate('providers', { provider_id: routeProvider(corridor.selectedRoute).toLowerCase() })">Provider</UiButton>
+                        <UiButton size="sm" @click="activate('policy', { corridor: normalizeCorridorValue(corridor.corridor) })">Policy</UiButton>
                       </ActionBar>
                     </td>
                   </tr>
@@ -1228,17 +1304,27 @@ function baselineRateFor(index: number) {
           <Panel title="Route action queue" eyebrow="Worklist" accent="watch" class="span-7">
             <div class="action-queue">
               <article v-for="item in pagedRouteActionItems" :key="item.id">
-                <CountryPair :origin="corridorParts(item.corridor.corridor).origin" :destination="corridorParts(item.corridor.corridor).destination" compact />
-                <div>
-                  <strong>{{ item.action }}</strong>
-                  <small>{{ item.corridor.risk }} / {{ item.corridor.owner }}</small>
+                <div class="route-action-main">
+                  <CountryPair :origin="corridorParts(item.corridor.corridor).origin" :destination="corridorParts(item.corridor.corridor).destination" compact />
+                  <div>
+                    <strong>{{ item.action }}</strong>
+                    <small>{{ item.corridor.risk }} / {{ item.corridor.owner }}</small>
+                  </div>
                 </div>
                 <HealthBadge :state="item.corridor.state" />
                 <ActionBar compact>
-                  <UiButton size="sm" variant="secondary" @click="activate('transactions')">Trace</UiButton>
-                  <UiButton size="sm" @click="activate('policy')">Open policy</UiButton>
+                  <UiButton size="sm" variant="secondary" @click="activate('transactions', { corridor: normalizeCorridorValue(item.corridor.corridor) })">Trace</UiButton>
+                  <UiButton size="sm" @click="activate('policy', { corridor: normalizeCorridorValue(item.corridor.corridor) })">Open policy</UiButton>
                 </ActionBar>
               </article>
+            </div>
+            <div class="pagination-bar">
+              <span>{{ pagedRouteActionItems.length }} of {{ routeActionItems.length }} actions</span>
+              <div>
+                <UiButton size="sm" variant="secondary" :disabled="routePage === 1" @click="goToRoutePage(routePage - 1)">Previous</UiButton>
+                <strong>Page {{ routePage }} / {{ routePageCount }}</strong>
+                <UiButton size="sm" variant="secondary" :disabled="routePage === routePageCount" @click="goToRoutePage(routePage + 1)">Next</UiButton>
+              </div>
             </div>
           </Panel>
 
@@ -1378,7 +1464,7 @@ function baselineRateFor(index: number) {
             <EmptyState
               v-if="!selectedTransaction"
               title="Select a transfer"
-              description="Pick one row to trace timing, references, and route decision."
+              description="Pick one row to see the key status and open the full trace."
             >
               <TraceEmptyIllustration />
             </EmptyState>
@@ -1387,74 +1473,32 @@ function baselineRateFor(index: number) {
                 <div>
                   <h3 class="mono">{{ selectedTransaction.reference }}</h3>
                   <p>{{ selectedTransaction.amount }} / {{ selectedTransaction.beneficiary }}</p>
+                  <p class="compact-route">
+                    {{ selectedTransaction.senderCountry }} -> {{ selectedTransaction.destinationCountry }}
+                    <span>{{ routeProvider(selectedTransaction.route) }}{{ routeRail(selectedTransaction.route) ? ` / ${routeRail(selectedTransaction.route)}` : '' }}</span>
+                  </p>
                 </div>
                 <HealthBadge :state="qaStateFor(selectedTransaction)" :trigger="qaStatusLabel(selectedTransaction)" />
               </div>
-              <dl class="metric-grid metric-grid--four">
+              <dl class="compact-trace-facts">
                 <div>
-                  <dt>Sender initiated</dt>
-                  <dd>{{ selectedTransaction.senderStartedAt }}</dd>
+                  <dt>Elapsed</dt>
+                  <dd>{{ selectedTransaction.totalTime }}</dd>
                 </div>
                 <div>
-                  <dt>Destination credited</dt>
-                  <dd>{{ selectedTransaction.destinationCreditedAt }}</dd>
-                </div>
-                <div>
-                  <dt>QA limit</dt>
-                  <dd>{{ qaThresholdLabel }}</dd>
-                </div>
-                <div>
-                  <dt>Next team</dt>
+                  <dt>Owner</dt>
                   <dd>{{ selectedTransaction.currentOwner }}</dd>
                 </div>
               </dl>
-              <section class="detail-grid">
-                <article>
-                  <span class="eyebrow">References</span>
-                  <dl class="reference-list">
-                    <div>
-                      <dt>Switch</dt>
-                      <dd class="mono">{{ selectedTransaction.reference }}</dd>
-                    </div>
-                    <div>
-                      <dt>Provider</dt>
-                      <dd class="mono">{{ selectedTransaction.providerReference }}</dd>
-                    </div>
-                    <div>
-                      <dt>Bank</dt>
-                      <dd class="mono">{{ selectedTransaction.bankReference }}</dd>
-                    </div>
-                  </dl>
-                </article>
-                <article>
-                  <span class="eyebrow">Route decision</span>
-                  <RoutePath
-                    :origin="selectedTransaction.senderCountry"
-                    :destination="selectedTransaction.destinationCountry"
-                    :provider="routeProvider(selectedTransaction.route)"
-                    :rail="routeRail(selectedTransaction.route)"
-                  />
-                  <RouteScoreChip
-                    v-if="selectedTransaction.reference === dashboard.trace.reference"
-                    :score="dashboard.trace.selectedRoute.score"
-                    :reason="dashboard.trace.selectedRoute.reason || dashboard.trace.selectedRoute.provider"
-                    :confidence="dashboard.trace.selectedRoute.confidence"
-                    :policy-version="dashboard.trace.policyVersion"
-                  />
-                  <p v-else>{{ routeDecisionSummary(selectedTransaction) }}</p>
-                </article>
-              </section>
-              <aside class="state-note">
+              <aside class="compact-state-note">
                 <Clock3 :size="16" aria-hidden="true" />
                 <span>{{ selectedTransaction.blocker }}</span>
-                <strong>{{ selectedTransaction.totalTime }}</strong>
               </aside>
               <ActionBar>
                 <UiButton size="sm" @click="openTraceSheet">
                   <Maximize2 :size="15" aria-hidden="true" />
                   Open full trace
                 </UiButton>
-                <UiButton size="sm" variant="secondary" @click="activate('reconciliation')">Reconcile</UiButton>
               </ActionBar>
             </div>
           </Panel>
@@ -1697,7 +1741,7 @@ function baselineRateFor(index: number) {
             </div>
           </Panel>
 
-          <Panel title="Policy history" eyebrow="Read-only" accent="recovery" class="span-5">
+          <Panel title="Policy history" eyebrow="Change log" accent="recovery" class="span-5">
             <ol class="event-list">
               <li v-for="item in dashboard.routeConfig.history" :key="`${item.time}-${item.summary}`">
                 <time>{{ item.time }}</time>
@@ -1784,7 +1828,7 @@ function baselineRateFor(index: number) {
             </ol>
           </Panel>
 
-          <Panel title="Latency breakdown" eyebrow="Slowest route" accent="degraded" class="span-5">
+          <Panel title="Latency root cause" eyebrow="Ownership" accent="degraded" class="span-5">
             <div class="latency-list">
               <article v-for="step in dashboard.latency.steps" :key="step.label">
                 <div>
@@ -1803,7 +1847,7 @@ function baselineRateFor(index: number) {
 
       <section v-else-if="activeScreen === 'fx'" class="screen-stack">
         <section class="dashboard-grid">
-          <Panel title="Route economics" eyebrow="Rates and costs" accent="healthy" class="span-5">
+          <Panel title="Recommended vs cheapest" eyebrow="Rates and costs" accent="healthy" class="span-5">
             <div class="fx-decision-grid">
               <article>
                 <span>Recommended eligible route</span>
@@ -1849,17 +1893,15 @@ function baselineRateFor(index: number) {
             </dl>
           </Panel>
 
-          <Panel title="Cost stack by route" :eyebrow="`${fxBaseCurrency} baseline`" accent="watch" class="span-7">
+          <Panel title="Cost, speed, and eligibility" :eyebrow="`${fxBaseCurrency} baseline`" accent="watch" class="span-7">
             <DataTable :empty="fxComparisonRoutes.length === 0" empty-title="No rates available" empty-description="Rates will appear when provider quotes refresh.">
-              <table>
+              <table class="fx-cost-table">
                 <thead>
                   <tr>
                     <th>Provider</th>
-                    <th>{{ fxBaseCurrency }} baseline</th>
-                    <th>Fee / spread</th>
-                    <th>Effective cost</th>
+                    <th>Rate / cost</th>
                     <th>Speed</th>
-                    <th>Signal</th>
+                    <th>Why it matters</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1871,9 +1913,8 @@ function baselineRateFor(index: number) {
                     <td>
                       <strong>{{ route.baselineRate }}</strong>
                       <small>{{ route.pair }} / {{ route.updatedAt }}</small>
+                      <small>Fee/spread {{ route.fee }} / {{ route.spread }} - effective {{ route.effectiveCost }}</small>
                     </td>
-                    <td>{{ route.fee }} / {{ route.spread }}</td>
-                    <td><strong>{{ route.effectiveCost }}</strong></td>
                     <td>{{ route.payoutTime }}</td>
                     <td>
                       <HealthBadge :state="route.state" :trigger="route.recommended ? 'recommended' : route.cheapest ? 'cheapest' : route.note" />
@@ -1884,7 +1925,7 @@ function baselineRateFor(index: number) {
             </DataTable>
           </Panel>
 
-          <Panel title="Eligibility and freshness" eyebrow="Controls" accent="recovery" class="span-12">
+          <Panel title="Route quote checks" eyebrow="Eligibility and freshness" accent="recovery" class="span-12">
             <div class="fx-rule-grid">
               <article v-for="route in fxComparisonRoutes" :key="`${route.provider}-rule`">
                 <ProviderMark :provider="route.provider" />
@@ -1911,7 +1952,7 @@ function baselineRateFor(index: number) {
 
       <section v-else-if="activeScreen === 'reconciliation'" class="screen-stack">
         <section class="dashboard-grid">
-          <Panel title="Reconciliation work queue" eyebrow="Settlement operations" accent="watch" class="span-8">
+          <Panel title="Settlement breaks to clear" eyebrow="Reconciliation" accent="watch" class="span-8">
             <template #actions>
               <UiButton size="sm" variant="secondary">
                 <Upload :size="15" aria-hidden="true" />
@@ -1925,14 +1966,14 @@ function baselineRateFor(index: number) {
             <DataTable
               :empty="dashboard.reconciliation.length === 0"
               empty-title="No settlement breaks"
-              empty-description="Provider files, bank postings, and settlement references are currently matched."
+              empty-description="Provider files, bank postings, and settlement references match for this view."
             >
               <table>
                 <thead>
                   <tr>
                     <th>Reference</th>
                     <th>Provider</th>
-                    <th>Break type</th>
+                    <th>What happened</th>
                     <th>Amount</th>
                     <th>Age</th>
                     <th>Owner</th>
@@ -1952,7 +1993,7 @@ function baselineRateFor(index: number) {
                     <td>
                       <ActionBar compact>
                         <UiButton size="sm" variant="secondary" @click="activate('transactions')">Trace</UiButton>
-                        <UiButton size="sm">Assign</UiButton>
+                        <UiButton size="sm">Resolve</UiButton>
                       </ActionBar>
                     </td>
                   </tr>
@@ -1961,7 +2002,7 @@ function baselineRateFor(index: number) {
             </DataTable>
           </Panel>
 
-          <Panel title="Matching lanes" eyebrow="Exception type" accent="recovery" class="span-4">
+          <Panel title="Break categories" eyebrow="Exception type" accent="recovery" class="span-4">
             <div class="recon-lanes">
               <article>
                 <FileCheck2 :size="18" aria-hidden="true" />
@@ -1981,27 +2022,27 @@ function baselineRateFor(index: number) {
             </div>
           </Panel>
 
-          <Panel title="Resolution checklist" eyebrow="Current break" accent="healthy" class="span-12">
+          <Panel title="How to close a break" eyebrow="Operator steps" accent="healthy" class="span-12">
             <div class="resolution-grid">
               <article>
                 <BadgeCheck :size="18" aria-hidden="true" />
-                <strong>Reference match</strong>
-                <small>Switch, provider, bank, and settlement batch IDs are compared.</small>
+                <strong>Confirm references</strong>
+                <small>Compare switch, provider, bank, and settlement batch IDs.</small>
               </article>
               <article>
                 <CircleDollarSign :size="18" aria-hidden="true" />
-                <strong>Amount and FX match</strong>
-                <small>Amount, currency, rate timestamp, and fee/spread are checked.</small>
+                <strong>Validate amount and FX</strong>
+                <small>Check amount, currency, rate timestamp, fee, and spread.</small>
               </article>
               <article>
                 <Clock3 :size="18" aria-hidden="true" />
-                <strong>Credit confirmation</strong>
-                <small>Destination credit, reversal, or pending owner is recorded.</small>
+                <strong>Confirm beneficiary outcome</strong>
+                <small>Record credit, reversal, or the team blocking closure.</small>
               </article>
               <article>
                 <History :size="18" aria-hidden="true" />
-                <strong>Audit closure</strong>
-                <small>Resolution note, owner, and evidence are written to audit.</small>
+                <strong>Close with evidence</strong>
+                <small>Save resolution note, owner, and supporting reference.</small>
               </article>
             </div>
           </Panel>
@@ -2012,7 +2053,7 @@ function baselineRateFor(index: number) {
         <section class="kpi-grid">
           <KpiTile label="Leader" :value="sortedProviders[0]?.provider ?? 'None'" :detail="`${sortedProviders[0]?.p95 ?? '-'} P95`" tone="healthy" :icon="CheckCircle2" />
           <KpiTile label="Weakest route" :value="weakestProvider?.provider ?? 'None'" :detail="`${weakestProvider?.settlementExceptions ?? 0} exceptions`" tone="degraded" :icon="AlertTriangle" />
-          <KpiTile label="Total providers" :value="sortedProviders.length" detail="Connected in pilot snapshot" tone="brand" :icon="Network" />
+          <KpiTile label="Total providers" :value="sortedProviders.length" detail="Connected provider routes" tone="brand" :icon="Network" />
           <KpiTile label="Traffic window" value="15m" detail="Success, P95, stuck rate" tone="recovery" :icon="TimerReset" />
         </section>
         <Panel v-if="providerComparisons.length" title="Selected IMTO analytics" :eyebrow="`${dateRange} / ${dashboardCurrency}`" accent="healthy">
@@ -2084,7 +2125,7 @@ function baselineRateFor(index: number) {
               <Search :size="18" aria-hidden="true" />
               <input v-model="auditQuery" type="search" placeholder="Actor, object, reason, action" aria-label="Search audit events" />
             </label>
-            <span class="dashboard-chip">Read-only log</span>
+            <span class="dashboard-chip">Immutable audit trail</span>
           </ActionBar>
         </Panel>
 
@@ -2145,7 +2186,7 @@ function baselineRateFor(index: number) {
               </dl>
               <aside class="state-note">
                 <GitBranch :size="16" aria-hidden="true" />
-                <span>Policy snapshot and route evidence are captured in the decision log.</span>
+                <span>Stored with policy version, route inputs, actor, timestamp, and review reason.</span>
               </aside>
             </div>
           </Panel>

@@ -12,7 +12,7 @@ const content = computed(() => {
     return { icon: Clock3, title: 'Loading data', detail: 'Refreshing routes, transfers, and settlement.' }
   }
   if (props.scenario === 'api-failure') {
-    return { icon: WifiOff, title: 'Feed unavailable', detail: 'Showing the last safe snapshot.' }
+    return { icon: WifiOff, title: 'Feed unavailable', detail: 'Showing the last verified operational state.' }
   }
   if (props.scenario === 'permission-denied') {
     return { icon: LockKeyhole, title: 'Limited access', detail: 'Some details are hidden for this role.' }

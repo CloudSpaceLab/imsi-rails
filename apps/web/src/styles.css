@@ -301,6 +301,18 @@ svg {
   font-weight: 650;
 }
 
+.data-state-control {
+  display: grid;
+  gap: 5px;
+  margin: 8px 0;
+}
+
+.data-state-control select {
+  min-height: 34px;
+  padding: 0 30px 0 10px;
+  font-size: var(--fs-xs);
+}
+
 .sidebar-link {
   width: fit-content;
   margin-top: 8px;
@@ -1093,6 +1105,10 @@ table {
   border-collapse: collapse;
 }
 
+.fx-cost-table {
+  min-width: 0;
+}
+
 th,
 td {
   padding: 11px 12px;
@@ -1224,6 +1240,66 @@ tbody tr:hover,
   gap: 14px;
 }
 
+.detail-heading > div {
+  min-width: 0;
+}
+
+.detail-heading h3 {
+  overflow-wrap: anywhere;
+}
+
+.compact-route {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.compact-route span {
+  color: var(--text-soft);
+}
+
+.compact-trace-facts {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.compact-trace-facts div {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+}
+
+.compact-trace-facts div + div {
+  border-top: 1px solid var(--line);
+}
+
+.compact-trace-facts dd {
+  margin: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.compact-state-note {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  color: var(--text-soft);
+  font-size: var(--fs-sm);
+}
+
+.compact-state-note svg {
+  margin-top: 2px;
+  color: var(--watch);
+}
+
 .detail-grid,
 .simulation-grid,
 .policy-edit-grid {
@@ -1345,9 +1421,7 @@ tbody tr:hover,
 
 .route-score span,
 .route-score small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .provider-ranking,
@@ -1426,6 +1500,7 @@ tbody tr:hover,
 .pagination-bar label,
 .action-bar[compact] {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
@@ -1463,9 +1538,7 @@ tbody tr:hover,
 .provider-context strong,
 .provider-context small {
   display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .provider-row,
@@ -1482,8 +1555,22 @@ tbody tr:hover,
 }
 
 .action-queue article {
-  grid-template-columns: minmax(150px, 0.8fr) minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
+}
+
+.route-action-main {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(170px, auto) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.route-action-main strong,
+.route-action-main small {
+  display: block;
+  overflow-wrap: anywhere;
 }
 
 .policy-list button {
@@ -1859,7 +1946,12 @@ tbody tr:hover,
     grid-template-columns: 1fr;
   }
 
+  .workspace {
+    order: 1;
+  }
+
   .sidebar {
+    order: 2;
     position: static;
     height: auto;
   }
@@ -1943,6 +2035,7 @@ tbody tr:hover,
   }
 
   .provider-context,
+  .route-action-main,
   .fx-control-grid {
     grid-template-columns: 1fr;
   }

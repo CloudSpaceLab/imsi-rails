@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import 'uplot/dist/uPlot.min.css'
 import type { DashboardTimeseriesPoint } from '../types'
 
 const props = defineProps<{
@@ -10,6 +11,7 @@ const props = defineProps<{
 
 const host = ref<HTMLElement | null>(null)
 let chart: { destroy: () => void } | null = null
+let renderId = 0
 
 const values = computed(() => props.points.map((point) => Number(point[props.metric] ?? 0)))
 const maxValue = computed(() => Math.max(...values.value, 1))
@@ -25,8 +27,11 @@ const svgPoints = computed(() =>
 
 async function renderUPlot() {
   if (import.meta.env.MODE === 'test' || !host.value || props.points.length === 0) return
-  chart?.destroy()
+  const id = ++renderId
   const { default: uPlot } = await import('uplot')
+  if (id !== renderId || !host.value) return
+  chart?.destroy()
+  host.value.replaceChildren()
   const timestamps = props.points.map((point) => Math.floor(new Date(point.time).getTime() / 1000))
   const series = values.value
   chart = new uPlot(
@@ -44,7 +49,10 @@ async function renderUPlot() {
 }
 
 onMounted(() => nextTick(renderUPlot))
-onBeforeUnmount(() => chart?.destroy())
+onBeforeUnmount(() => {
+  renderId += 1
+  chart?.destroy()
+})
 watch(() => props.points, () => nextTick(renderUPlot), { deep: true })
 </script>
 

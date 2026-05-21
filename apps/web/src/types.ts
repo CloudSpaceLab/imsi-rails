@@ -11,7 +11,18 @@ export type ScreenId =
   | 'providers'
   | 'audit'
 
-export type UiScenario = 'healthy' | 'degraded' | 'blocked' | 'stale-fx' | 'empty' | 'permission-denied' | 'loading' | 'api-failure'
+export type UiScenario =
+  | 'healthy'
+  | 'degraded'
+  | 'degraded-ria'
+  | 'traffic-shift'
+  | 'pilot-report'
+  | 'blocked'
+  | 'stale-fx'
+  | 'empty'
+  | 'permission-denied'
+  | 'loading'
+  | 'api-failure'
 
 export type DataViewState = 'ready' | 'loading' | 'empty' | 'stale' | 'error' | 'permission-denied'
 
@@ -60,6 +71,7 @@ export type DashboardContext = {
   provider_id?: string
   corridor?: string
   payout_method?: string
+  scenario?: UiScenario
   currency: string
   analysis_lens: string
 }
