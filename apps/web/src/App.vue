@@ -237,16 +237,22 @@ const severityRank: Record<HealthState, number> = {
 
 const selectedScreen = computed(() => navigation.find((item) => item.id === activeScreen.value) ?? navigation[0])
 const isPolicyCreateFlow = computed(() => activeScreen.value === 'policy' && route.path === '/policy/new')
+const isPolicyDetailFlow = computed(() => activeScreen.value === 'policy' && typeof route.params.policyId === 'string')
+const isTransactionDetailFlow = computed(() => activeScreen.value === 'transactions' && typeof route.params.reference === 'string')
 const isRouteDetailFlow = computed(() => activeScreen.value === 'corridors' && typeof route.params.routeId === 'string')
 const isProviderDetailFlow = computed(() => activeScreen.value === 'providers' && typeof route.params.providerId === 'string')
 const isIncidentDetailFlow = computed(() => activeScreen.value === 'incidents' && typeof route.params.incidentId === 'string')
 const isReconciliationDetailFlow = computed(() => activeScreen.value === 'reconciliation' && typeof route.params.reference === 'string')
+const transactionDetailReference = computed(() => (typeof route.params.reference === 'string' ? route.params.reference : ''))
+const policyDetailId = computed(() => (typeof route.params.policyId === 'string' ? route.params.policyId : ''))
 const routeDetailId = computed(() => (typeof route.params.routeId === 'string' ? route.params.routeId : ''))
 const providerDetailId = computed(() => (typeof route.params.providerId === 'string' ? route.params.providerId : ''))
 const incidentDetailId = computed(() => (typeof route.params.incidentId === 'string' ? route.params.incidentId : ''))
 const reconciliationReference = computed(() => (typeof route.params.reference === 'string' ? route.params.reference : ''))
 const currentPageTitle = computed(() => {
   if (isPolicyCreateFlow.value) return 'New policy'
+  if (isPolicyDetailFlow.value) return 'Policy detail'
+  if (isTransactionDetailFlow.value) return 'Transaction detail'
   if (isRouteDetailFlow.value) return 'Route detail'
   if (isProviderDetailFlow.value) return 'Provider detail'
   if (isIncidentDetailFlow.value) return 'Incident detail'
@@ -256,24 +262,30 @@ const currentPageTitle = computed(() => {
 const currentPageDescription = computed(() =>
   isPolicyCreateFlow.value
     ? 'Define corridor, payout method, primary rail, fallback order, and amount band.'
-    : isRouteDetailFlow.value && selectedRouteDetail.value
-      ? `${friendlyCorridorLabel(selectedRouteDetail.value.corridor.corridor)} / ${selectedRouteDetail.value.corridor.selectedRoute}`
-      : isProviderDetailFlow.value && selectedProviderDetail.value
-        ? `${selectedProviderDetail.value.provider} / ${friendlyCorridorLabel(selectedProviderDetail.value.corridor)}`
-        : isIncidentDetailFlow.value && selectedIncidentDetail.value
-          ? `${selectedIncidentDetail.value.id} / ${selectedIncidentDetail.value.owner}`
-          : isReconciliationDetailFlow.value && selectedReconciliationItem.value
-            ? `${selectedReconciliationItem.value.reference} / ${selectedReconciliationItem.value.owner}`
+    : isPolicyDetailFlow.value && selectedPolicy.value
+      ? `${selectedPolicy.value.id} / ${policyStatusLabel(selectedPolicy.value.status)}`
+      : isTransactionDetailFlow.value && selectedTransaction.value
+        ? `${selectedTransaction.value?.reference ?? transactionDetailReference.value} / ${selectedTransaction.value?.currentOwner ?? 'Trace'}`
+        : isRouteDetailFlow.value && selectedRouteDetail.value
+          ? `${friendlyCorridorLabel(selectedRouteDetail.value.corridor.corridor)} / ${selectedRouteDetail.value.corridor.selectedRoute}`
+          : isProviderDetailFlow.value && selectedProviderDetail.value
+            ? `${selectedProviderDetail.value.provider} / ${friendlyCorridorLabel(selectedProviderDetail.value.corridor)}`
+            : isIncidentDetailFlow.value && selectedIncidentDetail.value
+              ? `${selectedIncidentDetail.value.id} / ${selectedIncidentDetail.value.owner}`
+              : isReconciliationDetailFlow.value && selectedReconciliationItem.value
+                ? `${selectedReconciliationItem.value.reference} / ${selectedReconciliationItem.value.owner}`
       : screenDescriptions[selectedScreen.value.id],
 )
 const breadcrumbs = computed(() => {
   const crumbs: Array<{ label: string; path?: string }> = [{ label: bankWorkspaceName, path: '/' }]
   crumbs.push({ label: selectedScreen.value.label, path: routeForScreen(selectedScreen.value.id).path })
+  if (isTransactionDetailFlow.value) crumbs.push({ label: selectedTransaction.value?.reference ?? 'Transaction detail' })
   if (isRouteDetailFlow.value) crumbs.push({ label: selectedRouteDetail.value ? friendlyCorridorLabel(selectedRouteDetail.value.corridor.corridor) : 'Route detail' })
   if (isProviderDetailFlow.value) crumbs.push({ label: selectedProviderDetail.value?.provider ?? 'Provider detail' })
   if (isIncidentDetailFlow.value) crumbs.push({ label: selectedIncidentDetail.value?.id ?? 'Incident detail' })
   if (isReconciliationDetailFlow.value) crumbs.push({ label: selectedReconciliationItem.value?.reference ?? 'Settlement break' })
   if (isPolicyCreateFlow.value) crumbs.push({ label: 'New policy' })
+  if (isPolicyDetailFlow.value) crumbs.push({ label: selectedPolicy.value?.id ?? 'Policy detail' })
   return crumbs
 })
 const activeIncident = computed(() => dashboard.incidents[0] ?? null)
@@ -659,7 +671,12 @@ const pagedRouteActionItems = computed(() => {
   const start = (routePage.value - 1) * routePageSize.value
   return routeActionItems.value.slice(start, start + routePageSize.value)
 })
-const selectedPolicy = computed(() => policyRules.value.find((policy) => policy.id === selectedPolicyId.value) ?? policyRules.value[0] ?? null)
+const selectedPolicy = computed(() => {
+  if (isPolicyDetailFlow.value) {
+    return policyRules.value.find((policy) => policy.id.toLowerCase() === policyDetailId.value.toLowerCase()) ?? null
+  }
+  return policyRules.value.find((policy) => policy.id === selectedPolicyId.value) ?? policyRules.value[0] ?? null
+})
 const policyStatusCounts = computed(() =>
   policyRules.value.reduce(
     (counts, policy) => {
@@ -692,9 +709,12 @@ const hasTransactionFilters = computed(
     sortBy.value !== 'totalTimeDesc',
 )
 
-const selectedTransaction = computed<TransactionRecord | null>(
-  () => filteredTransactions.value.find((transaction) => transaction.reference === selectedTransactionReference.value) ?? null,
-)
+const selectedTransaction = computed<TransactionRecord | null>(() => {
+  if (isTransactionDetailFlow.value) {
+    return dashboard.transactions.find((transaction) => transaction.reference.toLowerCase() === transactionDetailReference.value.toLowerCase()) ?? null
+  }
+  return filteredTransactions.value.find((transaction) => transaction.reference === selectedTransactionReference.value) ?? null
+})
 
 const selectedTimeline = computed(() => {
   const transaction = selectedTransaction.value
@@ -723,6 +743,65 @@ const selectedTimeline = computed(() => {
       note: transaction.blocker,
     },
   ]
+})
+
+const selectedTransactionRouteDetail = computed(() => {
+  const transaction = selectedTransaction.value
+  if (!transaction) return null
+  return (
+    routeDetailRows.value.find(
+      (route) =>
+        providerIdFor(route.provider) === providerIdFor(routeProvider(transaction.route)) &&
+        transactionMatchesCorridor(transaction, route.corridor.corridor),
+    ) ?? null
+  )
+})
+
+const selectedTransactionProviderScore = computed(() => {
+  const transaction = selectedTransaction.value
+  if (!transaction) return null
+  return sortedProviders.value.find((provider) => providerIdFor(provider.provider) === providerIdFor(transaction.provider)) ?? null
+})
+
+const selectedTransactionIncident = computed(() => {
+  const transaction = selectedTransaction.value
+  if (!transaction) return null
+  return dashboard.incidents.find((incident) => transactionMatchesCorridor(transaction, incident.corridor)) ?? null
+})
+
+const selectedTransactionBreaks = computed(() => {
+  const transaction = selectedTransaction.value
+  if (!transaction) return []
+  return dashboard.reconciliation.filter((item) => providerIdFor(item.provider) === providerIdFor(transaction.provider))
+})
+
+const selectedPolicyRoute = computed(() => {
+  const policy = selectedPolicy.value
+  if (!policy) return null
+  const policyCorridor = `${policy.origin} -> ${policy.destination}`
+  return (
+    sortedCorridors.value.find(
+      (corridor) =>
+        normalizeCorridorValue(corridor.corridor) === normalizeCorridorValue(policyCorridor) &&
+        providerIdFor(routeProvider(corridor.selectedRoute)) === providerIdFor(policy.provider),
+    ) ?? null
+  )
+})
+
+const selectedPolicyTransactions = computed(() => {
+  const policy = selectedPolicy.value
+  if (!policy) return []
+  const policyCorridor = `${policy.origin} -> ${policy.destination}`
+  return dashboard.transactions.filter(
+    (transaction) => providerIdFor(transaction.provider) === providerIdFor(policy.provider) && transactionMatchesCorridor(transaction, policyCorridor),
+  )
+})
+
+const selectedPolicyIncident = computed(() => {
+  const policy = selectedPolicy.value
+  if (!policy) return null
+  const policyCorridor = `${policy.origin} -> ${policy.destination}`
+  return dashboard.incidents.find((incident) => normalizeCorridorValue(incident.corridor) === normalizeCorridorValue(policyCorridor)) ?? null
 })
 
 const filteredAuditEvents = computed(() => {
@@ -792,6 +871,16 @@ const openIncidentDetail = (incidentId: string) => {
 
 const openReconciliationDetail = (reference: string) => {
   void router.push({ path: `/reconcile/${reference}`, query: globalDashboardQuery() })
+}
+
+const openTransactionDetail = (transaction: TransactionRecord, extraQuery: Record<string, string> = {}) => {
+  selectTransaction(transaction)
+  void router.push({ path: `/transactions/${transaction.reference}`, query: { ...globalDashboardQuery(), ...extraQuery } })
+}
+
+const openPolicyDetail = (policy: PolicyRule) => {
+  selectedPolicyId.value = policy.id
+  void router.push({ path: `/policy/${policy.id}`, query: globalDashboardQuery() })
 }
 
 const syncDashboardQuery = () => {
@@ -885,13 +974,11 @@ const selectTransaction = (transaction: TransactionRecord) => {
 }
 
 const openRouteTransaction = (transaction: TransactionRecord, corridor: string) => {
-  selectTransaction(transaction)
-  activate('transactions', { corridor: normalizeCorridorValue(corridor) })
+  openTransactionDetail(transaction, { corridor: normalizeCorridorValue(corridor) })
 }
 
 const openProviderTransaction = (transaction: TransactionRecord) => {
-  selectTransaction(transaction)
-  activate('transactions', { provider_id: providerIdFor(transaction.provider) })
+  openTransactionDetail(transaction, { provider_id: providerIdFor(transaction.provider) })
 }
 
 const goToTransactionPage = (page: number) => {
@@ -904,11 +991,6 @@ const goToRoutePage = (page: number) => {
 
 const openTraceSheet = () => {
   if (selectedTransaction.value) traceSheetOpen.value = true
-}
-
-const selectPolicy = (policy: PolicyRule) => {
-  selectedPolicyId.value = policy.id
-  void router.replace({ path: routeForScreen('policy').path, query: { ...globalDashboardQuery(), policy_id: policy.id } })
 }
 
 const csvEscape = (value: string | number) => {
@@ -980,7 +1062,7 @@ const createPolicyDraft = () => {
   }
   policyRules.value = [draft, ...policyRules.value]
   selectedPolicyId.value = draft.id
-  void router.push({ path: routeForScreen('policy').path, query: { ...globalDashboardQuery(), policy_id: draft.id } })
+  void router.push({ path: `/policy/${draft.id}`, query: globalDashboardQuery() })
 }
 
 const submitSelectedPolicy = () => {
@@ -1027,6 +1109,25 @@ watch(filteredTransactions, () => {
 watch(sortedCorridors, () => {
   routePage.value = 1
 })
+
+watch(
+  transactionDetailReference,
+  (reference) => {
+    if (reference && dashboard.transactions.some((transaction) => transaction.reference.toLowerCase() === reference.toLowerCase())) {
+      selectedTransactionReference.value = reference
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  policyDetailId,
+  (policyId) => {
+    const policy = policyRules.value.find((item) => item.id.toLowerCase() === policyId.toLowerCase())
+    if (policy) selectedPolicyId.value = policy.id
+  },
+  { immediate: true },
+)
 
 watch([dateRange, dashboardCurrency, selectedProviderId, selectedCorridor, selectedPayoutMethod, analysisLens], () => {
   syncDashboardQuery()
@@ -1867,6 +1968,109 @@ function baselineRateFor(index: number) {
         </section>
       </section>
 
+      <section v-else-if="activeScreen === 'transactions' && isTransactionDetailFlow" class="screen-stack">
+        <section v-if="selectedTransaction" class="dashboard-grid">
+          <Panel title="Transfer summary" eyebrow="Transaction detail" :accent="qaStateFor(selectedTransaction)" class="span-5">
+            <div class="transaction-detail">
+              <div class="detail-heading">
+                <div>
+                  <h3 class="mono">{{ selectedTransaction.reference }}</h3>
+                  <p>{{ selectedTransaction.amount }} / {{ selectedTransaction.beneficiary }}</p>
+                </div>
+                <HealthBadge :state="qaStateFor(selectedTransaction)" :trigger="qaStatusLabel(selectedTransaction)" />
+              </div>
+              <RoutePath
+                :origin="selectedTransaction.senderCountry"
+                :destination="selectedTransaction.destinationCountry"
+                :provider="routeProvider(selectedTransaction.route)"
+                :rail="routeRail(selectedTransaction.route)"
+              />
+              <dl class="metric-grid">
+                <div>
+                  <dt>Elapsed</dt>
+                  <dd>{{ selectedTransaction.totalTime }}</dd>
+                </div>
+                <div>
+                  <dt>QA limit</dt>
+                  <dd>{{ formatDuration(selectedTransaction.qaLimitSeconds) }}</dd>
+                </div>
+                <div>
+                  <dt>Owner</dt>
+                  <dd>{{ selectedTransaction.currentOwner }}</dd>
+                </div>
+                <div>
+                  <dt>Credited</dt>
+                  <dd>{{ selectedTransaction.destinationCreditedAt }}</dd>
+                </div>
+              </dl>
+              <aside class="state-note">
+                <Clock3 :size="16" aria-hidden="true" />
+                <span>{{ selectedTransaction.blocker }}</span>
+              </aside>
+              <ActionBar>
+                <UiButton variant="secondary" @click="activate('transactions')">Back to transactions</UiButton>
+                <UiButton v-if="selectedTransactionRouteDetail" variant="secondary" @click="openRouteDetail(selectedTransactionRouteDetail.corridor)">Route</UiButton>
+                <UiButton variant="secondary" @click="openProviderDetail(selectedTransaction.provider)">Provider</UiButton>
+              </ActionBar>
+            </div>
+          </Panel>
+
+          <Panel title="Lifecycle trace" eyebrow="Step timeline" :accent="qaStateFor(selectedTransaction)" class="span-7">
+            <TransactionTimeline :steps="selectedTimeline" />
+          </Panel>
+
+          <Panel title="References" eyebrow="Trace keys" accent="healthy" class="span-6">
+            <dl class="definition-list">
+              <div>
+                <dt>Provider reference</dt>
+                <dd class="mono">{{ selectedTransaction.providerReference }}</dd>
+              </div>
+              <div>
+                <dt>Bank reference</dt>
+                <dd class="mono">{{ selectedTransaction.bankReference }}</dd>
+              </div>
+              <div>
+                <dt>Provider</dt>
+                <dd><ProviderMark :provider="selectedTransaction.provider" /></dd>
+              </div>
+              <div>
+                <dt>Payout</dt>
+                <dd>{{ selectedTransaction.destinationType }}</dd>
+              </div>
+            </dl>
+          </Panel>
+
+          <Panel title="Route and incident context" eyebrow="Related work" :accent="selectedTransactionIncident?.severity ?? selectedTransactionProviderScore?.state ?? 'healthy'" class="span-6">
+            <div class="event-list">
+              <article v-if="selectedTransactionProviderScore" class="state-note">
+                <Network :size="16" aria-hidden="true" />
+                <span>{{ selectedTransaction.provider }} success {{ selectedTransactionProviderScore.successRate }} / P95 {{ selectedTransactionProviderScore.p95 }}</span>
+                <UiButton size="sm" variant="secondary" @click="openProviderDetail(selectedTransaction.provider)">Open</UiButton>
+              </article>
+              <article v-if="selectedTransactionIncident" class="state-note">
+                <BellRing :size="16" aria-hidden="true" />
+                <span>{{ selectedTransactionIncident.title }} / {{ selectedTransactionIncident.owner }}</span>
+                <UiButton size="sm" variant="secondary" @click="openIncidentDetail(selectedTransactionIncident.id)">Open</UiButton>
+              </article>
+              <article v-if="selectedTransactionBreaks.length" class="state-note">
+                <ReceiptText :size="16" aria-hidden="true" />
+                <span>{{ selectedTransactionBreaks.length }} settlement break{{ selectedTransactionBreaks.length === 1 ? '' : 's' }} linked to provider.</span>
+                <UiButton size="sm" variant="secondary" @click="openReconciliationDetail(selectedTransactionBreaks[0].reference)">Open</UiButton>
+              </article>
+              <article v-if="!selectedTransactionProviderScore && !selectedTransactionIncident && !selectedTransactionBreaks.length" class="state-note">
+                <CheckCircle2 :size="16" aria-hidden="true" />
+                <span>No related provider incident or settlement break is linked in this view.</span>
+              </article>
+            </div>
+          </Panel>
+        </section>
+        <Panel v-else title="Transaction not found" eyebrow="Transactions" accent="watch">
+          <EmptyState title="Transaction not found" description="Choose a transfer from the transactions table." :icon="Search">
+            <UiButton @click="activate('transactions')">Back to transactions</UiButton>
+          </EmptyState>
+        </Panel>
+      </section>
+
       <section v-else-if="activeScreen === 'transactions'" class="screen-stack">
         <Panel title="Transfer search and reports" eyebrow="Transactions">
           <ActionBar>
@@ -1942,7 +2146,7 @@ function baselineRateFor(index: number) {
                     :key="transaction.reference"
                     class="click-row"
                     :class="{ 'is-selected': selectedTransaction?.reference === transaction.reference }"
-                    @click="selectTransaction(transaction)"
+                    @click="openTransactionDetail(transaction)"
                   >
                     <td>
                       <strong class="mono">{{ transaction.reference }}</strong>
@@ -2154,6 +2358,168 @@ function baselineRateFor(index: number) {
         </section>
       </section>
 
+      <section v-else-if="activeScreen === 'policy' && isPolicyDetailFlow" class="screen-stack">
+        <section v-if="selectedPolicy" class="dashboard-grid">
+          <Panel title="Policy summary" eyebrow="Policy detail" :accent="selectedPolicy.status === 'active' ? 'healthy' : selectedPolicy.status === 'pending_approval' ? 'watch' : 'recovery'" class="span-5">
+            <div class="selected-policy">
+              <CountryPair :origin="selectedPolicy.origin" :destination="selectedPolicy.destination" />
+              <HealthBadge :state="selectedPolicy.status === 'active' ? 'healthy' : selectedPolicy.status === 'pending_approval' ? 'watch' : selectedPolicy.status === 'inactive' ? 'stale' : 'recovery'" :trigger="policyStatusLabel(selectedPolicy.status)" />
+              <dl class="definition-list">
+                <div>
+                  <dt>Policy ID</dt>
+                  <dd class="mono">{{ selectedPolicy.id }}</dd>
+                </div>
+                <div>
+                  <dt>Version</dt>
+                  <dd>{{ selectedPolicy.version }}</dd>
+                </div>
+                <div>
+                  <dt>Payout</dt>
+                  <dd>{{ selectedPolicy.payoutMethod }}</dd>
+                </div>
+                <div>
+                  <dt>Amount band</dt>
+                  <dd>{{ selectedPolicy.amountBand }}</dd>
+                </div>
+                <div>
+                  <dt>Primary rail</dt>
+                  <dd><ProviderMark :provider="selectedPolicy.provider" /></dd>
+                </div>
+                <div>
+                  <dt>Fallbacks</dt>
+                  <dd>{{ selectedPolicy.fallback.join(', ') }}</dd>
+                </div>
+              </dl>
+              <p v-if="selectedPolicyNeedsDifferentApprover" class="form-error">Maker-checker requires another user to approve this draft.</p>
+              <ActionBar>
+                <UiButton variant="secondary" @click="activate('policy')">Back to policies</UiButton>
+                <UiButton size="sm" :disabled="selectedPolicy.status !== 'draft' || !can('policy:draft')" @click="submitSelectedPolicy">
+                  <Send :size="15" aria-hidden="true" />
+                  Submit
+                </UiButton>
+                <UiButton size="sm" variant="secondary" :disabled="selectedPolicy.status !== 'pending_approval' || selectedPolicyNeedsDifferentApprover || !can('policy:approve')" @click="approveSelectedPolicy">
+                  <FileCheck2 :size="15" aria-hidden="true" />
+                  Approve
+                </UiButton>
+                <UiButton size="sm" variant="secondary" :disabled="selectedPolicy.status === 'draft' || selectedPolicy.status === 'pending_approval' || selectedPolicy.status === 'active' || !can('policy:activate')" @click="activateSelectedPolicy">
+                  <PlayCircle :size="15" aria-hidden="true" />
+                  Activate
+                </UiButton>
+                <UiButton size="sm" variant="secondary" :disabled="selectedPolicy.status !== 'active' || !can('policy:activate')" @click="deactivateSelectedPolicy">
+                  <PauseCircle :size="15" aria-hidden="true" />
+                  Deactivate
+                </UiButton>
+              </ActionBar>
+            </div>
+          </Panel>
+
+          <Panel title="Approval path" eyebrow="Maker-checker" accent="watch" class="span-7">
+            <dl class="metric-grid metric-grid--four">
+              <div>
+                <dt>Drafter</dt>
+                <dd>{{ selectedPolicy.drafter }}</dd>
+              </div>
+              <div>
+                <dt>Approver</dt>
+                <dd>{{ selectedPolicy.approver ?? 'Required' }}</dd>
+              </div>
+              <div>
+                <dt>Updated</dt>
+                <dd>{{ selectedPolicy.updatedAt }}</dd>
+              </div>
+              <div>
+                <dt>Status</dt>
+                <dd>{{ policyStatusLabel(selectedPolicy.status) }}</dd>
+              </div>
+            </dl>
+            <aside class="state-note">
+              <ShieldCheck :size="16" aria-hidden="true" />
+              <span>Drafting, approval, activation, and deactivation are separate actions and remain auditable.</span>
+            </aside>
+          </Panel>
+
+          <Panel title="Route coverage" eyebrow="Configured route" :accent="selectedPolicyRoute?.state ?? 'unknown'" class="span-6">
+            <div v-if="selectedPolicyRoute" class="selected-policy">
+              <RoutePath
+                :origin="corridorParts(selectedPolicyRoute.corridor).origin"
+                :destination="corridorParts(selectedPolicyRoute.corridor).destination"
+                :provider="routeProvider(selectedPolicyRoute.selectedRoute)"
+                :rail="routeRail(selectedPolicyRoute.selectedRoute)"
+              />
+              <dl class="metric-grid">
+                <div>
+                  <dt>Score</dt>
+                  <dd>{{ selectedPolicyRoute.score }}</dd>
+                </div>
+                <div>
+                  <dt>P95</dt>
+                  <dd>{{ selectedPolicyRoute.p95 }}</dd>
+                </div>
+                <div>
+                  <dt>Traffic split</dt>
+                  <dd>{{ selectedPolicyRoute.split }}</dd>
+                </div>
+                <div>
+                  <dt>Owner</dt>
+                  <dd>{{ selectedPolicyRoute.owner }}</dd>
+                </div>
+              </dl>
+              <ActionBar>
+                <UiButton size="sm" variant="secondary" @click="openRouteDetail(selectedPolicyRoute)">Open route</UiButton>
+                <UiButton size="sm" variant="secondary" @click="openProviderDetail(selectedPolicy.provider)">Provider</UiButton>
+              </ActionBar>
+            </div>
+            <EmptyState v-else title="No matching route" description="No configured route currently matches this policy scope and primary rail." />
+          </Panel>
+
+          <Panel title="Recent matching transfers" :eyebrow="`${selectedPolicyTransactions.length} transfers`" accent="healthy" class="span-6">
+            <DataTable :empty="selectedPolicyTransactions.length === 0" empty-title="No matching transfers" empty-description="No transfer records match this policy scope in the current view.">
+              <table class="compact-table">
+                <thead>
+                  <tr>
+                    <th>Reference</th>
+                    <th>Amount</th>
+                    <th>Elapsed</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="transaction in selectedPolicyTransactions" :key="transaction.reference" class="click-row" @click="openTransactionDetail(transaction)">
+                    <td>
+                      <strong class="mono">{{ transaction.reference }}</strong>
+                      <small>{{ transaction.providerReference }}</small>
+                    </td>
+                    <td>{{ transaction.amount }}</td>
+                    <td>{{ transaction.totalTime }}</td>
+                    <td><HealthBadge :state="qaStateFor(transaction)" :trigger="qaStatusLabel(transaction)" /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </DataTable>
+          </Panel>
+
+          <Panel title="Incident and audit context" eyebrow="Evidence" :accent="selectedPolicyIncident?.severity ?? 'healthy'" class="span-12">
+            <div class="event-list">
+              <article v-if="selectedPolicyIncident" class="state-note">
+                <BellRing :size="16" aria-hidden="true" />
+                <span>{{ selectedPolicyIncident.title }} / {{ selectedPolicyIncident.nextAction }}</span>
+                <UiButton size="sm" variant="secondary" @click="openIncidentDetail(selectedPolicyIncident.id)">Open incident</UiButton>
+              </article>
+              <article class="state-note">
+                <History :size="16" aria-hidden="true" />
+                <span>{{ selectedPolicy.id }} uses {{ selectedPolicy.version }} and was last updated {{ selectedPolicy.updatedAt }}.</span>
+                <UiButton size="sm" variant="secondary" @click="activate('audit')">Audit</UiButton>
+              </article>
+            </div>
+          </Panel>
+        </section>
+        <Panel v-else title="Policy not found" eyebrow="Policy" accent="watch">
+          <EmptyState title="Policy not found" description="Choose a policy from the policy inventory." :icon="SlidersHorizontal">
+            <UiButton @click="activate('policy')">Back to policies</UiButton>
+          </EmptyState>
+        </Panel>
+      </section>
+
       <section v-else-if="activeScreen === 'policy'" class="screen-stack">
         <section class="dashboard-grid">
           <Panel title="Policy inventory" eyebrow="Maker-checker" accent="healthy" class="span-7">
@@ -2171,7 +2537,7 @@ function baselineRateFor(index: number) {
                 :key="policy.id"
                 type="button"
                 :class="{ 'is-selected': selectedPolicy?.id === policy.id }"
-                @click="selectPolicy(policy)"
+                @click="openPolicyDetail(policy)"
               >
                 <span>
                   <strong>{{ policy.name }}</strong>

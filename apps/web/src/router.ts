@@ -28,6 +28,13 @@ routes.push({
 })
 
 routes.push({
+  path: '/transactions/:reference',
+  name: 'transaction-detail',
+  component: { template: '<span />' },
+  meta: { screen: 'transactions', label: 'Transaction detail' },
+})
+
+routes.push({
   path: '/providers/:providerId',
   name: 'provider-detail',
   component: { template: '<span />' },
@@ -53,6 +60,13 @@ routes.push({
   name: 'policy-new',
   component: { template: '<span />' },
   meta: { screen: 'policy', label: 'New policy' },
+})
+
+routes.push({
+  path: '/policy/:policyId',
+  name: 'policy-detail',
+  component: { template: '<span />' },
+  meta: { screen: 'policy', label: 'Policy detail' },
 })
 
 export const router = createRouter({

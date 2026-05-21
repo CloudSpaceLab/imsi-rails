@@ -284,12 +284,12 @@ describe('premium dashboard workflows', () => {
     expect(wrapper.find('select[aria-label="Rows per page"]').exists()).toBe(true)
     await wrapper.find('tbody tr.click-row').trigger('click')
     await flushPromises()
-    expect(wrapper.text()).toContain('Open full trace')
+    expect(router.currentRoute.value.path).toMatch(/^\/transactions\//)
+    expect(wrapper.text()).toContain('Transaction detail')
+    expect(wrapper.text()).toContain('Lifecycle trace')
     expect(wrapper.text()).toContain('Elapsed')
     expect(wrapper.text()).toContain('Owner')
-    expect(wrapper.text()).not.toContain('References')
-    expect(wrapper.text()).not.toContain('Route decision')
-    expect(wrapper.text()).not.toContain('QA limit')
+    expect(wrapper.text()).toContain('References')
   })
 
   it('applies URL-backed provider and corridor filters to transaction results', async () => {
@@ -329,6 +329,22 @@ describe('premium dashboard workflows', () => {
 
     expect(wrapper.text()).toContain('UK to Nigeria high-confidence fallback')
     expect(wrapper.text()).toContain('pending approval')
+  })
+
+  it('opens a dedicated policy detail route from inventory', async () => {
+    const wrapper = await mountApp('/policy')
+    await flushPromises()
+
+    const policyRow = wrapper.findAll('.policy-list button').find((button) => button.text().includes('EU to Nigeria account payouts'))
+    expect(policyRow).toBeTruthy()
+    await policyRow?.trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/policy/POL-EU-NG-001')
+    expect(wrapper.text()).toContain('Policy detail')
+    expect(wrapper.text()).toContain('Policy summary')
+    expect(wrapper.text()).toContain('Approval path')
+    expect(wrapper.text()).toContain('Route coverage')
   })
 
   it('opens policy creation as a separate breadcrumb flow', async () => {
