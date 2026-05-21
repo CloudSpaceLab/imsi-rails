@@ -1207,17 +1207,6 @@ function baselineRateFor(index: number) {
         </section>
 
         <section class="dashboard-grid">
-          <Panel title="Operations picture" :eyebrow="`${analysisLens} / ${dashboardCurrency}`" accent="healthy" class="span-12">
-            <div class="operations-picture">
-              <article v-for="item in operationsSnapshot" :key="item.label">
-                <HealthBadge :state="item.state" />
-                <span>{{ item.label }}</span>
-                <strong>{{ item.value }}</strong>
-                <small>{{ item.detail }}</small>
-              </article>
-            </div>
-          </Panel>
-
           <Panel title="Currency volume comparison" eyebrow="Top currencies" accent="healthy" class="span-12">
             <div class="currency-chart-toolbar">
               <span class="dashboard-chip">Processed value by interval</span>
@@ -1252,6 +1241,17 @@ function baselineRateFor(index: number) {
                   </UiButton>
                 </header>
                 <RealtimeLineChart :points="chart.points" metric="volume" :values="chart.values" :label="chart.label" :color="chart.color" :height="132" />
+              </article>
+            </div>
+          </Panel>
+
+          <Panel title="Operations picture" :eyebrow="`${analysisLens} / ${dashboardCurrency}`" accent="healthy" class="span-12">
+            <div class="operations-picture">
+              <article v-for="item in operationsSnapshot" :key="item.label">
+                <HealthBadge :state="item.state" />
+                <span>{{ item.label }}</span>
+                <strong>{{ item.value }}</strong>
+                <small>{{ item.detail }}</small>
               </article>
             </div>
           </Panel>
