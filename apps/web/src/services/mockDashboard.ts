@@ -606,7 +606,7 @@ const baseDashboard = (): DashboardMock => ({
     cheapestProvider: 'Ria',
     recommendedProvider: 'Thunes',
     rateAlert: 'Remitly rate is 22 min old. New EUR/NGN traffic is blocked until refresh.',
-    decision: 'Ria is cheapest, but the route is degraded. Thunes costs +0.08% and is healthy, so it is the recommended eligible route.',
+    decision: 'Ria is cheapest, but the route is degraded. Thunes costs +0.08% and is healthy, so it is the selected eligible route.',
     routes: [
       {
         provider: 'Thunes',

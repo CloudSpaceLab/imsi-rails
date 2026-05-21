@@ -196,15 +196,15 @@ const policyDraftForm = reactive({
 })
 
 const navigation = [
-  { id: 'control' as ScreenId, label: 'Control Room', icon: Gauge, kicker: 'Live triage' },
-  { id: 'transactions' as ScreenId, label: 'Transactions', icon: Search, kicker: 'Find and trace' },
-  { id: 'corridors' as ScreenId, label: 'Routes', icon: Network, kicker: 'Health and fallbacks' },
-  { id: 'policy' as ScreenId, label: 'Policy', icon: SlidersHorizontal, kicker: 'Draft defaults' },
-  { id: 'incidents' as ScreenId, label: 'Incidents', icon: BellRing, kicker: 'Open work' },
-  { id: 'fx' as ScreenId, label: 'Rates & costs', icon: CircleDollarSign, kicker: 'Economics' },
-  { id: 'reconciliation' as ScreenId, label: 'Reconcile', icon: ReceiptText, kicker: 'Settlement breaks' },
-  { id: 'providers' as ScreenId, label: 'Providers', icon: BarChart3, kicker: 'Partner health' },
-  { id: 'audit' as ScreenId, label: 'Audit', icon: History, kicker: 'Decision log' },
+  { id: 'control' as ScreenId, label: 'Control Room', icon: Gauge, kicker: 'Volume and risk' },
+  { id: 'transactions' as ScreenId, label: 'Transactions', icon: Search, kicker: 'Trace and reports' },
+  { id: 'corridors' as ScreenId, label: 'Routes', icon: Network, kicker: 'Corridors and rails' },
+  { id: 'policy' as ScreenId, label: 'Policy', icon: SlidersHorizontal, kicker: 'Rules and approvals' },
+  { id: 'incidents' as ScreenId, label: 'Incidents', icon: BellRing, kicker: 'Root cause' },
+  { id: 'fx' as ScreenId, label: 'Rates & costs', icon: CircleDollarSign, kicker: 'Route economics' },
+  { id: 'reconciliation' as ScreenId, label: 'Reconcile', icon: ReceiptText, kicker: 'Settlement work' },
+  { id: 'providers' as ScreenId, label: 'Providers', icon: BarChart3, kicker: 'SLA and exceptions' },
+  { id: 'audit' as ScreenId, label: 'Audit', icon: History, kicker: 'Evidence' },
 ]
 
 const navigationGroups = [
@@ -213,15 +213,15 @@ const navigationGroups = [
 ]
 
 const screenDescriptions: Record<ScreenId, string> = {
-  control: 'Live route triage.',
-  corridors: 'Corridors, routes, fallbacks.',
-  transactions: 'Search and trace transfers.',
-  incidents: 'Open route incidents.',
-  policy: 'Draft routing defaults.',
-  fx: 'Rates, cost, baseline.',
-  reconciliation: 'Settlement breaks.',
-  providers: 'Primary provider health.',
-  audit: 'Decision log.',
+  control: 'Volume moved, exposure, bottlenecks, and owner.',
+  corridors: 'Corridor volume, rail health, fallback route, and routing impact.',
+  transactions: 'Transfer trace, current owner, and report export.',
+  incidents: 'Service degradation, root cause, owner, and resolution state.',
+  policy: 'Route rules, maker-checker approval, activation, and rollback.',
+  fx: 'Effective cost, FX spread, and selected eligible route.',
+  reconciliation: 'Settlement breaks grouped by reason, owner, and next action.',
+  providers: 'Provider volume, SLA, latency, exceptions, and route actions.',
+  audit: 'Routing, policy, and operator evidence for review.',
 }
 
 const severityRank: Record<HealthState, number> = {
@@ -1118,7 +1118,7 @@ function baselineRateFor(index: number) {
 
     <main class="workspace">
       <PageHeader
-        eyebrow="Bank operations / Nigeria inbound"
+        eyebrow="Nigeria inbound operations"
         :title="selectedScreen.label"
         :description="screenDescriptions[selectedScreen.id]"
       >
@@ -1261,7 +1261,7 @@ function baselineRateFor(index: number) {
             </div>
           </Panel>
 
-          <Panel title="Operations picture" :eyebrow="`${analysisLens} / ${dashboardCurrency}`" accent="healthy" class="span-12">
+          <Panel title="Risk and ownership" :eyebrow="`${analysisLens} / ${dashboardCurrency}`" accent="healthy" class="span-12">
             <div class="operations-picture">
               <article v-for="item in operationsSnapshot" :key="item.label">
                 <HealthBadge :state="item.state" />
@@ -1272,7 +1272,7 @@ function baselineRateFor(index: number) {
             </div>
           </Panel>
 
-          <Panel title="Top corridor risks" eyebrow="Routes" accent="degraded" class="span-7">
+          <Panel title="Corridors needing attention" eyebrow="Routes" accent="degraded" class="span-7">
             <DataTable :empty="sortedCorridors.length === 0" empty-title="No corridor risk" empty-description="All monitored corridors are inside policy.">
               <table>
                 <thead>
@@ -1306,7 +1306,7 @@ function baselineRateFor(index: number) {
             </DataTable>
           </Panel>
 
-          <Panel title="Active incidents" eyebrow="Open work" :accent="activeIncident?.severity ?? 'healthy'" class="span-5">
+          <Panel title="Active service incidents" eyebrow="Open work" :accent="activeIncident?.severity ?? 'healthy'" class="span-5">
             <EmptyState
               v-if="!activeIncident"
               title="No active incidents"
@@ -1336,25 +1336,26 @@ function baselineRateFor(index: number) {
             </div>
           </Panel>
 
-          <Panel title="Provider context" eyebrow="Summary" accent="healthy" class="span-7">
+          <Panel title="Control evidence" eyebrow="Controls" accent="healthy" class="span-7">
             <div class="provider-context">
               <article>
-                <BarChart3 :size="18" aria-hidden="true" />
+                <ShieldCheck :size="18" aria-hidden="true" />
                 <div>
-                  <strong>Provider dashboard</strong>
-                  <small>Scorecards, SLA, traffic, reconciliation.</small>
+                  <strong>Decision trail</strong>
+                  <small>Route, policy version, rejected options, and scoring inputs are retained.</small>
                 </div>
               </article>
               <article>
-                <AlertTriangle :size="18" aria-hidden="true" />
+                <History :size="18" aria-hidden="true" />
                 <div>
-                  <strong>{{ weakestProvider?.provider ?? 'None' }}</strong>
-                  <small>{{ weakestProvider?.p95 ?? '-' }} P95 / {{ weakestProvider?.settlementExceptions ?? 0 }} breaks</small>
+                  <strong>Change control</strong>
+                  <small>Maker-checker approval separates policy drafting from activation.</small>
                 </div>
               </article>
             </div>
             <ActionBar>
-              <UiButton variant="secondary" @click="activate('providers')">Open Providers</UiButton>
+              <UiButton variant="secondary" @click="activate('audit')">Open Audit</UiButton>
+              <UiButton variant="secondary" @click="activate('policy')">Open Policy</UiButton>
             </ActionBar>
           </Panel>
         </section>
@@ -1362,17 +1363,17 @@ function baselineRateFor(index: number) {
 
       <section v-else-if="activeScreen === 'corridors'" class="screen-stack">
         <section class="dashboard-grid">
-          <Panel title="Corridor command center" eyebrow="Routes" accent="degraded" class="span-12">
+          <Panel title="Corridor route list" eyebrow="Routes" accent="degraded" class="span-12">
             <DataTable :empty="sortedCorridors.length === 0" empty-title="No corridors configured" empty-description="Add corridor routes before monitoring can start.">
               <table>
                 <thead>
                   <tr>
                     <th>Corridor</th>
-                    <th>Current route</th>
+                    <th>Selected route</th>
                     <th>Score</th>
                     <th>Traffic split</th>
-                    <th>Recommendation</th>
-                    <th>Action</th>
+                    <th>Next action</th>
+                    <th>Open</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1461,7 +1462,7 @@ function baselineRateFor(index: number) {
       </section>
 
       <section v-else-if="activeScreen === 'transactions'" class="screen-stack">
-        <Panel title="Find, filter, trace" eyebrow="Transactions">
+        <Panel title="Transfer search and reports" eyebrow="Transactions">
           <ActionBar>
             <label class="search-field">
               <Search :size="18" aria-hidden="true" />
@@ -1570,7 +1571,7 @@ function baselineRateFor(index: number) {
             </div>
           </Panel>
 
-          <Panel title="Trace detail" eyebrow="Selected transfer" class="transaction-detail-panel" :accent="selectedTransaction ? qaStateFor(selectedTransaction) : 'unknown'">
+          <Panel title="Transfer detail" eyebrow="Current selection" class="transaction-detail-panel" :accent="selectedTransaction ? qaStateFor(selectedTransaction) : 'unknown'">
             <EmptyState
               v-if="!selectedTransaction"
               title="Select a transfer"
@@ -1851,7 +1852,7 @@ function baselineRateFor(index: number) {
             </div>
           </Panel>
 
-          <Panel title="Policy history" eyebrow="Change log" accent="recovery" class="span-5">
+          <Panel title="Policy change history" eyebrow="Change log" accent="recovery" class="span-5">
             <ol class="event-list">
               <li v-for="item in dashboard.routeConfig.history" :key="`${item.time}-${item.summary}`">
                 <time>{{ item.time }}</time>
@@ -1957,10 +1958,10 @@ function baselineRateFor(index: number) {
 
       <section v-else-if="activeScreen === 'fx'" class="screen-stack">
         <section class="dashboard-grid">
-          <Panel title="Recommended vs cheapest" eyebrow="Rates and costs" accent="healthy" class="span-5">
+          <Panel title="Eligible route vs cheapest quote" eyebrow="Rates and costs" accent="healthy" class="span-5">
             <div class="fx-decision-grid">
               <article>
-                <span>Recommended eligible route</span>
+                <span>Selected eligible route</span>
                 <ProviderMark :provider="dashboard.fxCostBoard.recommendedProvider" show-category size="lg" />
               </article>
               <article>
@@ -2027,7 +2028,7 @@ function baselineRateFor(index: number) {
                     </td>
                     <td>{{ route.payoutTime }}</td>
                     <td>
-                      <HealthBadge :state="route.state" :trigger="route.recommended ? 'recommended' : route.cheapest ? 'cheapest' : route.note" />
+                      <HealthBadge :state="route.state" :trigger="route.recommended ? 'selected' : route.cheapest ? 'cheapest' : route.note" />
                     </td>
                   </tr>
                 </tbody>
@@ -2161,12 +2162,12 @@ function baselineRateFor(index: number) {
 
       <section v-else-if="activeScreen === 'providers'" class="screen-stack">
         <section class="kpi-grid">
-          <KpiTile label="Leader" :value="sortedProviders[0]?.provider ?? 'None'" :detail="`${sortedProviders[0]?.p95 ?? '-'} P95`" tone="healthy" :icon="CheckCircle2" />
-          <KpiTile label="Weakest route" :value="weakestProvider?.provider ?? 'None'" :detail="`${weakestProvider?.settlementExceptions ?? 0} exceptions`" tone="degraded" :icon="AlertTriangle" />
+          <KpiTile label="Best SLA" :value="sortedProviders[0]?.provider ?? 'None'" :detail="`${sortedProviders[0]?.p95 ?? '-'} P95`" tone="healthy" :icon="CheckCircle2" />
+          <KpiTile label="Most exceptions" :value="weakestProvider?.provider ?? 'None'" :detail="`${weakestProvider?.settlementExceptions ?? 0} exceptions`" tone="degraded" :icon="AlertTriangle" />
           <KpiTile label="Total providers" :value="sortedProviders.length" detail="Connected provider routes" tone="brand" :icon="Network" />
-          <KpiTile label="Traffic window" value="15m" detail="Success, P95, stuck rate" tone="recovery" :icon="TimerReset" />
+          <KpiTile label="Measurement window" value="15m" detail="Success, P95, stuck rate" tone="recovery" :icon="TimerReset" />
         </section>
-        <Panel title="Provider routing actions" eyebrow="Provider dashboard" :accent="dashboard.recommendation.state">
+        <Panel title="Provider action queue" eyebrow="SLA and exceptions" :accent="dashboard.recommendation.state">
           <div class="recommendation-card">
             <HealthBadge :state="dashboard.recommendation.state" window="15 min" />
             <h3>{{ dashboard.recommendation.title }}</h3>
@@ -2200,7 +2201,7 @@ function baselineRateFor(index: number) {
             </ActionBar>
           </div>
         </Panel>
-        <Panel v-if="providerComparisons.length" title="Selected IMTO analytics" :eyebrow="`${dateRange} / ${dashboardCurrency}`" accent="healthy">
+        <Panel v-if="providerComparisons.length" title="Provider volume and SLA" :eyebrow="`${dateRange} / ${dashboardCurrency}`" accent="healthy">
           <DataTable :empty="providerComparisons.length === 0" empty-title="No provider analytics" empty-description="No provider records match the current dashboard context.">
             <table>
               <thead>
@@ -2228,7 +2229,7 @@ function baselineRateFor(index: number) {
             </table>
           </DataTable>
         </Panel>
-        <Panel title="Provider health dashboard" eyebrow="Primary view" accent="healthy">
+        <Panel title="Provider scorecard" eyebrow="SLA, latency, exceptions" accent="healthy">
           <DataTable :empty="sortedProviders.length === 0" empty-title="No providers" empty-description="Connect provider routes to start measuring performance.">
             <table>
               <thead>
@@ -2263,7 +2264,7 @@ function baselineRateFor(index: number) {
       </section>
 
       <section v-else-if="activeScreen === 'audit'" class="screen-stack">
-        <Panel title="Decision log" eyebrow="Audit">
+        <Panel title="Audit trail" eyebrow="Evidence">
           <ActionBar>
             <label class="search-field">
               <Search :size="18" aria-hidden="true" />
@@ -2305,8 +2306,8 @@ function baselineRateFor(index: number) {
             </DataTable>
           </Panel>
 
-          <Panel title="Log detail" eyebrow="Selected record" class="audit-detail-panel" :accent="selectedAudit?.state ?? 'unknown'">
-            <EmptyState v-if="!selectedAudit" title="No record selected" description="Choose an audit event to inspect its reason and object." :icon="BadgeCheck" />
+          <Panel title="Event detail" eyebrow="Selected event" class="audit-detail-panel" :accent="selectedAudit?.state ?? 'unknown'">
+            <EmptyState v-if="!selectedAudit" title="Select an event" description="Choose an audit event to inspect its reason and object." :icon="BadgeCheck" />
             <div v-else class="audit-detail">
               <BadgeCheck :size="22" aria-hidden="true" />
               <h3>{{ selectedAudit.action }}</h3>

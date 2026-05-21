@@ -102,8 +102,8 @@ describe('premium dashboard workflows', () => {
     await wrapper.findAll('button.nav-item').find((item) => item.text().includes('Transactions'))?.trigger('click')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Find, filter, trace')
-    expect(wrapper.text()).toContain('Trace detail')
+    expect(wrapper.text()).toContain('Transfer search and reports')
+    expect(wrapper.text()).toContain('Transfer detail')
     expect(wrapper.text()).toContain('Select a transfer')
     expect(wrapper.text()).toContain('IMSI-txn_000000000001')
 
@@ -117,6 +117,9 @@ describe('premium dashboard workflows', () => {
     await wrapper.findAll('button.nav-item').find((item) => item.text().includes('Rates & costs'))?.trigger('click')
     await flushPromises()
 
+    expect(wrapper.text()).toContain('Eligible route vs cheapest quote')
+    expect(wrapper.text()).toContain('Selected eligible route')
+    expect(wrapper.text()).toContain('selected eligible route')
     expect(wrapper.text()).toContain('USD baseline')
     expect(wrapper.find('select[aria-label="Base currency"]').exists()).toBe(true)
     expect(wrapper.find('select[aria-label="Comparison currency"]').exists()).toBe(true)
@@ -144,7 +147,7 @@ describe('premium dashboard workflows', () => {
     expect(wrapper.text()).toContain('Total volume for all transfers')
     expect(wrapper.text()).toContain('Volume per top providers')
     expect(wrapper.text()).toContain('Volume per top routes')
-    expect(wrapper.text()).toContain('Operations picture')
+    expect(wrapper.text()).toContain('Risk and ownership')
     expect(wrapper.text()).not.toContain('Currency volume comparison')
     expect(wrapper.text()).not.toContain('Recommended next action')
     expect(wrapper.text()).toContain('Sample operational data')
@@ -199,12 +202,12 @@ describe('premium dashboard workflows', () => {
     const wrapper = await mountApp('/')
     await flushPromises()
 
-    expect(wrapper.text()).not.toContain('Provider routing actions')
+    expect(wrapper.text()).not.toContain('Provider action queue')
 
     await wrapper.findAll('button.nav-item').find((item) => item.text().includes('Providers'))?.trigger('click')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Provider routing actions')
+    expect(wrapper.text()).toContain('Provider action queue')
     expect(wrapper.text()).toContain('Trace affected transfers')
   })
 
@@ -245,5 +248,15 @@ describe('premium dashboard workflows', () => {
     expect(wrapper.text()).toContain('Create corridor policy')
     expect(wrapper.text()).toContain('pending approval')
     expect(wrapper.text()).toContain('Activate')
+  })
+
+  it('uses audit evidence language without demo-style detail copy', async () => {
+    const wrapper = await mountApp('/audit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Audit trail')
+    expect(wrapper.text()).toContain('Event detail')
+    expect(wrapper.text()).not.toContain('Log detail')
+    expect(wrapper.text()).not.toContain('Selected record')
   })
 })
