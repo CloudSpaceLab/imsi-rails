@@ -292,6 +292,21 @@ describe('premium dashboard workflows', () => {
     expect(wrapper.text()).not.toContain('QA limit')
   })
 
+  it('applies URL-backed provider and corridor filters to transaction results', async () => {
+    let wrapper = await mountApp('/transactions?provider_id=thunes')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('IMSI-txn_000000000014')
+    expect(wrapper.text()).not.toContain('IMSI-txn_000000000001')
+
+    wrapper.unmount()
+    wrapper = await mountApp('/transactions?corridor=EU%20-%3E%20NG')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('IMSI-txn_000000000001')
+    expect(wrapper.text()).not.toContain('IMSI-txn_000000000014')
+  })
+
   it('surfaces maker-checker policy controls', async () => {
     const wrapper = await mountApp('/policy')
     await flushPromises()
@@ -306,6 +321,14 @@ describe('premium dashboard workflows', () => {
     expect(wrapper.text()).not.toContain('Sample transaction')
     expect(wrapper.text()).toContain('pending approval')
     expect(wrapper.text()).toContain('Activate')
+  })
+
+  it('selects the policy that matches URL corridor context', async () => {
+    const wrapper = await mountApp('/policy?corridor=GB%20-%3E%20NG')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('UK to Nigeria high-confidence fallback')
+    expect(wrapper.text()).toContain('pending approval')
   })
 
   it('opens policy creation as a separate breadcrumb flow', async () => {

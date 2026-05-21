@@ -473,13 +473,33 @@ const filteredTransactions = computed(() => {
         transaction.senderCurrency === currencyFilter.value ||
         transaction.destinationCurrency === currencyFilter.value
       const matchesType = destinationTypeFilter.value === 'All destination types' || transaction.destinationType === destinationTypeFilter.value
+      const matchesDashboardProvider =
+        selectedProviderId.value === 'all' ||
+        providerIdFor(transaction.provider) === selectedProviderId.value ||
+        providerIdFor(routeProvider(transaction.route)) === selectedProviderId.value
+      const matchesDashboardCorridor = selectedCorridor.value === 'all' || transactionMatchesCorridor(transaction, selectedCorridor.value)
+      const matchesDashboardPayout =
+        selectedPayoutMethod.value === 'all' ||
+        (selectedPayoutMethod.value === 'bank_account' && transaction.destinationType.includes('bank')) ||
+        (selectedPayoutMethod.value === 'cash_pickup' && transaction.destinationType === 'Cash pickup') ||
+        (selectedPayoutMethod.value === 'wallet' && transaction.destinationType === 'Wallet')
       const matchesTiming =
         timeFilter.value === 'All timing' ||
         (timeFilter.value === 'Under QA policy' && withinPolicy) ||
         (timeFilter.value === 'Over QA policy' && !withinPolicy && !stalled) ||
         (timeFilter.value === 'Stalled only' && stalled)
 
-      return matchesQuery && matchesSender && matchesDestination && matchesCurrency && matchesType && matchesTiming
+      return (
+        matchesQuery &&
+        matchesSender &&
+        matchesDestination &&
+        matchesCurrency &&
+        matchesType &&
+        matchesDashboardProvider &&
+        matchesDashboardCorridor &&
+        matchesDashboardPayout &&
+        matchesTiming
+      )
     })
     .sort((a, b) => {
       if (sortBy.value === 'totalTimeAsc') return a.totalTimeSeconds - b.totalTimeSeconds
@@ -1042,6 +1062,9 @@ watch(
     if (dataState.value !== nextDataState) dataState.value = nextDataState
     if (nextPolicyId && policyRules.value.some((policy) => policy.id === nextPolicyId) && selectedPolicyId.value !== nextPolicyId) {
       selectedPolicyId.value = nextPolicyId
+    } else if (!nextPolicyId && activeScreen.value === 'policy') {
+      const contextPolicy = policyRules.value.find((policy) => policyMatchesDashboardContext(policy, nextCorridor, nextProvider))
+      if (contextPolicy && selectedPolicyId.value !== contextPolicy.id) selectedPolicyId.value = contextPolicy.id
     }
   },
 )
@@ -1221,6 +1244,13 @@ function policyStatusLabel(status: PolicyStatus) {
     inactive: 'Inactive',
   }
   return labels[status]
+}
+
+function policyMatchesDashboardContext(policy: PolicyRule, corridor: string, provider: string) {
+  const policyCorridor = normalizeCorridorValue(`${policy.origin} -> ${policy.destination}`)
+  const matchesCorridor = corridor === 'all' || policyCorridor === normalizeCorridorValue(corridor)
+  const matchesProvider = provider === 'all' || providerIdFor(policy.provider) === provider
+  return matchesCorridor && matchesProvider
 }
 
 function corridorParts(corridor: string) {
