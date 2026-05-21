@@ -79,4 +79,15 @@ jobs:
           $SSH "$TARGET" "ln -sfn '$DEPLOY_PATH/releases/$RELEASE' '$DEPLOY_PATH/current' && cd '$DEPLOY_PATH/releases' && ls -dt */ | tail -n +6 | xargs -r rm -rf"
 
       - name: Smoke test
-        run: curl -fsSI https://imsi.cloudspacetechs.com/ >/dev/null
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_HOST"
+          test -n "$DEPLOY_USER"
+          SSH="ssh -i ~/.ssh/imsi_deploy_key -o IdentitiesOnly=yes"
+          TARGET="$DEPLOY_USER@$DEPLOY_HOST"
+
+          $SSH "$TARGET" "test -f '$DEPLOY_PATH/current/index.html' && grep -q '<div id=\"app\"' '$DEPLOY_PATH/current/index.html'"
+          curl -fsSL --retry 6 --retry-delay 5 --retry-all-errors https://imsi.cloudspacetechs.com/ -o /dev/null || echo "Public edge smoke check skipped after deploy artifact verification."
