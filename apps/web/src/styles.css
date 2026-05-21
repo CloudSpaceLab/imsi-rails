@@ -2248,6 +2248,11 @@ tbody tr:hover,
     grid-column: 2;
   }
 
+  .state-note .ui-button {
+    grid-column: 2;
+    justify-self: start;
+  }
+
   .volume-rank-row {
     grid-template-columns: 1fr;
   }
