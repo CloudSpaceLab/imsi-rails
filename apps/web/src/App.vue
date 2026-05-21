@@ -1207,7 +1207,7 @@ function baselineRateFor(index: number) {
                   metric="volume"
                   :label="`Total transfer volume trend in ${dashboardCurrency}`"
                   color="#56d6ff"
-                  :height="156"
+                  :height="236"
                 />
               </article>
 
