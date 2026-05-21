@@ -148,9 +148,12 @@ describe('premium dashboard workflows', () => {
     expect(wrapper.text()).toContain('Volume per top providers')
     expect(wrapper.text()).toContain('Volume per top routes')
     expect(wrapper.text()).toContain('Risk and ownership')
+    expect(wrapper.text()).toContain('Taj Bank')
+    expect(wrapper.text()).not.toContain('Nigeria inbound operations')
+    expect(wrapper.text()).not.toContain('Volume moved, exposure, bottlenecks, and owner.')
     expect(wrapper.text()).not.toContain('Currency volume comparison')
     expect(wrapper.text()).not.toContain('Recommended next action')
-    expect(wrapper.text()).toContain('Sample operational data')
+    expect(wrapper.text()).toContain('Static operational data')
     expect(wrapper.text()).not.toContain('mock snapshot')
 
     await wrapper.findAll('.kpi-tile--clickable').at(0)?.trigger('click')
@@ -245,9 +248,28 @@ describe('premium dashboard workflows', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Policy inventory')
-    expect(wrapper.text()).toContain('Create corridor policy')
+    expect(wrapper.text()).toContain('New policy')
+    expect(wrapper.text()).not.toContain('Policy scope')
+    expect(wrapper.text()).not.toContain('Create corridor policy')
+    expect(wrapper.text()).toContain('Policy impact check')
+    expect(wrapper.text()).toContain('Replay transaction')
+    expect(wrapper.text()).not.toContain('Policy simulator')
+    expect(wrapper.text()).not.toContain('Sample transaction')
     expect(wrapper.text()).toContain('pending approval')
     expect(wrapper.text()).toContain('Activate')
+  })
+
+  it('opens policy creation as a separate breadcrumb flow', async () => {
+    const wrapper = await mountApp('/policy/new')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/policy/new')
+    expect(wrapper.text()).toContain('Taj Bank')
+    expect(wrapper.text()).toContain('Policy')
+    expect(wrapper.text()).toContain('New policy')
+    expect(wrapper.text()).toContain('Policy scope')
+    expect(wrapper.text()).toContain('Approval path')
+    expect(wrapper.text()).toContain('Back to policies')
   })
 
   it('uses audit evidence language without demo-style detail copy', async () => {

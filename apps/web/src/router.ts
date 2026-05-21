@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import type { ScreenId } from './types'
 
 export const screenRoutes: Array<{ id: ScreenId; path: string; label: string }> = [
@@ -13,12 +13,19 @@ export const screenRoutes: Array<{ id: ScreenId; path: string; label: string }> 
   { id: 'audit', path: '/audit', label: 'Audit' },
 ]
 
-const routes = screenRoutes.map((screen) => ({
+const routes: RouteRecordRaw[] = screenRoutes.map((screen) => ({
   path: screen.path,
   name: screen.id,
   component: { template: '<span />' },
   meta: { screen: screen.id, label: screen.label },
 }))
+
+routes.push({
+  path: '/policy/new',
+  name: 'policy-new',
+  component: { template: '<span />' },
+  meta: { screen: 'policy', label: 'New policy' },
+})
 
 export const router = createRouter({
   history: createWebHistory(),

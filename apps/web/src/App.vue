@@ -194,6 +194,7 @@ const policyDraftForm = reactive({
   fallback: 'Remitly, Ria',
   amountBand: 'Any amount',
 })
+const bankWorkspaceName = 'Taj Bank'
 
 const navigation = [
   { id: 'control' as ScreenId, label: 'Control Room', icon: Gauge, kicker: 'Volume and risk' },
@@ -213,15 +214,15 @@ const navigationGroups = [
 ]
 
 const screenDescriptions: Record<ScreenId, string> = {
-  control: 'Volume moved, exposure, bottlenecks, and owner.',
-  corridors: 'Corridor volume, rail health, fallback route, and routing impact.',
-  transactions: 'Transfer trace, current owner, and report export.',
-  incidents: 'Service degradation, root cause, owner, and resolution state.',
-  policy: 'Route rules, maker-checker approval, activation, and rollback.',
-  fx: 'Effective cost, FX spread, and selected eligible route.',
-  reconciliation: 'Settlement breaks grouped by reason, owner, and next action.',
-  providers: 'Provider volume, SLA, latency, exceptions, and route actions.',
-  audit: 'Routing, policy, and operator evidence for review.',
+  control: 'Monitor route health, transfer volume, and open exceptions.',
+  corridors: 'Compare corridor rails and open the right drilldown.',
+  transactions: 'Search transfers, inspect status, and export reports.',
+  incidents: 'Track degradation, root cause, and recovery owner.',
+  policy: 'Review route rules and maker-checker status.',
+  fx: 'Compare effective cost against route eligibility.',
+  reconciliation: 'Clear settlement breaks by reason and owner.',
+  providers: 'Review provider SLA, latency, volume, and exceptions.',
+  audit: 'Inspect policy, routing, and operator events.',
 }
 
 const severityRank: Record<HealthState, number> = {
@@ -235,6 +236,19 @@ const severityRank: Record<HealthState, number> = {
 }
 
 const selectedScreen = computed(() => navigation.find((item) => item.id === activeScreen.value) ?? navigation[0])
+const isPolicyCreateFlow = computed(() => activeScreen.value === 'policy' && route.path === '/policy/new')
+const currentPageTitle = computed(() => (isPolicyCreateFlow.value ? 'New policy' : selectedScreen.value.label))
+const currentPageDescription = computed(() =>
+  isPolicyCreateFlow.value
+    ? 'Define corridor, payout method, primary rail, fallback order, and amount band.'
+    : screenDescriptions[selectedScreen.value.id],
+)
+const breadcrumbs = computed(() => {
+  const crumbs: Array<{ label: string; path?: string }> = [{ label: bankWorkspaceName, path: '/' }]
+  crumbs.push({ label: selectedScreen.value.label, path: routeForScreen(selectedScreen.value.id).path })
+  if (isPolicyCreateFlow.value) crumbs.push({ label: 'New policy' })
+  return crumbs
+})
 const activeIncident = computed(() => dashboard.incidents[0] ?? null)
 const sortedCorridors = computed(() => [...dashboard.corridors].sort((a, b) => severityRank[a.state] - severityRank[b.state]))
 const sortedProviders = computed(() => [...dashboard.providerScores].sort((a, b) => a.rank - b.rank))
@@ -597,7 +611,7 @@ const pageQueryKeys: Record<ScreenId, string[]> = {
   corridors: ['focus'],
   transactions: ['timing', 'metric'],
   incidents: ['focus'],
-  policy: [],
+  policy: ['policy_id'],
   fx: [],
   reconciliation: [],
   providers: [],
@@ -609,6 +623,10 @@ const currentPageQuery = (screen: ScreenId) =>
 
 const activate = (screen: ScreenId, extraQuery: Record<string, string> = {}) => {
   void router.push({ path: routeForScreen(screen).path, query: { ...globalDashboardQuery(), ...extraQuery } })
+}
+
+const openPolicyCreateFlow = () => {
+  void router.push({ path: '/policy/new', query: globalDashboardQuery() })
 }
 
 const syncDashboardQuery = () => {
@@ -642,7 +660,7 @@ const refreshDashboard = async () => {
     dashboard.summary.connection.mode = usingSampleData ? 'static' : 'api'
     dashboard.summary.connection.freshness = 'fresh'
     dashboard.summary.connection.updatedAt = summary.generated_at
-    dashboard.summary.connection.nextPollIn = usingSampleData ? 'Sample operational data' : 'API aggregation'
+    dashboard.summary.connection.nextPollIn = usingSampleData ? 'Static operational data' : 'API aggregation'
   } catch {
     dashboard.summary.connection.mode = sessionUser.value ? 'api' : dashboard.summary.connection.mode
     dashboard.summary.connection.freshness = 'stale'
@@ -711,6 +729,11 @@ const goToRoutePage = (page: number) => {
 
 const openTraceSheet = () => {
   if (selectedTransaction.value) traceSheetOpen.value = true
+}
+
+const selectPolicy = (policy: PolicyRule) => {
+  selectedPolicyId.value = policy.id
+  void router.replace({ path: routeForScreen('policy').path, query: { ...globalDashboardQuery(), policy_id: policy.id } })
 }
 
 const csvEscape = (value: string | number) => {
@@ -782,6 +805,7 @@ const createPolicyDraft = () => {
   }
   policyRules.value = [draft, ...policyRules.value]
   selectedPolicyId.value = draft.id
+  void router.push({ path: routeForScreen('policy').path, query: { ...globalDashboardQuery(), policy_id: draft.id } })
 }
 
 const submitSelectedPolicy = () => {
@@ -852,6 +876,7 @@ watch(
     const nextPayout = typeof query.payout_method === 'string' ? query.payout_method : 'all'
     const nextLens = typeof query.analysis_lens === 'string' ? query.analysis_lens : 'reliability'
     const nextDataState = normalizeDataState(query.scenario)
+    const nextPolicyId = typeof query.policy_id === 'string' ? query.policy_id : ''
 
     if (dateRange.value !== nextRange) dateRange.value = nextRange
     if (dashboardCurrency.value !== nextCurrency) dashboardCurrency.value = nextCurrency
@@ -860,6 +885,9 @@ watch(
     if (selectedPayoutMethod.value !== nextPayout) selectedPayoutMethod.value = nextPayout
     if (analysisLens.value !== nextLens) analysisLens.value = nextLens
     if (dataState.value !== nextDataState) dataState.value = nextDataState
+    if (nextPolicyId && policyRules.value.some((policy) => policy.id === nextPolicyId) && selectedPolicyId.value !== nextPolicyId) {
+      selectedPolicyId.value = nextPolicyId
+    }
   },
 )
 
@@ -1118,11 +1146,18 @@ function baselineRateFor(index: number) {
 
     <main class="workspace">
       <PageHeader
-        eyebrow="Nigeria inbound operations"
-        :title="selectedScreen.label"
-        :description="screenDescriptions[selectedScreen.id]"
+        :title="currentPageTitle"
+        :description="currentPageDescription"
+        :breadcrumbs="breadcrumbs"
       >
         <template #actions>
+          <UiButton v-if="activeScreen === 'policy' && !isPolicyCreateFlow" size="sm" @click="openPolicyCreateFlow">
+            <Plus :size="15" aria-hidden="true" />
+            New policy
+          </UiButton>
+          <UiButton v-if="isPolicyCreateFlow" size="sm" variant="secondary" @click="activate('policy')">
+            Back to policies
+          </UiButton>
           <DataFreshness
             :updated="dashboard.summary.lastUpdated"
             :mode="dashboard.summary.connection.mode"
@@ -1657,12 +1692,107 @@ function baselineRateFor(index: number) {
         </section>
       </section>
 
+      <section v-else-if="activeScreen === 'policy' && isPolicyCreateFlow" class="screen-stack">
+        <section class="dashboard-grid">
+          <Panel title="Policy scope" eyebrow="New policy" accent="recovery" class="span-8">
+            <template #actions>
+              <UiButton size="sm" :disabled="!can('policy:draft')" @click="createPolicyDraft">
+                <Plus :size="15" aria-hidden="true" />
+                Save draft
+              </UiButton>
+            </template>
+            <div class="policy-rule-form">
+              <label>
+                <span>Name</span>
+                <input v-model="policyDraftForm.name" type="text" />
+              </label>
+              <label>
+                <span>Origin country/region</span>
+                <select v-model="policyDraftForm.origin">
+                  <option>European Union</option>
+                  <option>United Kingdom</option>
+                  <option>United States</option>
+                  <option>Kenya</option>
+                </select>
+              </label>
+              <label>
+                <span>Destination</span>
+                <select v-model="policyDraftForm.destination">
+                  <option>Nigeria</option>
+                </select>
+              </label>
+              <label>
+                <span>Payout method</span>
+                <select v-model="policyDraftForm.payoutMethod">
+                  <option>Bank account</option>
+                  <option>Local account</option>
+                  <option>Wallet</option>
+                  <option>Cash pickup</option>
+                </select>
+              </label>
+              <label>
+                <span>Primary rail</span>
+                <select v-model="policyDraftForm.provider">
+                  <option>Thunes</option>
+                  <option>Remitly</option>
+                  <option>Ria</option>
+                  <option>PAPSS</option>
+                </select>
+              </label>
+              <label>
+                <span>Fallback order</span>
+                <input v-model="policyDraftForm.fallback" type="text" />
+              </label>
+              <label class="span-2">
+                <span>Amount band</span>
+                <input v-model="policyDraftForm.amountBand" type="text" />
+              </label>
+            </div>
+          </Panel>
+
+          <Panel title="Approval path" eyebrow="Maker-checker" accent="healthy" class="span-4">
+            <div class="selected-policy">
+              <dl class="definition-list">
+                <div>
+                  <dt>Drafter</dt>
+                  <dd>{{ currentActor }}</dd>
+                </div>
+                <div>
+                  <dt>Status after save</dt>
+                  <dd>Draft</dd>
+                </div>
+                <div>
+                  <dt>Approval required</dt>
+                  <dd>Yes</dd>
+                </div>
+                <div>
+                  <dt>Activation</dt>
+                  <dd>After approval</dd>
+                </div>
+              </dl>
+              <aside class="state-note">
+                <ShieldCheck :size="16" aria-hidden="true" />
+                <span>Drafts cannot be activated by the same user who creates them.</span>
+              </aside>
+              <ActionBar>
+                <UiButton variant="secondary" @click="activate('policy')">Cancel</UiButton>
+                <UiButton :disabled="!can('policy:draft')" @click="createPolicyDraft">Save draft</UiButton>
+              </ActionBar>
+            </div>
+          </Panel>
+        </section>
+      </section>
+
       <section v-else-if="activeScreen === 'policy'" class="screen-stack">
         <section class="dashboard-grid">
           <Panel title="Policy inventory" eyebrow="Maker-checker" accent="healthy" class="span-7">
             <template #actions>
               <span class="dashboard-chip">{{ policyStatusCounts.active }} active</span>
               <span class="dashboard-chip">{{ policyStatusCounts.pending_approval }} pending approval</span>
+              <UiButton size="sm" @click="openPolicyCreateFlow">
+                <Plus :size="15" aria-hidden="true" />
+                New
+              </UiButton>
             </template>
             <div class="policy-list">
               <button
@@ -1670,7 +1800,7 @@ function baselineRateFor(index: number) {
                 :key="policy.id"
                 type="button"
                 :class="{ 'is-selected': selectedPolicy?.id === policy.id }"
-                @click="selectedPolicyId = policy.id"
+                @click="selectPolicy(policy)"
               >
                 <span>
                   <strong>{{ policy.name }}</strong>
@@ -1734,62 +1864,6 @@ function baselineRateFor(index: number) {
             </div>
           </Panel>
 
-          <Panel title="Create corridor policy" eyebrow="Draft" accent="recovery" class="span-7">
-            <template #actions>
-              <UiButton size="sm" :disabled="!can('policy:draft')" @click="createPolicyDraft">
-                <Plus :size="15" aria-hidden="true" />
-                Create draft
-              </UiButton>
-            </template>
-            <div class="policy-rule-form">
-              <label>
-                <span>Name</span>
-                <input v-model="policyDraftForm.name" type="text" />
-              </label>
-              <label>
-                <span>Origin country/region</span>
-                <select v-model="policyDraftForm.origin">
-                  <option>European Union</option>
-                  <option>United Kingdom</option>
-                  <option>United States</option>
-                  <option>Kenya</option>
-                </select>
-              </label>
-              <label>
-                <span>Destination</span>
-                <select v-model="policyDraftForm.destination">
-                  <option>Nigeria</option>
-                </select>
-              </label>
-              <label>
-                <span>Payout method</span>
-                <select v-model="policyDraftForm.payoutMethod">
-                  <option>Bank account</option>
-                  <option>Local account</option>
-                  <option>Wallet</option>
-                  <option>Cash pickup</option>
-                </select>
-              </label>
-              <label>
-                <span>Primary rail</span>
-                <select v-model="policyDraftForm.provider">
-                  <option>Thunes</option>
-                  <option>Remitly</option>
-                  <option>Ria</option>
-                  <option>PAPSS</option>
-                </select>
-              </label>
-              <label>
-                <span>Fallback order</span>
-                <input v-model="policyDraftForm.fallback" type="text" />
-              </label>
-              <label class="span-2">
-                <span>Amount band</span>
-                <input v-model="policyDraftForm.amountBand" type="text" />
-              </label>
-            </div>
-          </Panel>
-
           <Panel title="Completion-time policy" eyebrow="QA thresholds" :accent="thresholdIsValid ? 'healthy' : 'degraded'" class="span-5">
             <template #actions>
               <UiButton variant="secondary" size="sm" :disabled="!thresholdHasChanges" @click="resetQaThresholds">Reset</UiButton>
@@ -1810,10 +1884,10 @@ function baselineRateFor(index: number) {
             <p v-if="!thresholdIsValid" class="form-error">Healthy threshold must be equal to or greater than the warning threshold.</p>
           </Panel>
 
-          <Panel title="Policy simulator" eyebrow="Shadow test" accent="healthy" class="span-7">
+          <Panel title="Policy impact check" eyebrow="Shadow test" accent="healthy" class="span-7">
             <div v-if="simulationSample" class="simulation-grid">
               <section>
-                <span class="eyebrow">Sample transaction</span>
+                <span class="eyebrow">Replay transaction</span>
                 <h3 class="mono">{{ simulationSample.reference }}</h3>
                 <dl class="metric-grid">
                   <div>

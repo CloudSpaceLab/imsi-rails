@@ -21,7 +21,7 @@ const baseDashboard = (): DashboardMock => ({
       mode: 'polling',
       freshness: 'fresh',
       updatedAt: '14:32:18 UTC',
-      nextPollIn: 'Sample operational data',
+      nextPollIn: 'Static operational data',
     },
     metrics: [
       { label: 'Routes healthy', value: '84.6%', detail: '15 min measured window', trend: '-12.6%', state: 'degraded' },

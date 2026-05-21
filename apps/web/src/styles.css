@@ -350,6 +350,38 @@ svg {
   min-width: 0;
 }
 
+.breadcrumb-nav ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  margin: 0 0 4px;
+  list-style: none;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.breadcrumb-nav li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.breadcrumb-nav li:not(:last-child)::after {
+  content: "/";
+  color: var(--muted);
+}
+
+.breadcrumb-nav a {
+  color: var(--text-soft);
+  text-decoration: none;
+}
+
+.breadcrumb-nav a:hover {
+  color: var(--text);
+}
+
 .page-header__copy p:not(.eyebrow) {
   max-width: 720px;
 }
