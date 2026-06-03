@@ -24,7 +24,7 @@ This slice turns the core routing domain into a bank-callable API surface.
 
 - authentication
 - RBAC/maker-checker approval
-- PostgreSQL transaction persistence
+- MariaDB transaction persistence
 - NATS/JetStream event publication
 - provider submission after route selection
 - real bank/provider callback handling

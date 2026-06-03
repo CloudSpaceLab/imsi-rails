@@ -23,7 +23,7 @@ This slice adds the first reliability-intelligence backend surface for imsi-rail
 
 ## What It Intentionally Does Not Implement Yet
 
-- persistent Timescale/Postgres storage
+- persistent MariaDB storage
 - NATS/JetStream publication
 - circuit-breaker transitions
 - active provider polling workers

@@ -108,14 +108,14 @@ The masterplan should be rejected or revised if future work violates these princ
 Keep the MVP compact:
 
 - Go `net/http` services for the routing API, auth/RBAC, health ingestion, circuit breakers, and dashboard API
-- PostgreSQL for system of record and pilot analytics rollups
+- MariaDB for system of record and pilot analytics rollups
 - NATS for event flow and live dashboard updates
 - Vue 3 + Vite + Vue Router for app UI
 - uPlot for dense latency charts
 - TanStack Table for large operational tables
 - OpenTelemetry instrumentation from day one
 
-Add ClickHouse only after the pilot proves event volume and drilldown needs exceed PostgreSQL rollups.
+Add ClickHouse only after the pilot proves event volume and drilldown needs exceed MariaDB rollups.
 
 ## Product Milestones
 
@@ -443,7 +443,7 @@ Build in this order:
 | Bank integration takes too long | Start with sandbox, file samples, and one posting path |
 | UI becomes overloaded | Build control room first, deep drilldowns second |
 | Routing becomes too clever too early | Start with eligibility plus simple weighted scoring |
-| Analytics stack becomes heavy | Use PostgreSQL rollups first, add ClickHouse when justified |
+| Analytics stack becomes heavy | Use MariaDB rollups first, add ClickHouse when justified |
 | Neutrality is questioned | Make routing policy bank-controlled and audit every decision |
 | Auto-switching causes duplicate payouts | Use idempotency, pre-finality failover rules, and clear safe/unsafe states |
 

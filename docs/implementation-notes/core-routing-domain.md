@@ -24,7 +24,7 @@ This slice introduces the first Go module and the `internal/core` package.
 ## What It Intentionally Does Not Implement Yet
 
 - transaction intake REST API
-- PostgreSQL persistence
+- MariaDB persistence
 - NATS/JetStream event publishing
 - real provider adapters
 - RBAC/maker-checker controls

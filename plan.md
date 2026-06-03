@@ -128,13 +128,13 @@ It is the bank's switching, monitoring, policy, and reliability layer across exi
 | CIO / CTO | fewer one-off integrations, cleaner API layer, observable transaction flow |
 | Risk / Compliance | auditable routing decisions, approved providers only, clear exception handling |
 | Treasury / Finance | settlement visibility, prefund exposure, cost and FX performance |
-| Executive Management | reliable remittance revenue, customer trust, provider accountability |
+| Executive Management | reliable remittance revenue, customer assurance, provider accountability |
 
 ### Sales Narrative
 
 Lead with reliability, not technology:
 
-1. Banks lose trust and revenue when international transfers fail or stall.
+1. Banks lose revenue and customer assurance when international transfers fail or stall.
 2. Most banks already have many IMTO providers, but no single truth about which route is best at any moment.
 3. The platform gives banks one control tower for IMTO health, transaction routing, failures, reconciliation, and provider scorecards.
 4. Banks keep their providers. The switch makes those providers compete on measurable performance.
@@ -211,7 +211,7 @@ If a feature does not help one of these metrics, it should wait.
 
 ### What Not To Build First
 
-Defer these until the core switch is trusted:
+Defer these until the core switch has production evidence:
 
 - consumer remittance app
 - mobile wallet payout across every African country
@@ -493,7 +493,7 @@ For every routed transaction, the engine should persist:
 - fallback route list
 - whether auto-switching was allowed
 
-This audit trail is essential for bank trust, provider disputes, and regulatory review.
+This audit trail is essential for bank assurance, provider disputes, and regulatory review.
 
 ## Dashboard KPIs
 
