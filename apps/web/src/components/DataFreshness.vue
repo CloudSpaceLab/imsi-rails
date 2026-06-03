@@ -9,6 +9,6 @@ defineProps<{
 <template>
   <span class="freshness" :class="{ 'freshness--stale': stale }">
     <span aria-hidden="true"></span>
-    {{ stale ? 'Stale data' : 'Updated' }} - {{ updated }}<small v-if="mode">{{ mode }}</small>
+    {{ stale ? 'Feed delayed' : 'Feed updated' }} - {{ updated }}<small v-if="mode">{{ mode }}</small>
   </span>
 </template>

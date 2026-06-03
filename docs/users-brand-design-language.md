@@ -4,7 +4,7 @@
 
 This document defines the exact users, brand posture, copy system, visual language, and product UI rules for `imsi-rails`.
 
-The goal is an internationally competitive bank-grade product: premium, calm, fast, precise, and trusted by people who operate critical cross-border money movement.
+The goal is an internationally competitive bank-grade product: premium, calm, fast, precise, and dependable for people who operate critical cross-border money movement.
 
 ## Exact Users
 
@@ -23,7 +23,7 @@ Common titles:
 
 Primary question:
 
-> Is this platform going to protect remittance revenue, reduce operational risk, and improve customer trust?
+> Is this platform going to protect remittance revenue, reduce operational risk, and improve customer confidence?
 
 Needs:
 
@@ -754,5 +754,4 @@ The product should not look like:
 - a decorative startup landing page
 - a spreadsheet with charts
 
-It should look and sound like the bank's trusted international transfer control layer.
-
+It should look and sound like the bank's dependable international transfer control layer.

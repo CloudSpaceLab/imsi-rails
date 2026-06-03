@@ -25,6 +25,9 @@ export const mockUser: SessionUser = {
     'audit:export',
     'users:manage',
     'identity:manage',
+    'contracts:read',
+    'credits:read',
+    'compliance:manage',
   ],
   auth_provider: 'mock',
 }

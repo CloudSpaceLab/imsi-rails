@@ -1,15 +1,11 @@
 export type HealthState = 'healthy' | 'watch' | 'degraded' | 'blocked' | 'recovery' | 'unknown' | 'stale'
 
 export type ScreenId =
-  | 'control'
-  | 'corridors'
-  | 'transactions'
-  | 'incidents'
-  | 'policy'
-  | 'fx'
-  | 'reconciliation'
-  | 'providers'
-  | 'audit'
+  | 'command'
+  | 'inflows'
+  | 'routes'
+  | 'exceptions'
+  | 'settings'
 
 export type UiScenario =
   | 'healthy'
@@ -41,6 +37,9 @@ export type Permission =
   | 'audit:export'
   | 'users:manage'
   | 'identity:manage'
+  | 'contracts:read'
+  | 'credits:read'
+  | 'compliance:manage'
 
 export type Role =
   | 'platform_admin'
@@ -486,12 +485,450 @@ export type ReconciliationItem = {
   state: HealthState
 }
 
+export type InflowDetailTab = 'summary' | 'route' | 'timeline' | 'evidence' | 'requery' | 'reconciliation' | 'audit'
+
+export type ExceptionDetailTab = 'summary' | 'evidence' | 'requery' | 'closure' | 'audit'
+
+export type RouteDetailTab = 'overview' | 'traffic' | 'cases' | 'history' | 'policy'
+
+export type EvidenceRequirement = {
+  id: string
+  instructionReference: string
+  slaPolicyId: string
+  sourceTable: 'outcome_evidence'
+  label: string
+  evidenceType: OutcomeEvidence['type']
+  required: boolean
+  capturedReference?: string
+  status: string
+  state: HealthState
+}
+
+export type CaseActionStep = {
+  action: 'attach_evidence' | 'manual_requery' | 'mark_completed_outside_platform' | 'approve_reversal'
+  label: string
+  queues: RemediationCase['queue'][]
+  duplicateRisk: 'Any' | 'Low' | 'Medium' | 'High'
+  requiresEvidence: boolean
+  safetyChecklist: string[]
+  resultingState: string
+}
+
+export type LinkedWorkItem = {
+  id: string
+  label: string
+  reference: string
+  path: string
+  detail: string
+  owner: string
+  state: HealthState
+}
+
+export type IntegrationHealth = {
+  id: string
+  sourceTable: 'api_health_windows'
+  serviceName: string
+  endpoint: string
+  provider: string
+  successRate: string
+  timeoutRate: string
+  p95Latency: string
+  polling: string
+  callbackStatus: string
+  lastSuccessAt: string
+  nextAction: string
+  state: HealthState
+}
+
+export type RouteDecisionRecord = {
+  instructionReference: string
+  sourceTable: 'route_decisions'
+  policyVersion: string
+  selectedRoute: string
+  selectedRail: string
+  score: number
+  scoreInputs: Array<{ label: string; value: string; state: HealthState }>
+  rejectedRoutes: PolicyRejectedRoute[]
+  decisionReason: string
+  decidedAt: string
+}
+
+export type ReconciliationMatch = {
+  instructionReference: string
+  sourceTable: 'reconciliation_matches'
+  settlementBatch: string
+  providerFileReference: string
+  bankLedgerReference: string
+  matchState: string
+  mismatchReason: string
+  resolvedAt: string
+  state: HealthState
+}
+
+export type RouteHealthWindow = {
+  route: string
+  sourceTable: 'route_health_windows'
+  rail: string
+  window: string
+  submittedCount: number
+  creditedCount: number
+  failedCount: number
+  timeoutCount: number
+  openCases: number
+  p95CreditTime: string
+  lateSuccessCount: number
+  state: HealthState
+}
+
 export type AuditEvent = {
   time: string
   actor: string
   action: string
   object: string
   reason: string
+  state: HealthState
+}
+
+export type ContractEndpoint = {
+  name: string
+  kind: 'MFB' | 'Fintech wallet' | 'Local bank' | 'Agent network' | 'Payment gateway'
+  rail: string
+  reach: string
+  reliability: string
+  p95Credit: string
+  openCredits: number
+  callbackLag: string
+  settlementLag: string
+  owner: string
+  state: HealthState
+}
+
+export type RoutingContract = {
+  id: string
+  partner: string
+  partnerType: 'Foreign bank' | 'IMTO' | 'Fintech'
+  originCountry: string
+  destinationCountry: string
+  corridor: string
+  payoutMethods: string
+  endpointCount: number
+  monthlyVolume: string
+  deliveryReliability: string
+  creditSla: string
+  slaBreachRate: string
+  lastSettlement: string
+  availableLimit: string
+  settlementModel: string
+  prefundStatus: string
+  cutoffWindow: string
+  openExceptions: number
+  oldestOpenCredit: string
+  nextReview: string
+  state: HealthState
+  status: string
+  owner: string
+  note: string
+  endpoints: ContractEndpoint[]
+}
+
+export type CreditLegState =
+  | 'received'
+  | 'crediting'
+  | 'credited'
+  | 'cooldown'
+  | 'requerying'
+  | 'manual_remediation'
+  | 'completed_outside_platform'
+  | 'reversal_pending'
+  | 'reversed'
+  | 'recon_break'
+
+export type EvidenceItem = {
+  label: string
+  reference: string
+  status: string
+  owner: string
+  state: HealthState
+}
+
+export type CreditLegRequeryAttempt = {
+  id: string
+  dueAt: string
+  completedAt: string
+  method: string
+  result: string
+  trigger: 'automatic' | 'manual'
+  state: HealthState
+}
+
+export type CreditLeg = {
+  reference: string
+  contractId: string
+  partner: string
+  partnerReference: string
+  originCountry: string
+  destinationCountry: string
+  beneficiary: string
+  beneficiaryAccount: string
+  endpoint: string
+  endpointKind: ContractEndpoint['kind']
+  amount: string
+  valueAtRisk: string
+  receivedAt: string
+  creditedAt: string
+  elapsed: string
+  slaDueAt: string
+  slaState: HealthState
+  creditState: CreditLegState
+  state: HealthState
+  reversal: boolean
+  reconState: string
+  evidenceStatus: string
+  railReference: string
+  bankPostingReference: string
+  settlementBatch: string
+  callbackLag: string
+  lastCallbackAt: string
+  postingAttempts: number
+  makerCheckerStatus: string
+  nextAction: string
+  owner: string
+  blocker: string
+  riskFlags: string[]
+  evidence: EvidenceItem[]
+  requeryAttempts?: CreditLegRequeryAttempt[]
+  timeline: TimelineStep[]
+}
+
+export type InboundSlaRow = {
+  contractId: string
+  partner: string
+  corridor: string
+  creditSla: string
+  p95Credit: string
+  breachRate: string
+  agingBreaches: number
+  valueAtRisk: string
+  oldestBreach: string
+  breachReason: string
+  owner: string
+  recommendedAction: string
+  state: HealthState
+  trend: string
+}
+
+export type ComplianceHold = {
+  reference: string
+  partner: string
+  type: 'Sanctions' | 'KYC' | 'RFI' | 'Purpose'
+  beneficiary: string
+  amount: string
+  age: string
+  dueAt: string
+  decisionSla: string
+  requiredEvidence: string
+  partnerRfiReference: string
+  owner: string
+  valueAtRisk: string
+  state: HealthState
+  note: string
+}
+
+export type FeatureSwitchKey =
+  | 'externalDebitRailOps'
+  | 'walletAndCashPickup'
+  | 'advancedFxCosts'
+  | 'providerCommercialScorecards'
+  | 'policySimulator'
+  | 'multiBankPortfolio'
+  | 'advancedComplianceCases'
+  | 'settlementFileImports'
+
+export type FeatureSwitch = {
+  key: FeatureSwitchKey
+  label: string
+  enabled: boolean
+  defaultEnabled: boolean
+  reason: string
+}
+
+export type CreditFacility = {
+  limit: string
+  utilized: string
+  available: string
+  rules: string
+  state: HealthState
+}
+
+export type StandingAccount = {
+  id: string
+  partner: string
+  currency: string
+  prefundBalance: string
+  availableLimit: string
+  projectedExhaustion: string
+  creditFacility?: CreditFacility
+  state: HealthState
+}
+
+export type InboundContract = {
+  id: string
+  partner: string
+  corridor: string
+  standingAccountId: string
+  slaPolicyId: string
+  permittedRails: string[]
+  permittedDestinationBanks: string[]
+  settlementModel: string
+  owner: string
+  state: HealthState
+}
+
+export type FinalLegState =
+  | 'received'
+  | 'validated'
+  | 'routing'
+  | 'submitted'
+  | 'accepted'
+  | 'credit_pending'
+  | 'credited'
+  | 'sla_breached'
+  | 'cooldown'
+  | 'requerying'
+  | 'outcome_uncertain'
+  | 'manual_remediation'
+  | 'completed_outside_platform'
+  | 'reversal_pending'
+  | 'failed_safe'
+  | 'failed_unsafe'
+  | 'reconciled'
+
+export type OutcomeConfidence =
+  | 'proven_credited'
+  | 'probably_pending'
+  | 'uncertain'
+  | 'safe_failed'
+  | 'unsafe_failed'
+
+export type IncomingInstruction = {
+  reference: string
+  partnerReference: string
+  contractId: string
+  origin: string
+  destination: string
+  amount: string
+  beneficiary: string
+  beneficiaryAccount: string
+  destinationBank: string
+  settlementBatch: string
+  receivedAt: string
+  slaDeadline: string
+  currentState: FinalLegState
+  outcomeConfidence: OutcomeConfidence
+  route: string
+  owner: string
+  safeAction: string
+  valueAtRisk: string
+  state: HealthState
+}
+
+export type FinalLegAttempt = {
+  id: string
+  instructionReference: string
+  route: string
+  rail: string
+  destinationBank: string
+  submittedAt: string
+  acceptedAt: string
+  creditedAt: string
+  p95CreditTime: string
+  timeoutRate: string
+  lateSuccessRisk: string
+  state: FinalLegState
+  health: HealthState
+  decisionReason: string
+}
+
+export type SlaPolicy = {
+  id: string
+  name: string
+  duration: string
+  cooldownWindow: string
+  lateSuccessWindow: string
+  evidenceRequired: string[]
+  state: HealthState
+}
+
+export type BackoffPolicy = {
+  id: string
+  route: string
+  slaPolicyId: string
+  maxRequeryAttempts: number
+  schedule: string[]
+  rerouteAfterAcceptance: boolean
+  state: HealthState
+}
+
+export type RequeryAttempt = {
+  id: string
+  instructionReference: string
+  attemptNumber: number
+  dueAt: string
+  completedAt: string
+  method: string
+  result: string
+  trigger: 'automatic' | 'manual'
+  state: HealthState
+}
+
+export type OutcomeEvidence = {
+  instructionReference: string
+  type: 'partner_callback' | 'rail_session' | 'ledger_posting' | 'settlement_batch' | 'operator_note' | 'audit_event'
+  label: string
+  reference: string
+  status: string
+  owner: string
+  state: HealthState
+}
+
+export type RemediationCase = {
+  id: string
+  instructionReference: string
+  apiReference?: string
+  queue: 'cooldown' | 'requerying' | 'exhausted' | 'recon_break' | 'completed_outside_platform' | 'reversal'
+  route: string
+  provider: string
+  requeryMethod: string
+  automaticAttempts: number
+  maxAutomaticAttempts: number
+  nextRequeryAt: string
+  automationStatus: 'cooldown' | 'scheduled' | 'running' | 'exhausted' | 'manual_only'
+  title: string
+  theory: string
+  valueAtRisk: string
+  age: string
+  duplicateRisk: string
+  evidenceGap: string
+  nextAction: string
+  owner: string
+  makerChecker: string
+  makerCheckerState: 'not_required' | 'maker_required' | 'checker_pending' | 'approved' | 'rejected'
+  safeClosure: string
+  state: HealthState
+}
+
+export type RoutePenalty = {
+  route: string
+  rail: string
+  destinationBank: string
+  p95CreditTime: string
+  timeoutRate: string
+  lateSuccessRate: string
+  openCases: number
+  penaltyScore: number
+  penaltyReason: string
+  trafficSplit: string
+  fallbackOrder: string
   state: HealthState
 }
 
@@ -549,4 +986,25 @@ export type DashboardMock = {
   fxCostBoard: FxCostBoard
   reconciliation: ReconciliationItem[]
   auditEvents: AuditEvent[]
+  routingContracts: RoutingContract[]
+  creditLegs: CreditLeg[]
+  inboundSla: InboundSlaRow[]
+  complianceHolds: ComplianceHold[]
+  featureSwitches: FeatureSwitch[]
+  inboundContracts: InboundContract[]
+  standingAccounts: StandingAccount[]
+  incomingInstructions: IncomingInstruction[]
+  finalLegAttempts: FinalLegAttempt[]
+  slaPolicies: SlaPolicy[]
+  backoffPolicies: BackoffPolicy[]
+  requeryAttempts: RequeryAttempt[]
+  outcomeEvidence: OutcomeEvidence[]
+  remediationCases: RemediationCase[]
+  routePenalties: RoutePenalty[]
+  routeDecisions: RouteDecisionRecord[]
+  evidenceRequirements: EvidenceRequirement[]
+  reconciliationMatches: ReconciliationMatch[]
+  routeHealthWindows: RouteHealthWindow[]
+  integrationHealth: IntegrationHealth[]
+  caseActionSteps: CaseActionStep[]
 }

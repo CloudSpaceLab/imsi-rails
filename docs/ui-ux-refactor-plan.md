@@ -97,7 +97,7 @@ Examples:
 - `apps/web/src/components/RouteConfigurationPanel.vue:102` has a reason field, but no validation, review step, approval path, or rollback surface.
 - `apps/web/src/components/UiButton.vue` has no `disabled`, `loading`, `danger`, confirmation, or icon/state contract.
 
-For a switching platform, these are not small UI details. They are trust and risk controls.
+For a switching platform, these are not small UI details. They are reliability and risk controls.
 
 ### 5. Static data blocks real UX validation
 

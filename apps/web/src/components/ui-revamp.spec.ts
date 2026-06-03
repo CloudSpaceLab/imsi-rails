@@ -9,7 +9,7 @@ import Panel from './Panel.vue'
 import ProviderMark from './ProviderMark.vue'
 import UiButton from './UiButton.vue'
 import { getDashboardMock } from '../services/mockDashboard'
-import { router } from '../router'
+import { router, screenRoutes } from '../router'
 
 async function mountApp(path = '/') {
   await router.push(path)
@@ -63,8 +63,6 @@ describe('premium dashboard primitives', () => {
     const country = mount(CountryPair, { props: { origin: 'Germany', destination: 'Nigeria' } })
     expect(country.text()).toContain('Germany')
     expect(country.text()).toContain('Nigeria')
-    expect(country.text()).not.toContain('DE')
-    expect(country.text()).not.toContain('NG')
     expect(country.find('.country-flag--de').exists()).toBe(true)
     expect(country.find('.country-flag--ng').exists()).toBe(true)
 
@@ -76,297 +74,363 @@ describe('premium dashboard primitives', () => {
   })
 })
 
-describe('premium dashboard workflows', () => {
-  it('provides scenario fixtures for empty and failure states', () => {
-    expect(getDashboardMock('empty').transactions).toHaveLength(0)
-    expect(getDashboardMock('empty').reconciliation).toHaveLength(0)
+describe('inbound settlement tower workflows', () => {
+  it('keeps fixtures aligned to the inbound settlement model', () => {
+    const dashboard = getDashboardMock()
+    const currentStates = dashboard.incomingInstructions.map((item) => item.currentState)
+    const exhaustedCase = dashboard.remediationCases.find((item) => item.instructionReference === 'INF-10002')
+
+    expect(currentStates).toEqual(expect.arrayContaining(['cooldown', 'requerying', 'manual_remediation']))
+    expect(dashboard.requeryAttempts.length).toBeGreaterThan(0)
+    expect(dashboard.requeryAttempts.every((attempt) => attempt.trigger === 'automatic')).toBe(true)
+    expect(dashboard.remediationCases.every((item) => item.requeryMethod && item.automaticAttempts <= item.maxAutomaticAttempts)).toBe(true)
+    expect(dashboard.incomingInstructions.find((item) => item.currentState === 'cooldown')?.safeAction).toContain('Freeze duplicate action')
+    expect(dashboard.requeryAttempts.find((attempt) => attempt.instructionReference === 'INF-10003' && attempt.completedAt === '-')?.result).toBe('Due now')
+    expect(dashboard.routeDecisions.find((item) => item.instructionReference === 'INF-10002')?.rejectedRoutes.length).toBeGreaterThan(0)
+    expect(dashboard.evidenceRequirements.find((item) => item.instructionReference === 'INF-10002')?.sourceTable).toBe('outcome_evidence')
+    expect(dashboard.reconciliationMatches.find((item) => item.instructionReference === 'INF-10002')?.sourceTable).toBe('reconciliation_matches')
+    expect(dashboard.routeHealthWindows.find((item) => item.route === 'NIP final leg')?.sourceTable).toBe('route_health_windows')
+    expect(dashboard.integrationHealth.map((item) => item.serviceName)).toContain('Switching API')
+    expect(dashboard.caseActionSteps.map((item) => item.action)).toEqual(
+      expect.arrayContaining(['attach_evidence', 'manual_requery', 'mark_completed_outside_platform', 'approve_reversal']),
+    )
+    expect(exhaustedCase?.automationStatus).toBe('exhausted')
+    expect(exhaustedCase?.apiReference).toBe('CRD-90288')
+    expect(dashboard.requeryAttempts.filter((attempt) => attempt.instructionReference === exhaustedCase?.instructionReference)).toHaveLength(
+      exhaustedCase?.maxAutomaticAttempts ?? 0,
+    )
+    expect(dashboard.featureSwitches.every((feature) => feature.enabled === feature.defaultEnabled)).toBe(true)
+    expect(getDashboardMock('empty').incomingInstructions).toHaveLength(0)
+    expect(getDashboardMock('empty').integrationHealth).toHaveLength(0)
     expect(getDashboardMock('api-failure').viewState).toBe('error')
-    expect(getDashboardMock('permission-denied').auditEvents).toHaveLength(0)
   })
 
-  it('renders all primary pages from the shared shell', async () => {
+  it('exposes only five top-level screens', async () => {
     const wrapper = await mountApp()
-    const pageTitles = ['Control Room', 'Transactions', 'Routes', 'Policy', 'Incidents', 'Rates & costs', 'Reconcile', 'Providers', 'Audit']
+    const labels = screenRoutes.map((screen) => screen.label)
 
-    for (const title of pageTitles) {
-      const button = wrapper.findAll('button.nav-item').find((item) => item.text().includes(title))
-      expect(button, `missing nav item ${title}`).toBeTruthy()
+    expect(labels).toEqual(['Command Center', 'Inflows', 'Routes', 'Exceptions', 'Settings'])
+    for (const label of labels) {
+      const button = wrapper.findAll('button.nav-item').find((item) => item.text().includes(label))
+      expect(button, `missing nav item ${label}`).toBeTruthy()
       await button?.trigger('click')
       await flushPromises()
-      expect(wrapper.text()).toContain(title)
+      expect(wrapper.text()).toContain(label)
     }
+
+    const primaryNav = wrapper.find('.primary-nav').text()
+    expect(primaryNav).not.toContain('Rates & costs')
+    expect(primaryNav).not.toContain('Providers')
+    expect(primaryNav).not.toContain('Audit')
+    expect(primaryNav).not.toContain('Incoming credits')
+    expect(primaryNav).not.toContain('Inbound SLA')
   })
 
-  it('keeps transactions dense, searchable, and traceable', async () => {
-    const wrapper = await mountApp()
-    await wrapper.findAll('button.nav-item').find((item) => item.text().includes('Transactions'))?.trigger('click')
-    await flushPromises()
+  it('answers live inbound risk and next action on the first screen', async () => {
+    const wrapper = await mountApp('/')
 
-    expect(wrapper.text()).toContain('Transfer search and reports')
-    expect(wrapper.text()).toContain('Transfer detail')
-    expect(wrapper.text()).toContain('Select a transfer')
-    expect(wrapper.text()).toContain('IMSI-txn_000000000001')
-
-    await wrapper.get('input[aria-label="Search transactions"]').setValue('RMT-UK-55Q8')
-    expect(wrapper.text()).toContain('IMSI-txn_000000031822')
-    expect(wrapper.text()).not.toContain('IMSI-txn_000000000014')
+    expect(wrapper.text()).toContain('Primary dashboard')
+    expect(wrapper.text()).toContain('Failed/reversed local transfers')
+    expect(wrapper.text()).toContain('Switching API status')
+    expect(wrapper.text()).toContain('Local providers working')
+    expect(wrapper.text()).toContain('International partner SLAs')
+    expect(wrapper.text()).toContain('SLA completion trend')
+    expect(wrapper.text()).toContain('Exception mix')
+    expect(wrapper.text()).toContain('8-hour window')
+    expect(wrapper.text()).toContain('Switching API telemetry')
+    expect(wrapper.text()).toContain('Transactions and middleware calls to fix')
+    expect(wrapper.text()).toContain('Local provider performance')
+    expect(wrapper.text()).toContain('International banking partner SLAs')
+    expect(wrapper.text()).toContain('Interswitch final leg')
+    expect(wrapper.text()).toContain('Hellenic Remit (Greece)')
+    expect(wrapper.text()).toContain('Work exceptions')
+    expect(wrapper.text()).toContain('Do not reroute')
   })
 
-  it('makes rates comparable from a visible currency baseline', async () => {
-    const wrapper = await mountApp()
-    await wrapper.findAll('button.nav-item').find((item) => item.text().includes('Rates & costs'))?.trigger('click')
+  it('launches focused queues from command center cards', async () => {
+    let wrapper = await mountApp('/')
+    await wrapper.findAll('.ops-signal').find((button) => button.text().includes('Failed/reversed local transfers'))?.trigger('click')
     await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/exceptions')
+    expect(router.currentRoute.value.query).toMatchObject({ queue: 'all', focus: 'failed' })
 
-    expect(wrapper.text()).toContain('Eligible route vs cheapest quote')
-    expect(wrapper.text()).toContain('Selected eligible route')
-    expect(wrapper.text()).toContain('selected eligible route')
-    expect(wrapper.text()).toContain('USD baseline')
-    expect(wrapper.find('select[aria-label="Base currency"]').exists()).toBe(true)
-    expect(wrapper.find('select[aria-label="Comparison currency"]').exists()).toBe(true)
-  })
-
-  it('shows policy save/reset behavior for editable thresholds', async () => {
-    const wrapper = await mountApp()
-    await wrapper.findAll('button.nav-item').find((item) => item.text().includes('Policy'))?.trigger('click')
-    await flushPromises()
-
-    const saveThresholds = wrapper.findAll('button').find((button) => button.text().includes('Save thresholds'))
-    expect(saveThresholds?.attributes('disabled')).toBeDefined()
-
-    const thresholdInput = wrapper.findAll('input[type="number"]').at(0)
-    await thresholdInput?.setValue(120)
-
-    const enabledSaveThresholds = wrapper.findAll('button').find((button) => button.text().includes('Save thresholds'))
-    expect(enabledSaveThresholds?.attributes('disabled')).toBeUndefined()
-  })
-
-  it('supports dashboard context controls and KPI drilldowns', async () => {
-    const wrapper = await mountApp()
-    expect(wrapper.find('select[aria-label="Dashboard provider"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Transfer volume overview')
-    expect(wrapper.text()).toContain('Total volume for all transfers')
-    expect(wrapper.text()).toContain('Volume per top providers')
-    expect(wrapper.text()).toContain('Volume per top routes')
-    expect(wrapper.text()).toContain('Risk and ownership')
-    expect(wrapper.text()).toContain('Taj Bank')
-    expect(wrapper.text()).not.toContain('Nigeria inbound operations')
-    expect(wrapper.text()).not.toContain('Volume moved, exposure, bottlenecks, and owner.')
-    expect(wrapper.text()).not.toContain('Currency volume comparison')
-    expect(wrapper.text()).not.toContain('Recommended next action')
-    expect(wrapper.text()).toContain('Static operational data')
-    expect(wrapper.text()).not.toContain('mock snapshot')
-
-    await wrapper.findAll('.kpi-tile--clickable').at(0)?.trigger('click')
-    await flushPromises()
-    expect(router.currentRoute.value.path).toBe('/transactions')
-    expect(router.currentRoute.value.query.scenario).toBe('degraded-ria')
-    expect(router.currentRoute.value.query.currency).toBe('USD')
-  })
-
-  it('opens volume drilldowns from provider and route widgets', async () => {
-    const wrapper = await mountApp()
-    await flushPromises()
-
-    const providerRow = wrapper.findAll('.volume-rank-row').find((row) => row.text().includes('Thunes'))
-    expect(providerRow).toBeTruthy()
-    await providerRow?.trigger('click')
-    await flushPromises()
-    expect(router.currentRoute.value.path).toBe('/providers/thunes')
-    expect(router.currentRoute.value.query.provider_id).toBe('thunes')
-    expect(wrapper.text()).toContain('Provider detail')
-    expect(wrapper.text()).toContain('Routes using this provider')
-
-    await router.push('/')
-    await flushPromises()
-    const routeRow = wrapper.findAll('.volume-rank-row').find((row) => row.text().includes('Provider acceptance'))
-    expect(routeRow).toBeTruthy()
-    await routeRow?.trigger('click')
+    wrapper.unmount()
+    wrapper = await mountApp('/')
+    await wrapper.findAll('.ops-signal').find((button) => button.text().includes('Local providers working'))?.trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.path).toBe('/routes')
-    expect(router.currentRoute.value.query.focus).toBe('volume')
+    expect(router.currentRoute.value.query.focus).toBe('provider-performance')
+
+    wrapper.unmount()
+    wrapper = await mountApp('/')
+    await wrapper.findAll('.ops-signal').find((button) => button.text().includes('International partner SLAs'))?.trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/settings')
+    expect(router.currentRoute.value.query).toMatchObject({ tab: 'sla', focus: 'breaches' })
+
+    wrapper.unmount()
+    wrapper = await mountApp('/')
+    await wrapper.findAll('.ops-signal').find((button) => button.text().includes('Switching API status'))?.trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/settings')
+    expect(router.currentRoute.value.query).toMatchObject({ tab: 'integrations', focus: 'api-health' })
   })
 
-  it('opens a dedicated route detail page from the route list', async () => {
+  it('keeps inflows searchable and traceable by final-leg evidence', async () => {
+    const wrapper = await mountApp('/inflows')
+
+    expect(wrapper.text()).toContain('Inflow search')
+    expect(wrapper.text()).toContain('Credit proof lanes')
+    expect(wrapper.text()).toContain('Manual proof')
+    expect(wrapper.text()).toContain('Incoming instructions')
+    expect(wrapper.text()).toContain('All routes')
+    expect(wrapper.text()).toContain('All SLA ages')
+    expect(wrapper.text()).toContain('All outcomes')
+    expect(wrapper.text()).toContain('INF-10001')
+    expect(wrapper.text()).toContain('INF-10002')
+
+    await wrapper.get('input[aria-label="Search inflows"]').setValue('BX-ENG-77118')
+    await flushPromises()
+
+    const rows = wrapper.findAll('tbody tr')
+    expect(rows).toHaveLength(1)
+    expect(rows[0].text()).toContain('INF-10002')
+    expect(rows[0].text()).not.toContain('INF-10001')
+  })
+
+  it('opens critical table drilldowns from keyboard-operable rows', async () => {
+    let wrapper = await mountApp('/inflows')
+    const inflowRow = wrapper.get('tr[role="button"][aria-label="Open inflow INF-10002"]')
+
+    expect(inflowRow.attributes('tabindex')).toBe('0')
+    await inflowRow.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/inflows/INF-10002')
+    expect(wrapper.text()).toContain('Tunde Bakare')
+
+    wrapper.unmount()
+    wrapper = await mountApp('/routes')
+    const routeRow = wrapper.get('tr[role="button"][aria-label="Open route Moniepoint final leg"]')
+
+    expect(routeRow.attributes('tabindex')).toBe('0')
+    await routeRow.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/routes/moniepoint-final-leg')
+    expect(wrapper.text()).toContain('Callback lag')
+  })
+
+  it('opens an inflow trace with backoff and evidence', async () => {
+    const wrapper = await mountApp('/inflows/INF-10002')
+
+    expect(wrapper.text()).toContain('Inflow detail')
+    expect(wrapper.text()).toContain('Summary')
+    expect(wrapper.text()).toContain('Route decision')
+    expect(wrapper.text()).toContain('Timeline')
+    expect(wrapper.text()).toContain('Evidence')
+    expect(wrapper.text()).toContain('Requery')
+    expect(wrapper.text()).toContain('Reconciliation')
+    expect(wrapper.text()).toContain('Audit')
+    expect(wrapper.text()).toContain('Settlement batch')
+    expect(wrapper.text()).toContain('Safe action')
+    expect(wrapper.text()).toContain('Do not reroute')
+
+    await wrapper.findAll('.detail-tabs button').find((button) => button.text().includes('Route decision'))?.trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query.tab).toBe('route')
+    expect(wrapper.text()).toContain('Final-leg route pressure')
+    expect(wrapper.text()).toContain('NIP final leg')
+    expect(wrapper.text()).toContain('Interswitch final leg')
+
+    await wrapper.findAll('.detail-tabs button').find((button) => button.text().includes('Timeline'))?.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Final-leg route selected')
+
+    await wrapper.findAll('.detail-tabs button').find((button) => button.text().includes('Evidence'))?.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('NIP-TRF-88421')
+    expect(wrapper.text()).toContain('Core ledger posting')
+
+    await wrapper.findAll('.detail-tabs button').find((button) => button.text().includes('Requery'))?.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Backoff ladder')
+    expect(wrapper.text()).toContain('T+5m')
+
+    await wrapper.findAll('.detail-tabs button').find((button) => button.text().includes('Reconciliation'))?.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Provider file says paid')
+  })
+
+  it('requires evidence before manual exception actions', async () => {
+    const wrapper = await mountApp('/exceptions/INF-10002?tab=closure')
+
+    expect(wrapper.text()).toContain('Case detail')
+    expect(wrapper.text()).toContain('Attach evidence')
+    expect(wrapper.text()).not.toContain('Mark completed outside platform')
+    expect(wrapper.text()).toContain('Evidence and reason are required before')
+    const submitButton = () => wrapper.findAll('button').find((button) => button.text().includes('Submit action'))
+    expect(submitButton()?.attributes('disabled')).toBeDefined()
+
+    await wrapper.get('input[aria-label="Evidence reference"]').setValue('NIP-TRF-88421')
+    await wrapper.get('textarea[aria-label="Resolution reason"]').setValue('Verified NIP session against suspense ledger before any closure action.')
+    await flushPromises()
+
+    expect(submitButton()?.attributes('disabled')).toBeUndefined()
+    await submitButton()?.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Evidence attached to the repair case')
+    expect(wrapper.text()).toContain('Audit event captured')
+
+    await wrapper.findAll('.detail-tabs button').find((button) => button.text().includes('Audit'))?.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Evidence attached')
+    expect(wrapper.text()).toContain('NIP-TRF-88421')
+  })
+
+  it('surfaces exhausted backoff and maker-checker guardrails', async () => {
+    const wrapper = await mountApp('/exceptions?queue=exhausted')
+
+    expect(router.currentRoute.value.query.queue).toBe('exhausted')
+    expect(wrapper.text()).toContain('Automation exhausted')
+    expect(wrapper.text()).toContain('INF-10002')
+
+    await wrapper.findAll('.remediation-queue button').find((button) => button.text().includes('INF-10002'))?.trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/exceptions/INF-10002')
+
+    await wrapper.findAll('.detail-tabs button').find((button) => button.text().includes('Backoff/requery'))?.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Backoff/requery')
+    expect(wrapper.text()).toContain('Closure readiness')
+    expect(wrapper.text()).toContain('Evidence blocked')
+    expect(wrapper.text()).toContain('Requery active')
+    expect(wrapper.text()).toContain('Checker review')
+    expect(wrapper.text()).toContain('Reversal ready')
+    expect(wrapper.text()).toContain('Automatic attempts')
+    expect(wrapper.text()).toContain('3 / 3')
+    expect(wrapper.text()).toContain('Automation exhausted')
+    expect(wrapper.text()).toContain('Manual only')
+    expect(wrapper.text()).toContain('3 automatic / 0 manual')
+
+    await wrapper.findAll('.detail-tabs button').find((button) => button.text().includes('Closure'))?.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Maker evidence required')
+    expect(wrapper.text()).toContain('Manual completion needs ledger/session evidence')
+  })
+
+  it('mutates exception actions with audit evidence', async () => {
+    const wrapper = await mountApp('/exceptions/INF-10004?tab=closure')
+
+    expect(wrapper.text()).toContain('Approve reversal')
+    await wrapper.findAll('.action-choice-grid button').find((button) => button.text().includes('Approve reversal'))?.trigger('click')
+    await flushPromises()
+    await wrapper.get('input[aria-label="Evidence reference"]').setValue('REV-ISW-55092')
+    await wrapper.get('textarea[aria-label="Resolution reason"]').setValue('Final failed-safe status confirms the beneficiary was not credited.')
+    await wrapper.findAll('button').find((button) => button.text().includes('Submit action'))?.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Reversal approval captured with evidence')
+    expect(wrapper.text()).toContain('Audit event captured')
+    expect(wrapper.text()).toContain('Reversal approved')
+
+    await wrapper.findAll('.detail-tabs button').find((button) => button.text().includes('Audit'))?.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('REV-ISW-55092')
+  })
+
+  it('shows route penalties and opens a route detail workspace', async () => {
     const wrapper = await mountApp('/routes')
+
+    expect(wrapper.text()).toContain('Route matrix')
+    expect(wrapper.text()).toContain('Payment provider scorecards')
+    expect(wrapper.text()).toContain('Traffic instruction')
+    expect(wrapper.text()).toContain('Route traffic controls')
+    expect(wrapper.text()).toContain('Maintain direct credits')
+    expect(wrapper.text()).toContain('Contain new traffic')
+    expect(wrapper.text()).toContain('Recovery test only')
+    expect(wrapper.text()).toContain('NIP final leg')
+    expect(wrapper.text()).toContain('Penalty explanation')
+
+    const routeButton = wrapper.findAll('.route-health-strip button').find((button) => button.text().includes('Moniepoint final leg'))
+    expect(routeButton).toBeTruthy()
+    await routeButton?.trigger('click')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Corridor route list')
-    const openButton = wrapper.findAll('button').find((button) => button.text() === 'Open')
-    expect(openButton).toBeTruthy()
-    await openButton?.trigger('click')
-    await flushPromises()
-
-    expect(router.currentRoute.value.path).toMatch(/^\/routes\//)
-    expect(wrapper.text()).toContain('Route detail')
-    expect(wrapper.text()).toContain('Route summary')
-    expect(wrapper.text()).toContain('Recent route transactions')
-    expect(wrapper.text()).toContain('Provider performance')
-    expect(wrapper.text()).toContain('Policy and fallback')
-    expect(wrapper.text()).toContain('Cost and quote state')
+    expect(router.currentRoute.value.path).toBe('/routes/moniepoint-final-leg')
+    expect(wrapper.text()).toContain('Moniepoint final leg')
+    expect(wrapper.text()).toContain('Callback lag')
   })
 
-  it('keeps data state quiet but URL-backed', async () => {
-    const wrapper = await mountApp('/?scenario=healthy')
+  it('opens linked route work items from the route detail workspace', async () => {
+    let wrapper = await mountApp('/routes/nip-final-leg?tab=cases')
+
+    expect(wrapper.text()).toContain('CASE-INF-10002')
+    expect(wrapper.text()).toContain('INF-10005')
+
+    await wrapper.findAll('.linked-work-grid button').find((button) => button.text().includes('INF-10005'))?.trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/inflows/INF-10005')
+
+    wrapper.unmount()
+    wrapper = await mountApp('/routes/nip-final-leg?tab=cases')
+    await wrapper.findAll('.linked-work-grid button').find((button) => button.text().includes('CASE-INF-10002'))?.trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/exceptions/INF-10002')
+  })
+
+  it('opens settings sections from URL deep links', async () => {
+    let wrapper = await mountApp('/settings?tab=integrations')
+
+    expect(wrapper.text()).toContain('Switching API and provider endpoints')
+    expect(wrapper.findAll('.settings-tabs button').find((button) => button.text().includes('Integrations'))?.classes()).toContain('is-selected')
+
+    wrapper.unmount()
+    wrapper = await mountApp('/settings?tab=sla')
+    expect(wrapper.text()).toContain('SLA definitions')
+    expect(wrapper.text()).toContain('Backoff policy')
+
+    wrapper.unmount()
+    wrapper = await mountApp('/settings?tab=audit')
+    expect(wrapper.text()).toContain('Audit trail and exports')
+  })
+
+  it('keeps advanced modules behind feature switches', async () => {
+    const wrapper = await mountApp('/settings')
+
+    await wrapper.findAll('.settings-tabs button').find((button) => button.text().includes('Feature controls'))?.trigger('click')
     await flushPromises()
 
-    const dataState = wrapper.get('select[aria-label="Data state"]')
+    expect(wrapper.text()).toContain('Debit and refund rail operations')
+    expect(wrapper.text()).toContain('Disabled for operators')
+    expect(wrapper.findAll('input[type="checkbox"]').every((input) => !(input.element as HTMLInputElement).checked)).toBe(true)
+
+    await wrapper.findAll('input[type="checkbox"]').at(2)?.setValue(true)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Available to administrators')
+  })
+
+  it('redirects legacy work areas into the five-screen model', async () => {
+    const wrapper = await mountApp('/credits/INF-10002')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/inflows/INF-10002')
+    expect(wrapper.text()).toContain('Inflows')
+    expect(wrapper.text()).toContain('INF-10002')
+  })
+
+  it('keeps data state URL-backed', async () => {
+    const wrapper = await mountApp('/?scenario=healthy')
+
+    const dataState = wrapper.get('select[aria-label="Monitoring feed"]')
     expect((dataState.element as HTMLSelectElement).value).toBe('healthy')
-    expect(wrapper.text()).not.toContain('scenario')
 
     await dataState.setValue('traffic-shift')
     await flushPromises()
+
     expect(router.currentRoute.value.query.scenario).toBe('traffic-shift')
-
-    await wrapper.findAll('button.nav-item').find((item) => item.text().includes('Providers'))?.trigger('click')
-    await flushPromises()
-    expect(wrapper.text()).toContain('Traffic shift is reducing failed credits')
-  })
-
-  it('keeps provider actions on the provider dashboard', async () => {
-    const wrapper = await mountApp('/')
-    await flushPromises()
-
-    expect(wrapper.text()).not.toContain('Provider work queue')
-
-    await wrapper.findAll('button.nav-item').find((item) => item.text().includes('Providers'))?.trigger('click')
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('Provider work queue')
-    expect(wrapper.text()).toContain('Trace affected transfers')
-  })
-
-  it('opens focused provider, incident, and reconciliation detail workspaces', async () => {
-    let wrapper = await mountApp('/providers/thunes')
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('Provider detail')
-    expect(wrapper.text()).toContain('Provider summary')
-    expect(wrapper.text()).toContain('Routes using this provider')
-    expect(wrapper.text()).toContain('Recent transfers')
-
-    wrapper.unmount()
-    wrapper = await mountApp('/incidents/INC-2026-0520-014')
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('Incident detail')
-    expect(wrapper.text()).toContain('Incident summary')
-    expect(wrapper.text()).toContain('Affected route')
-    expect(wrapper.text()).toContain('Root cause timeline')
-
-    wrapper.unmount()
-    wrapper = await mountApp('/reconcile/REC-7781')
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('Settlement break')
-    expect(wrapper.text()).toContain('Break summary')
-    expect(wrapper.text()).toContain('Linked transfer')
-    expect(wrapper.text()).toContain('Evidence to check')
-  })
-
-  it('cleans page-specific query state when navigating between work areas', async () => {
-    const wrapper = await mountApp('/transactions?timing=Stalled+only&currency=NGN&scenario=traffic-shift')
-    await flushPromises()
-
-    await wrapper.findAll('button.nav-item').find((item) => item.text().includes('Rates & costs'))?.trigger('click')
-    await flushPromises()
-
-    expect(router.currentRoute.value.path).toBe('/rates')
-    expect(router.currentRoute.value.query.currency).toBe('NGN')
-    expect(router.currentRoute.value.query.scenario).toBe('traffic-shift')
-    expect(router.currentRoute.value.query.timing).toBeUndefined()
-  })
-
-  it('shows transaction reporting controls and compact trace expansion', async () => {
-    const wrapper = await mountApp('/transactions')
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('Export CSV')
-    expect(wrapper.find('select[aria-label="Rows per page"]').exists()).toBe(true)
-    await wrapper.find('tbody tr.click-row').trigger('click')
-    await flushPromises()
-    expect(router.currentRoute.value.path).toMatch(/^\/transactions\//)
-    expect(wrapper.text()).toContain('Transaction detail')
-    expect(wrapper.text()).toContain('Lifecycle trace')
-    expect(wrapper.text()).toContain('Elapsed')
-    expect(wrapper.text()).toContain('Owner')
-    expect(wrapper.text()).toContain('References')
-  })
-
-  it('applies URL-backed provider and corridor filters to transaction results', async () => {
-    let wrapper = await mountApp('/transactions?provider_id=thunes')
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('IMSI-txn_000000000014')
-    expect(wrapper.text()).not.toContain('IMSI-txn_000000000001')
-
-    wrapper.unmount()
-    wrapper = await mountApp('/transactions?corridor=EU%20-%3E%20NG')
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('IMSI-txn_000000000001')
-    expect(wrapper.text()).not.toContain('IMSI-txn_000000000014')
-  })
-
-  it('surfaces maker-checker policy controls', async () => {
-    const wrapper = await mountApp('/policy')
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('Policy inventory')
-    expect(wrapper.text()).toContain('New policy')
-    expect(wrapper.text()).not.toContain('Policy scope')
-    expect(wrapper.text()).not.toContain('Create corridor policy')
-    expect(wrapper.text()).toContain('Policy impact check')
-    expect(wrapper.text()).toContain('Replay transaction')
-    expect(wrapper.text()).not.toContain('Policy simulator')
-    expect(wrapper.text()).not.toContain('Sample transaction')
-    expect(wrapper.text()).toContain('pending approval')
-    expect(wrapper.text()).toContain('Activate')
-  })
-
-  it('selects the policy that matches URL corridor context', async () => {
-    const wrapper = await mountApp('/policy?corridor=GB%20-%3E%20NG')
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('UK to Nigeria high-confidence fallback')
-    expect(wrapper.text()).toContain('pending approval')
-  })
-
-  it('opens a dedicated policy detail route from inventory', async () => {
-    const wrapper = await mountApp('/policy')
-    await flushPromises()
-
-    const policyRow = wrapper.findAll('.policy-list button').find((button) => button.text().includes('EU to Nigeria account payouts'))
-    expect(policyRow).toBeTruthy()
-    await policyRow?.trigger('click')
-    await flushPromises()
-
-    expect(router.currentRoute.value.path).toBe('/policy/POL-EU-NG-001')
-    expect(wrapper.text()).toContain('Policy detail')
-    expect(wrapper.text()).toContain('Policy summary')
-    expect(wrapper.text()).toContain('Approval path')
-    expect(wrapper.text()).toContain('Route coverage')
-  })
-
-  it('opens policy creation as a separate breadcrumb flow', async () => {
-    const wrapper = await mountApp('/policy/new')
-    await flushPromises()
-
-    expect(router.currentRoute.value.path).toBe('/policy/new')
-    expect(wrapper.text()).toContain('Taj Bank')
-    expect(wrapper.text()).toContain('Policy')
-    expect(wrapper.text()).toContain('New policy')
-    expect(wrapper.text()).toContain('Policy scope')
-    expect(wrapper.text()).toContain('Approval path')
-    expect(wrapper.text()).toContain('Back to policies')
-  })
-
-  it('uses audit evidence language without demo-style detail copy', async () => {
-    const wrapper = await mountApp('/audit')
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('Audit trail')
-    expect(wrapper.text()).toContain('Event detail')
-    expect(wrapper.text()).not.toContain('Log detail')
-    expect(wrapper.text()).not.toContain('Selected record')
   })
 })

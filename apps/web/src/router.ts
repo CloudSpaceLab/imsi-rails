@@ -2,71 +2,71 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import type { ScreenId } from './types'
 
 export const screenRoutes: Array<{ id: ScreenId; path: string; label: string }> = [
-  { id: 'control', path: '/', label: 'Control Room' },
-  { id: 'transactions', path: '/transactions', label: 'Transactions' },
-  { id: 'corridors', path: '/routes', label: 'Routes' },
-  { id: 'policy', path: '/policy', label: 'Policy' },
-  { id: 'incidents', path: '/incidents', label: 'Incidents' },
-  { id: 'fx', path: '/rates', label: 'Rates & costs' },
-  { id: 'reconciliation', path: '/reconcile', label: 'Reconcile' },
-  { id: 'providers', path: '/providers', label: 'Providers' },
-  { id: 'audit', path: '/audit', label: 'Audit' },
+  { id: 'command', path: '/', label: 'Command Center' },
+  { id: 'inflows', path: '/inflows', label: 'Inflows' },
+  { id: 'routes', path: '/routes', label: 'Routes' },
+  { id: 'exceptions', path: '/exceptions', label: 'Exceptions' },
+  { id: 'settings', path: '/settings', label: 'Settings' },
 ]
+
+const placeholder = { template: '<span />' }
 
 const routes: RouteRecordRaw[] = screenRoutes.map((screen) => ({
   path: screen.path,
   name: screen.id,
-  component: { template: '<span />' },
+  component: placeholder,
   meta: { screen: screen.id, label: screen.label },
 }))
 
-routes.push({
-  path: '/routes/:routeId',
-  name: 'route-detail',
-  component: { template: '<span />' },
-  meta: { screen: 'corridors', label: 'Route detail' },
-})
+routes.push(
+  {
+    path: '/inflows/:reference',
+    name: 'inflow-detail',
+    component: placeholder,
+    meta: { screen: 'inflows', label: 'Inflow detail' },
+  },
+  {
+    path: '/routes/:routeId',
+    name: 'route-detail',
+    component: placeholder,
+    meta: { screen: 'routes', label: 'Route detail' },
+  },
+  {
+    path: '/exceptions/:reference',
+    name: 'exception-detail',
+    component: placeholder,
+    meta: { screen: 'exceptions', label: 'Exception detail' },
+  },
+)
 
-routes.push({
-  path: '/transactions/:reference',
-  name: 'transaction-detail',
-  component: { template: '<span />' },
-  meta: { screen: 'transactions', label: 'Transaction detail' },
-})
+const legacyRedirects: Array<{ from: string; to: string }> = [
+  { from: '/transactions', to: '/inflows' },
+  { from: '/transactions/:reference', to: '/inflows/:reference' },
+  { from: '/credits', to: '/inflows' },
+  { from: '/credits/:reference', to: '/inflows/:reference' },
+  { from: '/reconcile', to: '/exceptions' },
+  { from: '/reconcile/:reference', to: '/exceptions/:reference' },
+  { from: '/incidents', to: '/exceptions' },
+  { from: '/incidents/:reference', to: '/exceptions/:reference' },
+  { from: '/policy', to: '/settings' },
+  { from: '/policy/:section', to: '/settings' },
+  { from: '/rates', to: '/settings' },
+  { from: '/providers', to: '/routes' },
+  { from: '/providers/:providerId', to: '/routes' },
+  { from: '/contracts', to: '/settings' },
+  { from: '/contracts/:contractId', to: '/settings' },
+  { from: '/audit', to: '/settings' },
+  { from: '/inbound-sla', to: '/settings' },
+]
 
-routes.push({
-  path: '/providers/:providerId',
-  name: 'provider-detail',
-  component: { template: '<span />' },
-  meta: { screen: 'providers', label: 'Provider detail' },
-})
-
-routes.push({
-  path: '/incidents/:incidentId',
-  name: 'incident-detail',
-  component: { template: '<span />' },
-  meta: { screen: 'incidents', label: 'Incident detail' },
-})
-
-routes.push({
-  path: '/reconcile/:reference',
-  name: 'reconciliation-detail',
-  component: { template: '<span />' },
-  meta: { screen: 'reconciliation', label: 'Reconciliation detail' },
-})
-
-routes.push({
-  path: '/policy/new',
-  name: 'policy-new',
-  component: { template: '<span />' },
-  meta: { screen: 'policy', label: 'New policy' },
-})
-
-routes.push({
-  path: '/policy/:policyId',
-  name: 'policy-detail',
-  component: { template: '<span />' },
-  meta: { screen: 'policy', label: 'Policy detail' },
+legacyRedirects.forEach((redirect) => {
+  routes.push({
+    path: redirect.from,
+    redirect: (to) => ({
+      path: interpolatePath(redirect.to, to.params),
+      query: to.query,
+    }),
+  })
 })
 
 export const router = createRouter({
@@ -78,3 +78,9 @@ export function routeForScreen(screen: ScreenId) {
   return screenRoutes.find((route) => route.id === screen) ?? screenRoutes[0]
 }
 
+function interpolatePath(path: string, params: Record<string, string | string[]>) {
+  return path.replace(/:([A-Za-z0-9_]+)/g, (_, key: string) => {
+    const value = params[key]
+    return encodeURIComponent(Array.isArray(value) ? value[0] ?? '' : value ?? '')
+  })
+}

@@ -4,7 +4,7 @@ Research date: 2026-05-19
 
 ## Architecture Goal
 
-Build a super efficient, fast, lightweight switching platform that banks can trust as the operating layer for international money transfer reliability.
+Build a super efficient, fast, lightweight switching platform that banks can operate as the reliability layer for international money transfers.
 
 The architecture should:
 
@@ -23,7 +23,7 @@ Use Go for the routing, switching, circuit breaker, adapter runtime, authenticat
 
 Why:
 
-- Go produces small operationally simple services: compiled binaries, easy containerization, strong standard-library HTTP support, and mature libraries for Postgres, NATS, LDAP, OIDC, SFTP, XML/SOAP, and observability.
+- Go produces small operationally simple services: compiled binaries, easy containerization, strong standard-library HTTP support, and mature libraries for MariaDB/MySQL, NATS, LDAP, OIDC, SFTP, XML/SOAP, and observability.
 - The existing implementation already has Go transaction intake, route selection, health ingestion, and circuit breaker services with tests.
 - Bank integration work is more likely to be limited by provider/bank systems and security review than raw routing compute.
 - Go is easier to hire for and maintain in bank-integration teams while keeping lower operational overhead than heavier enterprise stacks.
@@ -71,13 +71,13 @@ Sources:
 
 ### Transactional Store
 
-Use PostgreSQL as the system of record.
+Use MariaDB as the system of record.
 
 Why:
 
-- Banks trust PostgreSQL-style relational durability, constraints, indexes, and transaction semantics.
+- Banks expect relational durability, constraints, indexes, and transaction semantics.
 - The business domain needs strong relational integrity across banks, providers, corridors, policy versions, transactions, route decisions, and audit logs.
-- Declarative partitioning supports large event and transaction tables while keeping recent/high-use partitions fast.
+- MariaDB partitioning, composite indexes, and InnoDB transactions support the pilot data model while keeping recent/high-use tables fast.
 
 Initial tables:
 
@@ -95,14 +95,9 @@ Initial tables:
 - reconciliation_items
 - audit_events
 
-Sources:
-
-- PostgreSQL partitioning: https://www.postgresql.org/docs/current/ddl-partitioning.html
-- PostgreSQL monitoring stats: https://www.postgresql.org/docs/current/monitoring-stats.html
-
 ### Analytical Store
 
-Start with PostgreSQL rollups for the pilot. Add ClickHouse when the bank needs high-cardinality latency, downtime, and provider comparison drilldowns over large volumes.
+Start with MariaDB rollups for the pilot. Add ClickHouse when the bank needs high-cardinality latency, downtime, and provider comparison drilldowns over large volumes.
 
 Why:
 
@@ -112,7 +107,7 @@ Why:
 
 Recommended approach:
 
-- Pilot: PostgreSQL partitions plus materialized rollups.
+- Pilot: MariaDB tables plus precomputed rollup tables.
 - Scale: stream immutable transaction/health events from NATS JetStream into ClickHouse.
 - UI: query pre-aggregated views first, raw events only when drilling down.
 
@@ -213,13 +208,13 @@ imsi-rails routing core
         |      - durable lifecycle events
         |      - replay and shadow routing
         |
-        +--> PostgreSQL
+        +--> MariaDB
         |      - system of record
         |      - policy versions
         |      - audit and reconciliation
         |
         +--> Analytics store
-               - PostgreSQL rollups first
+               - MariaDB rollups first
                - ClickHouse at scale
 ```
 
@@ -252,7 +247,7 @@ Run:
 
 - one routing API service
 - one worker/adapters service
-- PostgreSQL
+- MariaDB
 - NATS
 - static frontend served by the API or CDN
 - OpenTelemetry collector optional if the bank environment supports it
@@ -270,7 +265,7 @@ Run:
 - horizontally scaled routing API
 - separate adapter workers
 - NATS cluster with JetStream replication
-- PostgreSQL HA
+- MariaDB HA
 - ClickHouse for analytical drilldowns if event volume warrants it
 - OTel collector, Prometheus, alerting
 - SSO/OIDC integration
