@@ -141,6 +141,8 @@ describe('inbound settlement tower workflows', () => {
     expect(wrapper.text()).toContain('Transactions and middleware calls to fix')
     expect(wrapper.text()).toContain('Local provider performance')
     expect(wrapper.text()).toContain('International banking partner SLAs')
+    expect(wrapper.text()).toContain('Moniepoint leads NIP, Interswitch, and Paystack')
+    expect(wrapper.text()).toContain('Paystack')
     expect(wrapper.text()).toContain('Interswitch final leg')
     expect(wrapper.text()).toContain('Hellenic Remit (Greece)')
     expect(wrapper.text()).toContain('Work exceptions')
@@ -218,7 +220,7 @@ describe('inbound settlement tower workflows', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.path).toBe('/routes/moniepoint-final-leg')
-    expect(wrapper.text()).toContain('Callback lag')
+    expect(wrapper.text()).toContain('Fastest P95')
   })
 
   it('opens an inflow trace with backoff and evidence', async () => {
@@ -350,7 +352,8 @@ describe('inbound settlement tower workflows', () => {
     expect(wrapper.text()).toContain('Route traffic controls')
     expect(wrapper.text()).toContain('Maintain direct credits')
     expect(wrapper.text()).toContain('Contain new traffic')
-    expect(wrapper.text()).toContain('Recovery test only')
+    expect(wrapper.text()).toContain('Increase eligible traffic')
+    expect(wrapper.text()).toContain('Paystack final leg')
     expect(wrapper.text()).toContain('NIP final leg')
     expect(wrapper.text()).toContain('Penalty explanation')
 
@@ -361,7 +364,7 @@ describe('inbound settlement tower workflows', () => {
 
     expect(router.currentRoute.value.path).toBe('/routes/moniepoint-final-leg')
     expect(wrapper.text()).toContain('Moniepoint final leg')
-    expect(wrapper.text()).toContain('Callback lag')
+    expect(wrapper.text()).toContain('Fastest P95')
   })
 
   it('opens linked route work items from the route detail workspace', async () => {

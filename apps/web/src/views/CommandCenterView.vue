@@ -30,6 +30,7 @@ const localRoutes = computed(() => routePenalties.value.filter((routeRow) => rou
 const workingLocalRoutes = computed(() => localRoutes.value.filter((routeRow) => !unavailableStates.has(routeRow.state)))
 const bestLocalProvider = computed(() => [...localRoutes.value].sort((a, b) => a.penaltyScore - b.penaltyScore)[0] ?? null)
 const mostPressuredProvider = computed(() => [...localRoutes.value].sort((a, b) => b.penaltyScore - a.penaltyScore)[0] ?? null)
+const providerPerformanceRows = computed(() => [...localRoutes.value].sort((a, b) => a.penaltyScore - b.penaltyScore))
 
 const failedOrReversedTransfers = computed(() =>
   props.dashboard.incomingInstructions.filter(
@@ -57,7 +58,7 @@ const localProviderTone = computed<HealthState>(() => {
 const localProviderAnswer = computed(() => `${workingLocalRoutes.value.length}/${localRoutes.value.length}`)
 const localProviderSummary = computed(() =>
   bestLocalProvider.value
-    ? `${bestLocalProvider.value.route} is best right now at ${bestLocalProvider.value.p95CreditTime} P95 and ${bestLocalProvider.value.timeoutRate} timeout.`
+    ? `${bestLocalProvider.value.rail} leads NIP, Interswitch, and Paystack at ${bestLocalProvider.value.p95CreditTime} P95 / ${bestLocalProvider.value.timeoutRate} timeout.`
     : 'No local provider telemetry is available.',
 )
 
@@ -152,14 +153,13 @@ const signalItems = computed(() => [
 const repairQueue = computed(() => [...openRemediationCases.value].sort((a, b) => casePriority(a) - casePriority(b)))
 const activeWorkItems = computed(() => repairQueue.value.slice(0, 3))
 const providerRows = computed(() =>
-  [...localRoutes.value]
+  providerPerformanceRows.value
     .map((routeRow) => ({
       route: routeRow,
       action: providerAction(routeRow),
       isBest: routeRow.route === bestLocalProvider.value?.route,
       isPressured: routeRow.route === mostPressuredProvider.value?.route,
-    }))
-    .sort((a, b) => a.route.penaltyScore - b.route.penaltyScore),
+    })),
 )
 const partnerSlaRows = computed(() =>
   [...props.dashboard.inboundSla].sort((a, b) => stateOrder(a.state) - stateOrder(b.state) || b.agingBreaches - a.agingBreaches),
@@ -194,16 +194,16 @@ const slaTrendDatasets = computed(() => [
     fill: true,
   },
 ])
-const providerChartLabels = computed(() => localRoutes.value.map((row) => row.rail))
+const providerChartLabels = computed(() => providerPerformanceRows.value.map((row) => row.rail))
 const providerChartDatasets = computed(() => [
   {
     label: 'Timeout rate',
-    values: localRoutes.value.map((row) => toPercent(row.timeoutRate)),
+    values: providerPerformanceRows.value.map((row) => toPercent(row.timeoutRate)),
     color: '#b54708',
   },
   {
     label: 'Open cases',
-    values: localRoutes.value.map((row) => row.openCases),
+    values: providerPerformanceRows.value.map((row) => row.openCases),
     color: '#0a66ff',
   },
 ])

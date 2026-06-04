@@ -46,6 +46,33 @@ export const providerIdentities: Record<string, ProviderIdentity> = {
     tone: 'healthy',
     color: '#34d399',
   },
+  moniepoint: {
+    id: 'moniepoint',
+    name: 'Moniepoint',
+    shortName: 'MPT',
+    mark: 'Mo',
+    category: 'Local payout rail',
+    tone: 'healthy',
+    color: '#067647',
+  },
+  interswitch: {
+    id: 'interswitch',
+    name: 'Interswitch',
+    shortName: 'ISW',
+    mark: 'Is',
+    category: 'Local payout rail',
+    tone: 'watch',
+    color: '#0a66ff',
+  },
+  paystack: {
+    id: 'paystack',
+    name: 'Paystack',
+    shortName: 'PSTK',
+    mark: 'Pa',
+    category: 'Local payout rail',
+    tone: 'watch',
+    color: '#7a5af8',
+  },
   'manual-review': {
     id: 'manual-review',
     name: 'Manual review',
@@ -89,6 +116,9 @@ export const providerKey = (provider: string) => {
   if (normalized.includes('ria')) return 'ria'
   if (normalized.includes('papss')) return 'papss'
   if (normalized.includes('nip')) return 'nip'
+  if (normalized.includes('moniepoint')) return 'moniepoint'
+  if (normalized.includes('interswitch')) return 'interswitch'
+  if (normalized.includes('paystack')) return 'paystack'
   if (normalized.includes('manual')) return 'manual-review'
   return normalized.replace(/[^a-z0-9]+/g, '-')
 }
