@@ -343,7 +343,8 @@ function openFirstFailure() {
         </span>
         <span class="active-work-strip__meta">
           <small>{{ item.case.route }}</small>
-          <small>{{ item.case.owner }} / {{ item.case.age }}</small>
+          <small>Customer owner: {{ item.case.staffAssignment?.staffName ?? item.case.owner }}</small>
+          <small>{{ item.case.age }} / {{ item.case.staffAssignment?.assignmentRule ?? queueLabel(item.case) }}</small>
         </span>
         <HealthBadge :state="item.case.state" />
       </button>

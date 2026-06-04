@@ -1,11 +1,19 @@
 import { countryIdentities, providerIdentities } from './identity'
-import type { DashboardMock, HealthState, UiScenario } from '../types'
+import type { DashboardMock, HealthState, IncomingInstruction, StaffAssignment, UiScenario } from '../types'
+
+const bankStaffOwners = [
+  { staffName: 'Tola Adeyemi', staffRole: 'Customer Success Officer', team: 'Digital Payments Care' },
+  { staffName: 'Chidinma Okafor', staffRole: 'Senior Customer Success Officer', team: 'Settlement Care' },
+  { staffName: 'Ibrahim Bello', staffRole: 'Customer Success Officer', team: 'Branch Escalations' },
+  { staffName: 'Miriam Eze', staffRole: 'Customer Success Lead', team: 'High Value Transfers' },
+]
 
 const baseDashboard = (): DashboardMock => ({
   scenario: 'degraded-ria',
   viewState: 'ready',
   providerIdentities: Object.values(providerIdentities),
   countryIdentities: Object.values(countryIdentities),
+  staffAssignments: [],
   summary: {
     globalHealth: '84.6%',
     valueToday: '$18.4M',
@@ -1734,5 +1742,84 @@ export const getDashboardMock = (scenario: UiScenario = 'degraded'): DashboardMo
     }
   }
 
+  applyAutomaticStaffAssignments(dashboard)
+
   return dashboard
+}
+
+function applyAutomaticStaffAssignments(dashboard: DashboardMock) {
+  const assignments = dashboard.incomingInstructions
+    .filter(needsAutomaticCustomerOwner)
+    .map((instruction) => buildStaffAssignment(instruction))
+  const byReference = new Map(assignments.map((assignment) => [assignment.instructionReference, assignment]))
+
+  dashboard.staffAssignments = assignments
+  dashboard.incomingInstructions = dashboard.incomingInstructions.map((instruction) => {
+    const assignment = byReference.get(instruction.reference)
+    return assignment ? { ...instruction, owner: assignment.staffName, staffAssignment: assignment } : instruction
+  })
+  dashboard.remediationCases = dashboard.remediationCases.map((item) => {
+    const assignment = byReference.get(item.instructionReference)
+    return assignment ? { ...item, owner: assignment.staffName, staffAssignment: assignment } : item
+  })
+  dashboard.auditEvents = [
+    ...assignments.map((assignment) => ({
+      time: assignment.assignedAt,
+      actor: 'Assignment rules',
+      action: 'Customer owner assigned',
+      object: assignment.instructionReference,
+      reason: `${assignment.staffName} assigned for ${assignment.assignmentRule}.`,
+      state: assignment.state,
+    })),
+    ...dashboard.auditEvents,
+  ]
+}
+
+function needsAutomaticCustomerOwner(instruction: IncomingInstruction) {
+  return (
+    ['sla_breached', 'cooldown', 'requerying', 'outcome_uncertain', 'manual_remediation', 'reversal_pending', 'failed_safe', 'failed_unsafe'].includes(
+      instruction.currentState,
+    ) ||
+    instruction.outcomeConfidence === 'safe_failed' ||
+    instruction.outcomeConfidence === 'unsafe_failed' ||
+    instruction.outcomeConfidence === 'uncertain'
+  )
+}
+
+function buildStaffAssignment(instruction: IncomingInstruction): StaffAssignment {
+  const value = parseNgn(instruction.valueAtRisk || instruction.amount)
+  const staff =
+    value >= 3_000_000
+      ? bankStaffOwners[3]
+      : instruction.currentState === 'reversal_pending' || instruction.outcomeConfidence === 'safe_failed'
+        ? bankStaffOwners[1]
+        : instruction.currentState === 'requerying' || instruction.currentState === 'cooldown'
+          ? bankStaffOwners[2]
+          : bankStaffOwners[0]
+  const assignmentRule = assignmentRuleFor(instruction)
+
+  return {
+    id: `ASG-${instruction.reference}`,
+    sourceTable: 'staff_case_assignments',
+    instructionReference: instruction.reference,
+    staffName: staff.staffName,
+    staffRole: staff.staffRole,
+    team: staff.team,
+    assignedAt: '14:32:18 UTC',
+    assignmentRule,
+    responsibility: 'Own customer follow-up, evidence chase, status update, and closure handoff until the transaction is resolved.',
+    state: instruction.state,
+  }
+}
+
+function assignmentRuleFor(instruction: IncomingInstruction) {
+  if (instruction.currentState === 'reversal_pending' || instruction.outcomeConfidence === 'safe_failed') return 'failed-safe reversal'
+  if (instruction.currentState === 'requerying') return 'timed-out transfer with requery running'
+  if (instruction.currentState === 'cooldown' || instruction.currentState === 'sla_breached') return 'timed-out transfer in cooldown'
+  if (instruction.outcomeConfidence === 'unsafe_failed' || instruction.currentState === 'manual_remediation') return 'failed transfer with unresolved customer value'
+  return 'uncertain transfer outcome'
+}
+
+function parseNgn(value: string) {
+  return Number(value.replace(/[^\d.]/g, '')) || 0
 }

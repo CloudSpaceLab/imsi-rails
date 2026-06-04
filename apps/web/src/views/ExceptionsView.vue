@@ -194,7 +194,7 @@ function submitSelectedAction() {
             </span>
             <span>
               <strong>{{ item.valueAtRisk }}</strong>
-              <small>{{ item.age }} / duplicate risk {{ item.duplicateRisk }}</small>
+              <small>{{ item.staffAssignment?.staffName ?? item.owner }} / {{ item.age }} / duplicate risk {{ item.duplicateRisk }}</small>
             </span>
             <HealthBadge :state="item.state" />
           </button>
@@ -219,12 +219,20 @@ function submitSelectedAction() {
             </button>
           </div>
 
+          <aside v-if="selectedException.staffAssignment" class="owner-assignment-card">
+            <strong>Customer owner: {{ selectedException.staffAssignment.staffName }}</strong>
+            <span>{{ selectedException.staffAssignment.staffRole }} / {{ selectedException.staffAssignment.team }}</span>
+            <span>{{ selectedException.staffAssignment.assignmentRule }}</span>
+            <small>{{ selectedException.staffAssignment.responsibility }}</small>
+          </aside>
+
           <section v-if="exceptionTab === 'summary'" class="flow-tab-panel">
             <dl class="metric-grid">
               <div><dt>Value</dt><dd>{{ selectedException.valueAtRisk }}</dd></div>
               <div><dt>Age</dt><dd>{{ selectedException.age }}</dd></div>
               <div><dt>Duplicate risk</dt><dd>{{ selectedException.duplicateRisk }}</dd></div>
-              <div><dt>Owner</dt><dd>{{ selectedException.owner }}</dd></div>
+              <div><dt>Customer owner</dt><dd>{{ selectedException.staffAssignment?.staffName ?? selectedException.owner }}</dd></div>
+              <div><dt>Assignment</dt><dd>{{ selectedException.staffAssignment?.assignmentRule ?? 'Manual queue assignment' }}</dd></div>
             </dl>
             <aside class="state-note">
               <ShieldAlert :size="16" aria-hidden="true" />

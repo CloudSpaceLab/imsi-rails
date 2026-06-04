@@ -84,6 +84,13 @@ describe('inbound settlement tower workflows', () => {
     expect(dashboard.requeryAttempts.length).toBeGreaterThan(0)
     expect(dashboard.requeryAttempts.every((attempt) => attempt.trigger === 'automatic')).toBe(true)
     expect(dashboard.remediationCases.every((item) => item.requeryMethod && item.automaticAttempts <= item.maxAutomaticAttempts)).toBe(true)
+    expect(dashboard.staffAssignments.map((item) => item.sourceTable)).toEqual(
+      expect.arrayContaining(['staff_case_assignments']),
+    )
+    expect(dashboard.remediationCases.every((item) => item.staffAssignment?.staffName && item.owner === item.staffAssignment.staffName)).toBe(true)
+    expect(dashboard.incomingInstructions.find((item) => item.reference === 'INF-10002')?.staffAssignment?.assignmentRule).toBe(
+      'failed transfer with unresolved customer value',
+    )
     expect(dashboard.incomingInstructions.find((item) => item.currentState === 'cooldown')?.safeAction).toContain('Freeze duplicate action')
     expect(dashboard.requeryAttempts.find((attempt) => attempt.instructionReference === 'INF-10003' && attempt.completedAt === '-')?.result).toBe('Due now')
     expect(dashboard.routeDecisions.find((item) => item.instructionReference === 'INF-10002')?.rejectedRoutes.length).toBeGreaterThan(0)
@@ -146,6 +153,7 @@ describe('inbound settlement tower workflows', () => {
     expect(wrapper.text()).toContain('Moniepoint')
     expect(wrapper.text()).toContain('41s')
     expect(wrapper.text()).toContain('0.3% timeout')
+    expect(wrapper.text()).toContain('Customer owner: Miriam Eze')
     expect(wrapper.text()).toContain('Paystack')
     expect(wrapper.text()).toContain('Interswitch final leg')
     expect(wrapper.text()).toContain('Hellenic Remit (Greece)')
@@ -241,6 +249,8 @@ describe('inbound settlement tower workflows', () => {
     expect(wrapper.text()).toContain('Settlement batch')
     expect(wrapper.text()).toContain('Safe action')
     expect(wrapper.text()).toContain('Do not reroute')
+    expect(wrapper.text()).toContain('Miriam Eze')
+    expect(wrapper.text()).toContain('High Value Transfers')
 
     await wrapper.findAll('.detail-tabs button').find((button) => button.text().includes('Route decision'))?.trigger('click')
     await flushPromises()
@@ -273,6 +283,9 @@ describe('inbound settlement tower workflows', () => {
 
     expect(wrapper.text()).toContain('Case detail')
     expect(wrapper.text()).toContain('Attach evidence')
+    expect(wrapper.text()).toContain('Customer owner')
+    expect(wrapper.text()).toContain('Miriam Eze')
+    expect(wrapper.text()).toContain('failed transfer with unresolved customer value')
     expect(wrapper.text()).not.toContain('Mark completed outside platform')
     expect(wrapper.text()).toContain('Evidence and reason are required before')
     const submitButton = () => wrapper.findAll('button').find((button) => button.text().includes('Submit action'))

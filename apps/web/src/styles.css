@@ -650,6 +650,32 @@ svg {
   background: rgba(16, 24, 40, 0.025);
 }
 
+.owner-assignment-card {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(10, 102, 255, 0.22);
+  border-radius: var(--radius-sm);
+  background: rgba(10, 102, 255, 0.055);
+}
+
+.owner-assignment-card strong,
+.owner-assignment-card span,
+.owner-assignment-card small {
+  overflow-wrap: anywhere;
+}
+
+.owner-assignment-card span {
+  color: var(--text);
+  font-weight: 750;
+}
+
+.owner-assignment-card small {
+  color: var(--muted);
+}
+
 .analytics-strip {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));

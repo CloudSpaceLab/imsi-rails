@@ -157,7 +157,10 @@ function openRouteContext() {
                 <td data-label="Route">{{ inflow.route }}<small class="muted-line">{{ inflow.amount }}</small></td>
                 <td data-label="SLA"><strong>{{ finalLegStateLabels[inflow.currentState] }}</strong><small class="muted-line">Deadline {{ inflow.slaDeadline }}</small></td>
                 <td data-label="Outcome"><HealthBadge :state="confidenceState(inflow.outcomeConfidence)" :trigger="outcomeConfidenceLabels[inflow.outcomeConfidence]" /></td>
-                <td data-label="Next step">{{ inflow.owner }}<small class="muted-line">{{ inflow.safeAction }}</small></td>
+                <td data-label="Next step">
+                  {{ inflow.staffAssignment?.staffName ?? inflow.owner }}
+                  <small class="muted-line">{{ inflow.safeAction }}</small>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -190,9 +193,15 @@ function openRouteContext() {
               <div><dt>Partner</dt><dd>{{ selectedInflow.origin }}</dd></div>
               <div><dt>Settlement batch</dt><dd>{{ selectedInflow.settlementBatch }}</dd></div>
               <div><dt>SLA state</dt><dd>{{ finalLegStateLabels[selectedInflow.currentState] }}</dd></div>
-              <div><dt>Owner</dt><dd>{{ selectedInflow.owner }}</dd></div>
+              <div><dt>Customer owner</dt><dd>{{ selectedInflow.staffAssignment?.staffName ?? selectedInflow.owner }}</dd></div>
+              <div><dt>Assignment</dt><dd>{{ selectedInflow.staffAssignment?.assignmentRule ?? 'No customer owner required' }}</dd></div>
               <div><dt>Outcome</dt><dd>{{ outcomeConfidenceLabels[selectedInflow.outcomeConfidence] }}</dd></div>
             </dl>
+            <aside v-if="selectedInflow.staffAssignment" class="owner-assignment-card">
+              <strong>{{ selectedInflow.staffAssignment.staffName }}</strong>
+              <span>{{ selectedInflow.staffAssignment.staffRole }} / {{ selectedInflow.staffAssignment.team }}</span>
+              <small>{{ selectedInflow.staffAssignment.responsibility }}</small>
+            </aside>
             <div class="detail-status-rail">
               <article><strong>{{ selectedContract?.partner ?? selectedInflow.origin }}</strong><small>{{ selectedContract?.corridor ?? selectedInflow.destination }}</small></article>
               <article><strong>{{ selectedAccount?.availableLimit ?? '-' }}</strong><small>Standing account availability</small></article>
@@ -309,7 +318,12 @@ function openRouteContext() {
           <article>
             <span>Safe action</span>
             <strong>{{ selectedInflow.safeAction }}</strong>
-            <small>{{ selectedInflow.owner }} owns the next step.</small>
+            <small>{{ selectedInflow.staffAssignment?.staffName ?? selectedInflow.owner }} owns customer follow-up and closure handoff.</small>
+          </article>
+          <article v-if="selectedInflow.staffAssignment">
+            <span>Customer owner</span>
+            <strong>{{ selectedInflow.staffAssignment.staffName }}</strong>
+            <small>{{ selectedInflow.staffAssignment.assignmentRule }} / auto-assigned {{ selectedInflow.staffAssignment.assignedAt }}</small>
           </article>
           <article>
             <span>Linked work</span>

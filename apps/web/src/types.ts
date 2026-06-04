@@ -810,6 +810,19 @@ export type OutcomeConfidence =
   | 'safe_failed'
   | 'unsafe_failed'
 
+export type StaffAssignment = {
+  id: string
+  sourceTable: 'staff_case_assignments'
+  instructionReference: string
+  staffName: string
+  staffRole: string
+  team: string
+  assignedAt: string
+  assignmentRule: string
+  responsibility: string
+  state: HealthState
+}
+
 export type IncomingInstruction = {
   reference: string
   partnerReference: string
@@ -827,6 +840,7 @@ export type IncomingInstruction = {
   outcomeConfidence: OutcomeConfidence
   route: string
   owner: string
+  staffAssignment?: StaffAssignment
   safeAction: string
   valueAtRisk: string
   state: HealthState
@@ -911,6 +925,7 @@ export type RemediationCase = {
   evidenceGap: string
   nextAction: string
   owner: string
+  staffAssignment?: StaffAssignment
   makerChecker: string
   makerCheckerState: 'not_required' | 'maker_required' | 'checker_pending' | 'approved' | 'rejected'
   safeClosure: string
@@ -1007,4 +1022,5 @@ export type DashboardMock = {
   routeHealthWindows: RouteHealthWindow[]
   integrationHealth: IntegrationHealth[]
   caseActionSteps: CaseActionStep[]
+  staffAssignments: StaffAssignment[]
 }
