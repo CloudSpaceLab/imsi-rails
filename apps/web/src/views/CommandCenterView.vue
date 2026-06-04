@@ -57,9 +57,16 @@ const localProviderTone = computed<HealthState>(() => {
 })
 const localProviderAnswer = computed(() => `${workingLocalRoutes.value.length}/${localRoutes.value.length}`)
 const localProviderSummary = computed(() =>
-  bestLocalProvider.value
-    ? `${bestLocalProvider.value.rail} leads NIP, Interswitch, and Paystack at ${bestLocalProvider.value.p95CreditTime} P95 / ${bestLocalProvider.value.timeoutRate} timeout.`
-    : 'No local provider telemetry is available.',
+  bestLocalProvider.value ? 'Current provider window' : 'No local provider telemetry is available.',
+)
+const providerQuickStats = computed(() =>
+  providerPerformanceRows.value.slice(0, 4).map((routeRow) => ({
+    label: routeRow.rail,
+    p95: routeRow.p95CreditTime,
+    timeout: routeRow.timeoutRate,
+    openCases: routeRow.openCases,
+    isBest: routeRow.route === bestLocalProvider.value?.route,
+  })),
 )
 
 const failingPartnerSlas = computed(() => props.dashboard.inboundSla.filter((row) => row.state === 'degraded' || row.state === 'blocked'))
@@ -135,6 +142,7 @@ const signalItems = computed(() => [
     label: 'Local providers working',
     value: localProviderAnswer.value,
     detail: localProviderSummary.value,
+    stats: providerQuickStats.value,
     tone: localProviderTone.value,
     icon: FileCheck2,
     action: () => openPath('/routes', { focus: 'provider-performance' }),
@@ -301,7 +309,14 @@ function openFirstFailure() {
           <small>{{ item.label }}</small>
           <strong>{{ item.value }}</strong>
         </span>
-        <p>{{ item.detail }}</p>
+        <div v-if="item.stats?.length" class="ops-signal__stats" aria-label="Local provider quick stats">
+          <span v-for="stat in item.stats" :key="stat.label" :class="{ 'is-best': stat.isBest }">
+            <small>{{ stat.label }}</small>
+            <strong>{{ stat.p95 }}</strong>
+            <em>{{ stat.timeout }} timeout / {{ stat.openCases }} open</em>
+          </span>
+        </div>
+        <p v-else>{{ item.detail }}</p>
       </button>
     </section>
 
