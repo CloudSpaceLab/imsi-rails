@@ -1,18 +1,21 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { FileCheck2, GitBranch, Landmark, ListChecks, Network, SlidersHorizontal, TimerReset, ToggleRight } from '@lucide/vue'
+import { FileCheck2, GitBranch, KeyRound, Landmark, ListChecks, Network, SlidersHorizontal, TimerReset, ToggleRight, UserCircle } from '@lucide/vue'
 import DataTable from '../components/DataTable.vue'
 import HealthBadge from '../components/HealthBadge.vue'
 import Panel from '../components/Panel.vue'
+import UiButton from '../components/UiButton.vue'
 import { standingMeterWidth } from '../composables/useInboundTower'
 import { useTowerRouting } from '../composables/useTowerRouting'
-import type { DashboardMock, FeatureSwitchKey } from '../types'
+import { changePassword } from '../services/authApi'
+import type { DashboardMock, FeatureSwitchKey, SessionUser, SlaPolicy } from '../types'
 
-export type SettingsTab = 'contracts' | 'sla' | 'integrations' | 'switches' | 'audit'
+export type SettingsTab = 'contracts' | 'sla' | 'integrations' | 'switches' | 'audit' | 'profile'
 
 const props = defineProps<{
   dashboard: DashboardMock
   initialTab?: SettingsTab
+  sessionUser?: SessionUser | null
 }>()
 
 const { route, openPath } = useTowerRouting()
@@ -23,7 +26,23 @@ const settingTabs = [
   { id: 'integrations' as SettingsTab, label: 'Integrations', icon: Network },
   { id: 'switches' as SettingsTab, label: 'Feature controls', icon: ToggleRight },
   { id: 'audit' as SettingsTab, label: 'Audit', icon: FileCheck2 },
+  { id: 'profile' as SettingsTab, label: 'Profile', icon: UserCircle },
 ]
+const selectedSlaId = ref(props.dashboard.slaPolicies[0]?.id ?? '')
+const slaDraft = ref({
+  duration: props.dashboard.slaPolicies[0]?.duration ?? '',
+  cooldownWindow: props.dashboard.slaPolicies[0]?.cooldownWindow ?? '',
+  lateSuccessWindow: props.dashboard.slaPolicies[0]?.lateSuccessWindow ?? '',
+})
+const slaMessage = ref('')
+const passwordForm = ref({ current: '', next: '', confirm: '' })
+const passwordBusy = ref(false)
+const passwordMessage = ref('')
+const passwordError = ref('')
+
+const selectedSla = computed(() => props.dashboard.slaPolicies.find((policy) => policy.id === selectedSlaId.value) ?? props.dashboard.slaPolicies[0] ?? null)
+const userRoles = computed(() => props.sessionUser?.roles.join(', ') || 'No role assigned')
+const permissionSummary = computed(() => `${props.sessionUser?.permissions.length ?? 0} permissions`)
 
 watch(
   () => props.initialTab,
@@ -61,8 +80,70 @@ function setSettingsTab(tab: SettingsTab) {
 }
 
 function normalizeSettingsTab(value: unknown): SettingsTab | null {
-  return value === 'contracts' || value === 'sla' || value === 'integrations' || value === 'switches' || value === 'audit' ? value : null
+  return value === 'contracts' || value === 'sla' || value === 'integrations' || value === 'switches' || value === 'audit' || value === 'profile'
+    ? value
+    : null
 }
+
+function syncSlaDraft(policy: SlaPolicy | null) {
+  slaDraft.value = {
+    duration: policy?.duration ?? '',
+    cooldownWindow: policy?.cooldownWindow ?? '',
+    lateSuccessWindow: policy?.lateSuccessWindow ?? '',
+  }
+}
+
+function appendAudit(action: string, object: string, reason: string) {
+  props.dashboard.auditEvents.unshift({
+    time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    actor: props.sessionUser?.display_name ?? 'Operations Admin',
+    action,
+    object,
+    reason,
+    state: 'recovery',
+  })
+}
+
+function saveSlaPolicy() {
+  const policy = selectedSla.value
+  if (!policy) return
+  policy.duration = slaDraft.value.duration.trim() || policy.duration
+  policy.cooldownWindow = slaDraft.value.cooldownWindow.trim() || policy.cooldownWindow
+  policy.lateSuccessWindow = slaDraft.value.lateSuccessWindow.trim() || policy.lateSuccessWindow
+  policy.state = 'recovery'
+  slaMessage.value = `${policy.name} updated. Audit event captured.`
+  appendAudit('SLA policy updated', policy.id, `${policy.duration} SLA / ${policy.cooldownWindow} cooldown / ${policy.lateSuccessWindow} late-success window`)
+}
+
+async function submitPasswordChange() {
+  passwordError.value = ''
+  passwordMessage.value = ''
+  if (!passwordForm.value.current || !passwordForm.value.next || !passwordForm.value.confirm) {
+    passwordError.value = 'Current password, new password, and confirmation are required.'
+    return
+  }
+  if (passwordForm.value.next.length < 12) {
+    passwordError.value = 'New password must be at least 12 characters.'
+    return
+  }
+  if (passwordForm.value.next !== passwordForm.value.confirm) {
+    passwordError.value = 'New password and confirmation do not match.'
+    return
+  }
+  passwordBusy.value = true
+  try {
+    await changePassword(passwordForm.value.current, passwordForm.value.next)
+    passwordForm.value = { current: '', next: '', confirm: '' }
+    passwordMessage.value = 'Password updated. Audit event captured.'
+    appendAudit('Password changed', props.sessionUser?.username ?? 'current user', 'User changed own password from profile settings')
+  } catch (error) {
+    passwordError.value = error instanceof Error ? error.message : 'Password change failed'
+  } finally {
+    passwordBusy.value = false
+  }
+}
+
+watch(selectedSla, (policy) => syncSlaDraft(policy), { immediate: true })
 </script>
 
 <template>
@@ -130,7 +211,34 @@ function normalizeSettingsTab(value: unknown): SettingsTab | null {
           </article>
         </div>
       </Panel>
-      <Panel title="Backoff policy" eyebrow="Route-specific requery" accent="healthy" class="span-6">
+      <Panel title="Edit SLA policy" eyebrow="Administrator controlled" accent="recovery" class="span-6">
+        <div class="form-grid">
+          <label>
+            <span>Policy</span>
+            <select v-model="selectedSlaId" aria-label="SLA policy to edit">
+              <option v-for="policy in dashboard.slaPolicies" :key="policy.id" :value="policy.id">{{ policy.name }}</option>
+            </select>
+          </label>
+          <label>
+            <span>Credit SLA</span>
+            <input v-model="slaDraft.duration" aria-label="Credit SLA duration" placeholder="90s" />
+          </label>
+          <label>
+            <span>Cooldown window</span>
+            <input v-model="slaDraft.cooldownWindow" aria-label="Cooldown window" placeholder="15m" />
+          </label>
+          <label>
+            <span>Late-success window</span>
+            <input v-model="slaDraft.lateSuccessWindow" aria-label="Late success window" placeholder="30m" />
+          </label>
+          <aside v-if="slaMessage" class="state-note state-note--success">
+            <FileCheck2 :size="16" aria-hidden="true" />
+            <span>{{ slaMessage }}</span>
+          </aside>
+          <UiButton @click="saveSlaPolicy">Save SLA change</UiButton>
+        </div>
+      </Panel>
+      <Panel title="Backoff policy" eyebrow="Route-specific requery" accent="healthy" class="span-12">
         <div class="policy-stack">
           <article v-for="policy in dashboard.backoffPolicies" :key="policy.id">
             <HealthBadge :state="policy.state" />
@@ -208,6 +316,52 @@ function normalizeSettingsTab(value: unknown): SettingsTab | null {
             <small>{{ hiddenFeatureCopy.providerCommercialScorecards }}</small>
           </article>
         </div>
+      </Panel>
+    </section>
+
+    <section v-else-if="settingsTab === 'profile'" class="dashboard-grid">
+      <Panel title="Current user profile" eyebrow="Signed-in operator" accent="healthy" class="span-5">
+        <div class="profile-card">
+          <UserCircle :size="28" aria-hidden="true" />
+          <span>
+            <strong>{{ sessionUser?.display_name ?? 'Unknown user' }}</strong>
+            <small>{{ sessionUser?.email ?? 'No email on file' }}</small>
+          </span>
+          <dl class="definition-list">
+            <div><dt>Bank ID</dt><dd>{{ sessionUser?.bank_id ?? '-' }}</dd></div>
+            <div><dt>Username</dt><dd>{{ sessionUser?.username ?? '-' }}</dd></div>
+            <div><dt>Roles</dt><dd>{{ userRoles }}</dd></div>
+            <div><dt>Access</dt><dd>{{ permissionSummary }}</dd></div>
+            <div><dt>Auth provider</dt><dd>{{ sessionUser?.auth_provider ?? '-' }}</dd></div>
+          </dl>
+        </div>
+      </Panel>
+
+      <Panel title="Change password" eyebrow="Account security" accent="watch" class="span-7">
+        <form class="form-grid" @submit.prevent="submitPasswordChange">
+          <label>
+            <span>Current password</span>
+            <input v-model="passwordForm.current" type="password" autocomplete="current-password" aria-label="Current password" />
+          </label>
+          <label>
+            <span>New password</span>
+            <input v-model="passwordForm.next" type="password" autocomplete="new-password" aria-label="New password" />
+          </label>
+          <label>
+            <span>Confirm new password</span>
+            <input v-model="passwordForm.confirm" type="password" autocomplete="new-password" aria-label="Confirm new password" />
+          </label>
+          <small>Minimum 12 characters. This action is recorded in the audit trail.</small>
+          <p v-if="passwordError" class="form-error">{{ passwordError }}</p>
+          <aside v-if="passwordMessage" class="state-note state-note--success">
+            <KeyRound :size="16" aria-hidden="true" />
+            <span>{{ passwordMessage }}</span>
+          </aside>
+          <UiButton :disabled="passwordBusy" @click="submitPasswordChange">
+            <KeyRound :size="15" aria-hidden="true" />
+            Update password
+          </UiButton>
+        </form>
       </Panel>
     </section>
 

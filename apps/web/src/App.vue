@@ -71,7 +71,7 @@ watch(
 watch(
   () => route.query.tab,
   (tab) => {
-    if (tab === 'contracts' || tab === 'sla' || tab === 'integrations' || tab === 'switches' || tab === 'audit') settingsTab.value = tab
+    if (tab === 'contracts' || tab === 'sla' || tab === 'integrations' || tab === 'switches' || tab === 'audit' || tab === 'profile') settingsTab.value = tab
   },
   { immediate: true },
 )
@@ -175,6 +175,9 @@ function openSettingsTab(tab: SettingsTab) {
           </select>
         </label>
         <small>{{ sessionUser.display_name }} / ops console</small>
+        <button type="button" class="sidebar-link" @click="openSettingsTab('profile')">
+          Profile and password
+        </button>
         <button type="button" class="sidebar-link" @click="signOut">
           <LogOut :size="13" aria-hidden="true" />
           Sign out
@@ -197,11 +200,11 @@ function openSettingsTab(tab: SettingsTab) {
         </template>
       </PageHeader>
 
-      <CommandCenterView v-if="activeScreen === 'command'" :dashboard="dashboard" />
+      <CommandCenterView v-if="activeScreen === 'command'" :dashboard="dashboard" :actor-name="actorName" />
       <InflowsView v-else-if="activeScreen === 'inflows'" :dashboard="dashboard" />
       <RoutesView v-else-if="activeScreen === 'routes'" :dashboard="dashboard" @settings-tab="openSettingsTab" />
       <ExceptionsView v-else-if="activeScreen === 'exceptions'" :dashboard="dashboard" :actor-name="actorName" />
-      <SettingsView v-else :dashboard="dashboard" :initial-tab="settingsTab" />
+      <SettingsView v-else :dashboard="dashboard" :initial-tab="settingsTab" :session-user="sessionUser" />
     </main>
   </div>
 </template>

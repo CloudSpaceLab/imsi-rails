@@ -69,6 +69,18 @@ export async function logout() {
   await fetch(`${API_BASE}/v1/auth/logout`, { method: 'POST', credentials: 'include' })
 }
 
+export async function changePassword(currentPassword: string, nextPassword: string) {
+  if (useMock) return { updated_at: new Date().toISOString() }
+  const response = await fetch(`${API_BASE}/v1/auth/password`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ current_password: currentPassword, new_password: nextPassword }),
+  })
+  if (!response.ok) throw new Error('Password change failed')
+  return (await response.json()) as { updated_at: string }
+}
+
 export function hasPermission(user: SessionUser | null, permission: Permission) {
   return Boolean(user?.permissions.includes(permission))
 }

@@ -136,6 +136,8 @@ describe('inbound settlement tower workflows', () => {
     expect(wrapper.text()).toContain('International partner SLAs')
     expect(wrapper.text()).toContain('SLA completion trend')
     expect(wrapper.text()).toContain('Exception mix')
+    expect(wrapper.text()).toContain('SLA controls')
+    expect(wrapper.text()).toContain('Provider traffic controls')
     expect(wrapper.text()).toContain('8-hour window')
     expect(wrapper.text()).toContain('Switching API telemetry')
     expect(wrapper.text()).toContain('Transactions and middleware calls to fix')
@@ -149,6 +151,10 @@ describe('inbound settlement tower workflows', () => {
     expect(wrapper.text()).toContain('Hellenic Remit (Greece)')
     expect(wrapper.text()).toContain('Work exceptions')
     expect(wrapper.text()).toContain('Do not reroute')
+
+    await wrapper.findAll('button').find((button) => button.text().includes('Deactivate'))?.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('deactivated for new eligible traffic')
   })
 
   it('launches focused queues from command center cards', async () => {
@@ -400,6 +406,17 @@ describe('inbound settlement tower workflows', () => {
     wrapper.unmount()
     wrapper = await mountApp('/settings?tab=audit')
     expect(wrapper.text()).toContain('Audit trail and exports')
+
+    wrapper.unmount()
+    wrapper = await mountApp('/settings?tab=profile')
+    expect(wrapper.text()).toContain('Current user profile')
+    expect(wrapper.text()).toContain('Change password')
+    await wrapper.get('input[aria-label="Current password"]').setValue('admin123')
+    await wrapper.get('input[aria-label="New password"]').setValue('LongEnough123')
+    await wrapper.get('input[aria-label="Confirm new password"]').setValue('LongEnough123')
+    await wrapper.findAll('button').find((button) => button.text().includes('Update password'))?.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Password updated')
   })
 
   it('keeps advanced modules behind feature switches', async () => {

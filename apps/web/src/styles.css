@@ -3031,11 +3031,26 @@ tbody tr:hover,
 .account-stack,
 .policy-stack,
 .switch-list,
+.profile-card,
 .feature-preview,
 .guardrail-grid,
 .audit-preview {
   display: grid;
   gap: 12px;
+}
+
+.profile-card {
+  align-content: start;
+}
+
+.profile-card > svg {
+  color: var(--brand);
+}
+
+.profile-card > span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
 }
 
 .exception-support-panel {
@@ -4388,14 +4403,16 @@ tbody tr:hover,
 }
 
 .repair-worklist,
-.switching-check-list {
+.switching-check-list,
+.provider-control-list {
   display: grid;
   gap: 8px;
 }
 
 .repair-ticket,
 .switching-check-list article,
-.switching-brief {
+.switching-brief,
+.provider-control-list article {
   min-width: 0;
   display: grid;
   gap: 10px;
@@ -4411,6 +4428,43 @@ tbody tr:hover,
   grid-template-columns: minmax(122px, 0.58fr) minmax(220px, 1fr) minmax(120px, 0.42fr) auto;
   align-items: center;
   cursor: pointer;
+}
+
+.control-form-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(100px, 0.48fr) minmax(100px, 0.48fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.control-form-grid label {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.control-form-grid label > span {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.provider-control-list article {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  padding: 11px;
+}
+
+.provider-control-list article > span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.provider-control-list strong,
+.provider-control-list small {
+  overflow-wrap: anywhere;
 }
 
 .repair-ticket:hover {
@@ -4774,6 +4828,7 @@ tbody tr:hover,
   .control-summary-layout,
   .control-signal-grid,
   .control-lead-metrics,
+  .control-form-grid,
   .credit-command-grid,
   .analytics-strip,
   .volume-command-grid,
@@ -4799,6 +4854,7 @@ tbody tr:hover,
   .provider-operating-row,
   .partner-sla-list button,
   .route-health-strip button,
+  .provider-control-list article,
   .remediation-queue button,
   .backoff-ladder li,
   .attempt-list article,
@@ -4956,6 +5012,7 @@ tbody tr:hover,
   .provider-operating-row dl,
   .provider-operating-row .health-badge,
   .active-work-strip .health-badge,
+  .provider-control-list article .health-badge,
   .partner-sla-list dl,
   .partner-sla-list button > small,
   .partner-sla-list .health-badge,

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { AlertTriangle, ArrowRight, BadgeCheck, CheckCircle2, FileCheck2, Network, RefreshCw, ShieldAlert, WifiOff } from '@lucide/vue'
+import { computed, ref, watch } from 'vue'
+import { AlertTriangle, ArrowRight, BadgeCheck, CheckCircle2, FileCheck2, Network, Power, RefreshCw, ShieldAlert, TimerReset, WifiOff } from '@lucide/vue'
 import ActionBar from '../components/ActionBar.vue'
 import DashboardChart from '../components/DashboardChart.vue'
 import HealthBadge from '../components/HealthBadge.vue'
@@ -13,6 +13,7 @@ import type { DashboardMock, HealthState, IncomingInstruction, RemediationCase, 
 
 const props = defineProps<{
   dashboard: DashboardMock
+  actorName?: string
 }>()
 
 const {
@@ -22,6 +23,12 @@ const {
   valueAtRiskTotal,
 } = useCommandCenter(props.dashboard)
 const { activate, openPath, openInflow, openException, openRoute } = useTowerRouting()
+const selectedSlaId = ref(props.dashboard.slaPolicies[0]?.id ?? '')
+const slaDraft = ref({
+  duration: props.dashboard.slaPolicies[0]?.duration ?? '',
+  cooldownWindow: props.dashboard.slaPolicies[0]?.cooldownWindow ?? '',
+})
+const controlMessage = ref('')
 
 const unavailableStates = new Set<HealthState>(['degraded', 'blocked', 'stale', 'unknown'])
 const activeFailureStates = new Set(['failed_safe', 'failed_unsafe', 'reversal_pending'])
@@ -179,6 +186,7 @@ const providerRows = computed(() =>
       isPressured: routeRow.route === mostPressuredProvider.value?.route,
     })),
 )
+const selectedSlaPolicy = computed(() => props.dashboard.slaPolicies.find((policy) => policy.id === selectedSlaId.value) ?? props.dashboard.slaPolicies[0] ?? null)
 const partnerSlaRows = computed(() =>
   [...props.dashboard.inboundSla].sort((a, b) => stateOrder(a.state) - stateOrder(b.state) || b.agingBreaches - a.agingBreaches),
 )
@@ -286,6 +294,48 @@ function openFirstFailure() {
   if (item) openInflow(item.reference)
   else activate('inflows')
 }
+
+function appendAudit(action: string, object: string, reason: string, state: HealthState = 'recovery') {
+  props.dashboard.auditEvents.unshift({
+    time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    actor: props.actorName ?? 'Operations Admin',
+    action,
+    object,
+    reason,
+    state,
+  })
+}
+
+function saveDashboardSla() {
+  const policy = selectedSlaPolicy.value
+  if (!policy) return
+  policy.duration = slaDraft.value.duration.trim() || policy.duration
+  policy.cooldownWindow = slaDraft.value.cooldownWindow.trim() || policy.cooldownWindow
+  policy.state = 'recovery'
+  controlMessage.value = `${policy.name} updated for new monitoring windows.`
+  appendAudit('Dashboard SLA update', policy.id, `${policy.duration} SLA / ${policy.cooldownWindow} cooldown`)
+}
+
+function toggleProvider(routeRow: RoutePenalty) {
+  const disabling = routeRow.state !== 'blocked'
+  routeRow.state = disabling ? 'blocked' : 'watch'
+  routeRow.penaltyReason = disabling ? 'Provider deactivated for new eligible traffic by operations.' : 'Provider reactivated for controlled new traffic.'
+  routeRow.trafficSplit = disabling ? '0% new eligible traffic' : 'Controlled recovery traffic only'
+  controlMessage.value = `${routeRow.rail} ${disabling ? 'deactivated' : 'reactivated'} for new eligible traffic.`
+  appendAudit(
+    disabling ? 'Provider deactivated' : 'Provider reactivated',
+    routeRow.route,
+    disabling ? 'New eligible traffic blocked from this provider' : 'Provider reopened for controlled new eligible traffic',
+    disabling ? 'degraded' : 'recovery',
+  )
+}
+
+watch(selectedSlaPolicy, (policy) => {
+  slaDraft.value = {
+    duration: policy?.duration ?? '',
+    cooldownWindow: policy?.cooldownWindow ?? '',
+  }
+}, { immediate: true })
 </script>
 
 <template>
@@ -377,6 +427,51 @@ function openFirstFailure() {
           summary="Failed, cooldown, requerying, and manual queue cases in the current window."
           @drilldown="openPath('/exceptions', { queue: 'all', focus: 'failed' })"
         />
+      </Panel>
+    </section>
+
+    <section class="ops-workbench-grid ops-workbench-grid--balanced">
+      <Panel title="SLA controls" eyebrow="Applies to new monitoring windows" accent="recovery">
+        <div class="control-form-grid">
+          <label>
+            <span>SLA policy</span>
+            <select v-model="selectedSlaId" aria-label="Dashboard SLA policy">
+              <option v-for="policy in dashboard.slaPolicies" :key="policy.id" :value="policy.id">{{ policy.name }}</option>
+            </select>
+          </label>
+          <label>
+            <span>Credit SLA</span>
+            <input v-model="slaDraft.duration" aria-label="Dashboard credit SLA" placeholder="90s" />
+          </label>
+          <label>
+            <span>Cooldown</span>
+            <input v-model="slaDraft.cooldownWindow" aria-label="Dashboard cooldown window" placeholder="15m" />
+          </label>
+          <UiButton @click="saveDashboardSla">
+            <TimerReset :size="15" aria-hidden="true" />
+            Save SLA
+          </UiButton>
+        </div>
+        <aside v-if="controlMessage" class="state-note state-note--success">
+          <FileCheck2 :size="16" aria-hidden="true" />
+          <span>{{ controlMessage }}</span>
+        </aside>
+      </Panel>
+
+      <Panel title="Provider traffic controls" eyebrow="New eligible transfers only" :accent="localProviderTone">
+        <div class="provider-control-list">
+          <article v-for="row in providerRows" :key="row.route.route">
+            <span>
+              <strong>{{ row.route.rail }}</strong>
+              <small>{{ row.route.route }} / {{ row.route.trafficSplit }}</small>
+            </span>
+            <HealthBadge :state="row.route.state" :trigger="row.route.penaltyReason" />
+            <UiButton :variant="row.route.state === 'blocked' ? 'secondary' : 'danger'" size="sm" @click="toggleProvider(row.route)">
+              <Power :size="14" aria-hidden="true" />
+              {{ row.route.state === 'blocked' ? 'Reactivate' : 'Deactivate' }}
+            </UiButton>
+          </article>
+        </div>
       </Panel>
     </section>
 
