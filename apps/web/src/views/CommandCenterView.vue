@@ -159,7 +159,17 @@ const signalItems = computed(() => [
 ])
 
 const repairQueue = computed(() => [...openRemediationCases.value].sort((a, b) => casePriority(a) - casePriority(b)))
-const activeWorkItems = computed(() => repairQueue.value.slice(0, 3))
+const activeWorkItems = computed(() =>
+  repairQueue.value.slice(0, 3).map((item) => {
+    const instruction = props.dashboard.incomingInstructions.find((inflow) => inflow.reference === item.instructionReference)
+    return {
+      case: item,
+      beneficiary: instruction?.beneficiary ?? item.instructionReference,
+      account: instruction ? `${instruction.destinationBank} / ${instruction.beneficiaryAccount}` : item.route,
+      amount: instruction?.amount ?? item.valueAtRisk,
+    }
+  }),
+)
 const providerRows = computed(() =>
   providerPerformanceRows.value
     .map((routeRow) => ({
@@ -266,7 +276,7 @@ function queueLabel(item: RemediationCase) {
 function workStatus(item: RemediationCase) {
   if (item.makerCheckerState === 'checker_pending') return 'Checker pending'
   if (item.queue === 'requerying' || item.automationStatus === 'running') return 'Requery running'
-  if (item.queue === 'reversal') return 'Reversal ready'
+  if (item.queue === 'reversal') return 'Reversal approval'
   if (item.state === 'degraded') return 'Needs evidence'
   return 'Route degraded'
 }
@@ -321,20 +331,21 @@ function openFirstFailure() {
     </section>
 
     <section class="active-work-strip" aria-label="Active repair work">
-      <button v-for="item in activeWorkItems" :key="item.id" type="button" @click="openException(item.instructionReference)">
-        <span>
-          <small>{{ workStatus(item) }}</small>
-          <strong>{{ item.instructionReference }}</strong>
+      <button v-for="item in activeWorkItems" :key="item.case.id" type="button" @click="openException(item.case.instructionReference)">
+        <span class="active-work-strip__identity">
+          <small>{{ workStatus(item.case) }} / {{ item.case.instructionReference }}</small>
+          <strong>{{ item.beneficiary }}</strong>
+          <small>{{ item.account }}</small>
         </span>
-        <span>
-          <strong>{{ item.owner }}</strong>
-          <small>{{ item.route }} / {{ item.age }}</small>
+        <span class="active-work-strip__action">
+          <strong>{{ item.amount }}</strong>
+          <small>{{ item.case.nextAction }}</small>
         </span>
-        <span>
-          <strong>{{ item.valueAtRisk }}</strong>
-          <small>{{ item.nextAction }}</small>
+        <span class="active-work-strip__meta">
+          <small>{{ item.case.route }}</small>
+          <small>{{ item.case.owner }} / {{ item.case.age }}</small>
         </span>
-        <HealthBadge :state="item.state" />
+        <HealthBadge :state="item.case.state" />
       </button>
     </section>
 

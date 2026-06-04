@@ -117,7 +117,7 @@ function openRouteContext() {
         </div>
       </Panel>
 
-      <Panel title="Credit proof lanes" eyebrow="Outcome confidence by final-leg state" accent="watch">
+      <Panel title="Repair queues" eyebrow="Grouped by next operations action" accent="watch">
         <div class="proof-lane-grid">
           <button v-for="lane in proofLanes" :key="lane.id" type="button" :class="`proof-lane proof-lane--${lane.state}`" @click="lane.items[0] && openInflow(lane.items[0].reference)">
             <span>{{ lane.label }}</span>
@@ -127,7 +127,7 @@ function openRouteContext() {
         </div>
       </Panel>
 
-      <Panel title="Incoming instructions" eyebrow="Final-leg evidence queue" accent="watch">
+      <Panel title="Incoming transfers" eyebrow="Search by reference, beneficiary, bank, route, or amount" accent="watch">
         <DataTable :empty="filteredInflows.length === 0" empty-title="No active inflows" empty-description="No incoming instruction matches the selected monitoring filter.">
           <table class="compact-table">
             <thead>
@@ -137,7 +137,7 @@ function openRouteContext() {
                 <th>Route</th>
                 <th>SLA</th>
                 <th>Outcome</th>
-                <th>Owner</th>
+                <th>Next step</th>
               </tr>
             </thead>
             <tbody>
@@ -157,7 +157,7 @@ function openRouteContext() {
                 <td data-label="Route">{{ inflow.route }}<small class="muted-line">{{ inflow.amount }}</small></td>
                 <td data-label="SLA"><strong>{{ finalLegStateLabels[inflow.currentState] }}</strong><small class="muted-line">Deadline {{ inflow.slaDeadline }}</small></td>
                 <td data-label="Outcome"><HealthBadge :state="confidenceState(inflow.outcomeConfidence)" :trigger="outcomeConfidenceLabels[inflow.outcomeConfidence]" /></td>
-                <td data-label="Owner">{{ inflow.owner }}<small class="muted-line">{{ inflow.safeAction }}</small></td>
+                <td data-label="Next step">{{ inflow.owner }}<small class="muted-line">{{ inflow.safeAction }}</small></td>
               </tr>
             </tbody>
           </table>

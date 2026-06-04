@@ -188,42 +188,42 @@ export function useInflows(dashboard: DashboardMock, selectedReference: Ref<stri
   const proofLanes = computed(() => [
     {
       id: 'proved',
-      label: 'Proof captured',
+      label: 'Credited and matched',
       state: 'healthy' as HealthState,
       items: dashboard.incomingInstructions.filter((item) => ['credited', 'reconciled'].includes(item.currentState)),
-      empty: 'No proven credits',
+      empty: 'No matched credits',
     },
     {
       id: 'cooldown',
-      label: 'Cooldown watch',
+      label: 'Wait before requery',
       state: 'watch' as HealthState,
       items: dashboard.incomingInstructions.filter((item) => ['cooldown', 'sla_breached'].includes(item.currentState)),
-      empty: 'No cooldown items',
+      empty: 'No waiting items',
     },
     {
       id: 'requery',
-      label: 'Requery active',
+      label: 'Requery running',
       state: 'watch' as HealthState,
       items: dashboard.incomingInstructions.filter((item) => item.currentState === 'requerying'),
-      empty: 'No requerying credits',
+      empty: 'No requery running',
     },
     {
       id: 'manual-proof',
-      label: 'Manual proof',
+      label: 'Needs evidence',
       state: 'degraded' as HealthState,
       items: dashboard.incomingInstructions.filter((item) =>
         ['manual_remediation', 'outcome_uncertain', 'failed_unsafe'].includes(item.currentState),
       ),
-      empty: 'No manual proof queue',
+      empty: 'No evidence queue',
     },
     {
       id: 'reversal',
-      label: 'Reversal ready',
+      label: 'Reversal approval',
       state: 'recovery' as HealthState,
       items: dashboard.incomingInstructions.filter((item) =>
         ['reversal_pending', 'failed_safe', 'completed_outside_platform'].includes(item.currentState),
       ),
-      empty: 'No reversals pending',
+      empty: 'No reversal approvals',
     },
   ])
   const filteredInflows = computed(() => {
@@ -356,7 +356,7 @@ export function useRemediationQueue(dashboard: DashboardMock, selectedReference:
     },
     {
       id: 'requery_active',
-      label: 'Requery active',
+      label: 'Requery running',
       state: 'watch' as HealthState,
       items: dashboard.remediationCases.filter((item) => item.queue === 'requerying' || item.automationStatus === 'running'),
     },
@@ -370,7 +370,7 @@ export function useRemediationQueue(dashboard: DashboardMock, selectedReference:
     },
     {
       id: 'reversal_ready',
-      label: 'Reversal ready',
+      label: 'Reversal approval',
       state: 'watch' as HealthState,
       items: dashboard.remediationCases.filter((item) => item.queue === 'reversal'),
     },

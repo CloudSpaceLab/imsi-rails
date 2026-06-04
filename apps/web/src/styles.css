@@ -689,9 +689,10 @@ svg {
   min-width: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px 12px;
+  gap: 10px 12px;
   align-items: start;
-  padding: 14px;
+  min-height: 154px;
+  padding: 15px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: rgba(255, 255, 255, 0.82);
@@ -711,6 +712,44 @@ svg {
 .active-work-strip small {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.active-work-strip__identity,
+.active-work-strip__action,
+.active-work-strip__meta {
+  display: grid;
+  gap: 4px;
+}
+
+.active-work-strip__identity {
+  grid-column: 1;
+}
+
+.active-work-strip__identity strong {
+  font-size: var(--fs-lg);
+  line-height: 1.16;
+}
+
+.active-work-strip__action {
+  grid-column: 1 / -1;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(16, 24, 40, 0.025);
+}
+
+.active-work-strip__action strong {
+  font-family: var(--font-data);
+  font-size: var(--fs-md);
+}
+
+.active-work-strip__meta {
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.active-work-strip .health-badge {
+  justify-self: end;
 }
 
 .active-work-strip dl {
@@ -4916,6 +4955,7 @@ tbody tr:hover,
 
   .provider-operating-row dl,
   .provider-operating-row .health-badge,
+  .active-work-strip .health-badge,
   .partner-sla-list dl,
   .partner-sla-list button > small,
   .partner-sla-list .health-badge,
@@ -4923,6 +4963,10 @@ tbody tr:hover,
     grid-column: 1 / -1;
     grid-row: auto;
     justify-self: start;
+  }
+
+  .active-work-strip__meta {
+    grid-template-columns: 1fr;
   }
 
   .provider-operating-row .provider-mark,
