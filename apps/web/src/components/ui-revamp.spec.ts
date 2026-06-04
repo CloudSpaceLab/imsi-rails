@@ -136,8 +136,8 @@ describe('inbound settlement tower workflows', () => {
     expect(wrapper.text()).toContain('International partner SLAs')
     expect(wrapper.text()).toContain('SLA completion trend')
     expect(wrapper.text()).toContain('Exception mix')
-    expect(wrapper.text()).toContain('SLA controls')
-    expect(wrapper.text()).toContain('Provider traffic controls')
+    expect(wrapper.text()).not.toContain(`SLA ${'controls'}`)
+    expect(wrapper.text()).not.toContain('Provider traffic controls')
     expect(wrapper.text()).toContain('8-hour window')
     expect(wrapper.text()).toContain('Switching API telemetry')
     expect(wrapper.text()).toContain('Transactions and middleware calls to fix')
@@ -151,10 +151,6 @@ describe('inbound settlement tower workflows', () => {
     expect(wrapper.text()).toContain('Hellenic Remit (Greece)')
     expect(wrapper.text()).toContain('Work exceptions')
     expect(wrapper.text()).toContain('Do not reroute')
-
-    await wrapper.findAll('button').find((button) => button.text().includes('Deactivate'))?.trigger('click')
-    await flushPromises()
-    expect(wrapper.text()).toContain('deactivated for new eligible traffic')
   })
 
   it('launches focused queues from command center cards', async () => {
@@ -396,7 +392,11 @@ describe('inbound settlement tower workflows', () => {
     let wrapper = await mountApp('/settings?tab=integrations')
 
     expect(wrapper.text()).toContain('Switching API and provider endpoints')
+    expect(wrapper.text()).toContain('Provider traffic controls')
     expect(wrapper.findAll('.settings-tabs button').find((button) => button.text().includes('Integrations'))?.classes()).toContain('is-selected')
+    await wrapper.findAll('button').find((button) => button.text().includes('Deactivate'))?.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('0% new eligible traffic')
 
     wrapper.unmount()
     wrapper = await mountApp('/settings?tab=sla')

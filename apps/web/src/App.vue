@@ -200,7 +200,7 @@ function openSettingsTab(tab: SettingsTab) {
         </template>
       </PageHeader>
 
-      <CommandCenterView v-if="activeScreen === 'command'" :dashboard="dashboard" :actor-name="actorName" />
+      <CommandCenterView v-if="activeScreen === 'command'" :dashboard="dashboard" />
       <InflowsView v-else-if="activeScreen === 'inflows'" :dashboard="dashboard" />
       <RoutesView v-else-if="activeScreen === 'routes'" :dashboard="dashboard" @settings-tab="openSettingsTab" />
       <ExceptionsView v-else-if="activeScreen === 'exceptions'" :dashboard="dashboard" :actor-name="actorName" />

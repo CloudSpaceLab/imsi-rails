@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { FileCheck2, GitBranch, KeyRound, Landmark, ListChecks, Network, SlidersHorizontal, TimerReset, ToggleRight, UserCircle } from '@lucide/vue'
+import { FileCheck2, GitBranch, KeyRound, Landmark, ListChecks, Network, Power, SlidersHorizontal, TimerReset, ToggleRight, UserCircle } from '@lucide/vue'
 import DataTable from '../components/DataTable.vue'
 import HealthBadge from '../components/HealthBadge.vue'
 import Panel from '../components/Panel.vue'
@@ -8,7 +8,7 @@ import UiButton from '../components/UiButton.vue'
 import { standingMeterWidth } from '../composables/useInboundTower'
 import { useTowerRouting } from '../composables/useTowerRouting'
 import { changePassword } from '../services/authApi'
-import type { DashboardMock, FeatureSwitchKey, SessionUser, SlaPolicy } from '../types'
+import type { DashboardMock, FeatureSwitchKey, HealthState, RoutePenalty, SessionUser, SlaPolicy } from '../types'
 
 export type SettingsTab = 'contracts' | 'sla' | 'integrations' | 'switches' | 'audit' | 'profile'
 
@@ -43,6 +43,11 @@ const passwordError = ref('')
 const selectedSla = computed(() => props.dashboard.slaPolicies.find((policy) => policy.id === selectedSlaId.value) ?? props.dashboard.slaPolicies[0] ?? null)
 const userRoles = computed(() => props.sessionUser?.roles.join(', ') || 'No role assigned')
 const permissionSummary = computed(() => `${props.sessionUser?.permissions.length ?? 0} permissions`)
+const providerControlRows = computed(() =>
+  [...props.dashboard.routePenalties]
+    .filter((routeRow) => routeRow.route !== 'Fidelity core')
+    .sort((a, b) => a.penaltyScore - b.penaltyScore),
+)
 
 watch(
   () => props.initialTab,
@@ -93,14 +98,14 @@ function syncSlaDraft(policy: SlaPolicy | null) {
   }
 }
 
-function appendAudit(action: string, object: string, reason: string) {
+function appendAudit(action: string, object: string, reason: string, state: HealthState = 'recovery') {
   props.dashboard.auditEvents.unshift({
     time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
     actor: props.sessionUser?.display_name ?? 'Operations Admin',
     action,
     object,
     reason,
-    state: 'recovery',
+    state,
   })
 }
 
@@ -141,6 +146,19 @@ async function submitPasswordChange() {
   } finally {
     passwordBusy.value = false
   }
+}
+
+function toggleProvider(routeRow: RoutePenalty) {
+  const disabling = routeRow.state !== 'blocked'
+  routeRow.state = disabling ? 'blocked' : 'watch'
+  routeRow.penaltyReason = disabling ? 'Provider deactivated for new eligible traffic by administrator.' : 'Provider reactivated for controlled new traffic.'
+  routeRow.trafficSplit = disabling ? '0% new eligible traffic' : 'Controlled recovery traffic only'
+  appendAudit(
+    disabling ? 'Provider deactivated' : 'Provider reactivated',
+    routeRow.route,
+    disabling ? 'New eligible traffic blocked from this provider in Settings' : 'Provider reopened for controlled new eligible traffic in Settings',
+    disabling ? 'degraded' : 'recovery',
+  )
 }
 
 watch(selectedSla, (policy) => syncSlaDraft(policy), { immediate: true })
@@ -282,6 +300,21 @@ watch(selectedSla, (policy) => syncSlaDraft(policy), { immediate: true })
             </tbody>
           </table>
         </DataTable>
+      </Panel>
+      <Panel title="Provider traffic controls" eyebrow="New eligible transfers only" accent="watch" class="span-12">
+        <div class="provider-control-list">
+          <article v-for="row in providerControlRows" :key="row.route">
+            <span>
+              <strong>{{ row.rail }}</strong>
+              <small>{{ row.route }} / {{ row.trafficSplit }}</small>
+            </span>
+            <HealthBadge :state="row.state" :trigger="row.penaltyReason" />
+            <UiButton :variant="row.state === 'blocked' ? 'secondary' : 'danger'" size="sm" @click="toggleProvider(row)">
+              <Power :size="14" aria-hidden="true" />
+              {{ row.state === 'blocked' ? 'Reactivate' : 'Deactivate' }}
+            </UiButton>
+          </article>
+        </div>
       </Panel>
     </section>
 
