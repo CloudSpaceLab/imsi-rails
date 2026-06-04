@@ -31,14 +31,15 @@ const { route, openPath, activate, openRoute, openInflow, openException } = useT
 const selectedRouteId = computed(() => (typeof route.params.routeId === 'string' ? route.params.routeId : ''))
 const routeTab = computed<RouteDetailTab>(() => (routeTabs.some((tab) => tab.id === route.query.tab) ? (route.query.tab as RouteDetailTab) : 'overview'))
 const { routePenalties, selectedRoutePenalty } = useRouteHealth(props.dashboard, selectedRouteId)
-const providerRankings = computed(() => [...props.dashboard.providerScores].sort((a, b) => a.rank - b.rank))
-const bestProvider = computed(() => providerRankings.value[0] ?? null)
-const worstProvider = computed(() => providerRankings.value[providerRankings.value.length - 1] ?? null)
-const providerBoardAccent = computed(() => worstProvider.value?.state ?? 'healthy')
 const externalRoutes = computed(() => routePenalties.value.filter((routeRow) => routeRow.route !== 'Fidelity core'))
+const localRailScorecards = computed(() => [...externalRoutes.value].sort((a, b) => a.penaltyScore - b.penaltyScore))
 const lowestPenaltyExternalRoute = computed(
   () => [...externalRoutes.value].sort((a, b) => a.penaltyScore - b.penaltyScore)[0] ?? routePenalties.value[routePenalties.value.length - 1] ?? null,
 )
+const highestPressureExternalRoute = computed(
+  () => [...externalRoutes.value].sort((a, b) => b.penaltyScore - a.penaltyScore)[0] ?? null,
+)
+const routeBoardAccent = computed(() => highestPressureExternalRoute.value?.state ?? 'healthy')
 const routeTrafficControls = computed(() =>
   routePenalties.value
     .map((routeRow) => {
@@ -98,40 +99,40 @@ function setRouteTab(tab: RouteDetailTab) {
 <template>
   <section class="screen-stack">
     <section class="dashboard-grid">
-      <Panel title="Payment provider scorecards" eyebrow="Best/worst by credit proof telemetry" :accent="providerBoardAccent" class="span-8">
-        <div class="provider-ranking-list provider-ranking-list--routes" aria-label="Payment provider ranking">
-          <button v-for="provider in providerRankings" :key="provider.provider" type="button" @click="activate('inflows')">
-            <span class="provider-rank-badge">#{{ provider.rank }}</span>
-            <ProviderMark :provider="provider.provider" show-name show-category />
+      <Panel title="Local settlement rail scorecards" eyebrow="Current final-leg performance" :accent="routeBoardAccent" class="span-8">
+        <div class="provider-ranking-list provider-ranking-list--routes" aria-label="Local settlement rail ranking">
+          <button v-for="(routeRow, index) in localRailScorecards" :key="routeRow.route" type="button" @click="openRoute(routeRow)">
+            <span class="provider-rank-badge">#{{ index + 1 }}</span>
+            <ProviderMark :provider="routeRow.route" show-name />
             <dl>
-              <div><dt>Success</dt><dd>{{ provider.successRate }}</dd></div>
-              <div><dt>P95</dt><dd>{{ provider.p95 }}</dd></div>
-              <div><dt>Stuck</dt><dd>{{ provider.stuckRate }}</dd></div>
-              <div><dt>Cases</dt><dd>{{ provider.settlementExceptions }}</dd></div>
+              <div><dt>P95</dt><dd>{{ routeRow.p95CreditTime }}</dd></div>
+              <div><dt>Timeout</dt><dd>{{ routeRow.timeoutRate }}</dd></div>
+              <div><dt>Open</dt><dd>{{ routeRow.openCases }}</dd></div>
+              <div><dt>Pressure</dt><dd>{{ routeRow.penaltyScore }}</dd></div>
             </dl>
-            <HealthBadge :state="provider.state" :trigger="`${provider.trafficShare} traffic`" />
+            <HealthBadge :state="routeRow.state" :trigger="routeRow.trafficSplit" />
           </button>
         </div>
       </Panel>
 
-      <Panel title="Traffic instruction" eyebrow="Provider routing stance" :accent="worstProvider?.state ?? 'healthy'" class="span-4">
+      <Panel title="Traffic instruction" eyebrow="Local rail stance" :accent="highestPressureExternalRoute?.state ?? 'healthy'" class="span-4">
         <div class="next-action-card">
-          <HealthBadge :state="bestProvider?.state ?? 'healthy'" :trigger="bestProvider ? `${bestProvider.provider} leads` : 'No leader' " />
-          <h3>Prefer {{ bestProvider?.provider ?? 'healthy providers' }} for new payouts</h3>
+          <HealthBadge :state="lowestPenaltyExternalRoute?.state ?? 'healthy'" :trigger="lowestPenaltyExternalRoute ? `${lowestPenaltyExternalRoute.rail} leads` : 'No leader' " />
+          <h3>Prefer {{ lowestPenaltyExternalRoute?.rail ?? 'healthy rails' }} for eligible new transfers</h3>
           <p>
-            {{ bestProvider?.provider ?? 'The leading provider' }} is currently strongest on success and P95 credit proof.
-            Keep {{ worstProvider?.provider ?? 'degraded providers' }} under watch until stuck rate and settlement exceptions recover.
+            {{ lowestPenaltyExternalRoute?.rail ?? 'The leading rail' }} has the lowest route pressure in this window.
+            Keep {{ highestPressureExternalRoute?.rail ?? 'pressured rails' }} contained until timeout and open-case pressure recover.
           </p>
           <div class="decision-callouts">
             <article>
-              <span>Best route signal</span>
-              <strong>{{ bestProvider?.successRate ?? '-' }} success</strong>
-              <small>{{ bestProvider?.p95 ?? '-' }} P95 / {{ bestProvider?.trafficShare ?? '0%' }} traffic</small>
+              <span>Best local rail</span>
+              <strong>{{ lowestPenaltyExternalRoute?.rail ?? '-' }}</strong>
+              <small>{{ lowestPenaltyExternalRoute?.p95CreditTime ?? '-' }} P95 / {{ lowestPenaltyExternalRoute?.timeoutRate ?? '-' }} timeout</small>
             </article>
             <article class="is-risk">
-              <span>Provider to contain</span>
-              <strong>{{ worstProvider?.provider ?? 'None' }}</strong>
-              <small>{{ worstProvider?.stuckRate ?? '0%' }} stuck / {{ worstProvider?.settlementExceptions ?? 0 }} exceptions</small>
+              <span>Rail to contain</span>
+              <strong>{{ highestPressureExternalRoute?.rail ?? 'None' }}</strong>
+              <small>{{ highestPressureExternalRoute?.timeoutRate ?? '0%' }} timeout / {{ highestPressureExternalRoute?.openCases ?? 0 }} open cases</small>
             </article>
           </div>
         </div>

@@ -38,7 +38,7 @@ const navigation = [
 const screenDescriptions: Record<ScreenId, string> = {
   command: 'Failed transfers, provider performance, partner SLA breaches, and API telemetry.',
   inflows: 'Trace each inbound instruction from partner receipt through final-leg evidence and customer value proof.',
-  routes: 'Compare provider and rail pressure before shifting new traffic or freezing a degraded endpoint.',
+  routes: 'Compare final-leg rail pressure before shifting eligible new transfers or containing a degraded endpoint.',
   exceptions: 'Control unresolved credits with evidence-first requery, manual completion, and reversal workflows.',
   settings: 'Manage contracts, standing accounts, SLA/backoff policy, feature rollout, and audit evidence.',
 }

@@ -56,9 +56,9 @@ describe('premium dashboard primitives', () => {
     })
     expect(empty.text()).toContain('No settlement breaks')
 
-    const provider = mount(ProviderMark, { props: { provider: 'Thunes', showCategory: true } })
-    expect(provider.text()).toContain('Thunes')
-    expect(provider.text()).toContain('B2B payout network')
+    const provider = mount(ProviderMark, { props: { provider: 'Moniepoint final leg', showCategory: true } })
+    expect(provider.text()).toContain('Moniepoint')
+    expect(provider.text()).toContain('Local payout rail')
 
     const country = mount(CountryPair, { props: { origin: 'Germany', destination: 'Nigeria' } })
     expect(country.text()).toContain('Germany')
@@ -351,7 +351,11 @@ describe('inbound settlement tower workflows', () => {
     const wrapper = await mountApp('/routes')
 
     expect(wrapper.text()).toContain('Route matrix')
-    expect(wrapper.text()).toContain('Payment provider scorecards')
+    expect(wrapper.text()).toContain('Local settlement rail scorecards')
+    expect(wrapper.text()).not.toContain('Thunes')
+    expect(wrapper.text()).not.toContain('Remitly')
+    expect(wrapper.text()).not.toContain('PAPSS')
+    expect(wrapper.text()).not.toContain('Ria')
     expect(wrapper.text()).toContain('Traffic instruction')
     expect(wrapper.text()).toContain('Route traffic controls')
     expect(wrapper.text()).toContain('Maintain direct credits')
