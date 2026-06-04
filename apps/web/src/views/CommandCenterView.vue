@@ -274,8 +274,8 @@ function queueLabel(item: RemediationCase) {
 }
 
 function workStatus(item: RemediationCase) {
-  if (item.makerCheckerState === 'checker_pending') return 'Checker pending'
-  if (item.queue === 'requerying' || item.automationStatus === 'running') return 'Requery running'
+  if (item.makerCheckerState === 'checker_pending') return 'Closure approval'
+  if (item.queue === 'requerying' || item.automationStatus === 'running') return 'Status check running'
   if (item.queue === 'reversal') return 'Reversal approval'
   if (item.state === 'degraded') return 'Needs evidence'
   return 'Route degraded'

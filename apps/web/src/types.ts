@@ -895,6 +895,22 @@ export type RequeryAttempt = {
   state: HealthState
 }
 
+export type ProviderEscalation = {
+  id: string
+  sourceTable: 'provider_escalations'
+  instructionReference: string
+  provider: string
+  channel: 'email' | 'provider_portal' | 'api_ticket'
+  recipient: string
+  triggerAfter: string
+  status: 'not_due' | 'ready_to_send' | 'sent' | 'acknowledged'
+  lastSentAt: string
+  nextEscalationAt: string
+  templateSubject: string
+  requiredEvidence: string[]
+  state: HealthState
+}
+
 export type OutcomeEvidence = {
   instructionReference: string
   type: 'partner_callback' | 'rail_session' | 'ledger_posting' | 'settlement_batch' | 'operator_note' | 'audit_event'
@@ -926,6 +942,10 @@ export type RemediationCase = {
   nextAction: string
   owner: string
   staffAssignment?: StaffAssignment
+  statusRetrievalPlan: string[]
+  escalationAfter: string
+  duplicatePaymentGuard: string
+  providerEscalation?: ProviderEscalation
   makerChecker: string
   makerCheckerState: 'not_required' | 'maker_required' | 'checker_pending' | 'approved' | 'rejected'
   safeClosure: string
@@ -1013,6 +1033,7 @@ export type DashboardMock = {
   slaPolicies: SlaPolicy[]
   backoffPolicies: BackoffPolicy[]
   requeryAttempts: RequeryAttempt[]
+  providerEscalations: ProviderEscalation[]
   outcomeEvidence: OutcomeEvidence[]
   remediationCases: RemediationCase[]
   routePenalties: RoutePenalty[]

@@ -907,21 +907,21 @@ const baseDashboard = (): DashboardMock => ({
       callbackLag: '38s',
       lastCallbackAt: '14:08:55 UTC',
       postingAttempts: 1,
-      makerCheckerStatus: 'Maker submitted',
-      nextAction: 'Checker approval required before partner return',
+      makerCheckerStatus: 'Closure approval submitted',
+      nextAction: 'Closure approval required before partner return',
       owner: 'Operations desk',
       blocker: 'Beneficiary account closed - reversal to partner pending',
       riskFlags: ['Customer not credited', 'Funds in suspense'],
       evidence: [
         { label: 'Credit rejection', reference: 'FMNY-RET-44091', status: 'Received', owner: 'Fairmoney API', state: 'watch' },
         { label: 'Suspense ledger hold', reference: 'SUSP-7742', status: 'Open', owner: 'Operations desk', state: 'watch' },
-        { label: 'Checker approval', reference: 'REV-44091', status: 'Pending', owner: 'Ops Lead', state: 'watch' },
+        { label: 'Closure approval', reference: 'REV-44091', status: 'Pending', owner: 'Ops Lead', state: 'watch' },
       ],
       timeline: [
         { label: 'Funds received from partner', owner: 'Hellenic Remit', status: 'done', time: '13:58:40', source: 'Partner instruction', reference: 'HR-330512' },
         { label: 'Credit posted to MFB', owner: 'Fairmoney API', status: 'done', time: '14:02:10', duration: '3m 30s' },
         { label: 'Credit rejected by MFB', owner: 'Fairmoney API', status: 'done', time: '14:08:55', note: 'Account closed - funds returned to suspense' },
-        { label: 'Reversal to partner', owner: 'Reversal checker', status: 'current', time: '14:12:00', note: 'Awaiting maker-checker on reversal instruction' },
+        { label: 'Reversal to partner', owner: 'Reversal approval', status: 'current', time: '14:12:00', note: 'Awaiting closure approval on reversal instruction' },
       ],
     },
     {
@@ -1284,7 +1284,7 @@ const baseDashboard = (): DashboardMock => ({
       outcomeConfidence: 'safe_failed',
       route: 'Interswitch final leg',
       owner: 'Reversal checker',
-      safeAction: 'Approve reversal after maker-checker confirms no credit occurred.',
+      safeAction: 'Approve reversal after closure approval confirms no credit occurred.',
       valueAtRisk: 'NGN 1,220,000',
       state: 'watch',
     },
@@ -1378,6 +1378,38 @@ const baseDashboard = (): DashboardMock => ({
     { id: 'RQ-INF-10003-01', instructionReference: 'INF-10003', attemptNumber: 1, dueAt: '14:26:41 UTC', completedAt: '14:26:46 UTC', method: 'Moniepoint status API', result: 'Accepted, final callback pending.', trigger: 'automatic', state: 'watch' },
     { id: 'RQ-INF-10003-02', instructionReference: 'INF-10003', attemptNumber: 2, dueAt: '14:29:41 UTC', completedAt: '-', method: 'Provider callback replay', result: 'Due now', trigger: 'automatic', state: 'watch' },
   ],
+  providerEscalations: [
+    {
+      id: 'ESC-INF-10002-NIP',
+      sourceTable: 'provider_escalations',
+      instructionReference: 'INF-10002',
+      provider: 'NIP',
+      channel: 'email',
+      recipient: 'nip-settlement-ops@example.bank',
+      triggerAfter: '15 minutes after accepted session without final status',
+      status: 'ready_to_send',
+      lastSentAt: '-',
+      nextEscalationAt: '14:33:23 UTC',
+      templateSubject: 'Status confirmation required for NIP session NIP-TRF-88421',
+      requiredEvidence: ['Switch reference', 'NIP session reference', 'beneficiary bank', 'amount', 'last status API response'],
+      state: 'degraded',
+    },
+    {
+      id: 'ESC-INF-10003-MONIEPOINT',
+      sourceTable: 'provider_escalations',
+      instructionReference: 'INF-10003',
+      provider: 'Moniepoint',
+      channel: 'email',
+      recipient: 'moniepoint-transfer-support@example.bank',
+      triggerAfter: '10 minutes after final callback remains missing',
+      status: 'not_due',
+      lastSentAt: '-',
+      nextEscalationAt: '14:34:41 UTC',
+      templateSubject: 'Final transfer status required for MPT-TRF-55381',
+      requiredEvidence: ['Switch reference', 'Moniepoint transfer reference', 'status API response', 'callback replay result'],
+      state: 'watch',
+    },
+  ],
   outcomeEvidence: [
     { instructionReference: 'INF-10001', type: 'ledger_posting', label: 'Core ledger posting', reference: 'FID-LED-22091', status: 'Matched', owner: 'Fidelity core', state: 'healthy' },
     { instructionReference: 'INF-10001', type: 'audit_event', label: 'Credit audit event', reference: 'AUD-INF-10001', status: 'Stored', owner: 'Audit trail', state: 'healthy' },
@@ -1410,7 +1442,10 @@ const baseDashboard = (): DashboardMock => ({
       evidenceGap: 'Verified NIP session and suspense ledger evidence',
       nextAction: 'Attach NIP session evidence before closure. Do not reroute.',
       owner: 'Settlement Ops',
-      makerChecker: 'Maker evidence required',
+      statusRetrievalPlan: ['Waited for NIP webhook callback', 'Called NIP status API three times', 'Checked core ledger and suspense', 'Escalate to NIP by email for final written status'],
+      escalationAfter: '15 minutes after accepted NIP session without final status',
+      duplicatePaymentGuard: 'No new credit, reroute, or reversal until NIP status and core ledger search agree.',
+      makerChecker: 'Evidence required before closure',
       makerCheckerState: 'maker_required',
       safeClosure: 'Manual completion needs ledger/session evidence and checker approval because duplicate-credit risk remains high.',
       state: 'degraded',
@@ -1435,6 +1470,9 @@ const baseDashboard = (): DashboardMock => ({
       evidenceGap: 'Final callback or ledger posting',
       nextAction: 'Run provider callback replay.',
       owner: 'Provider callback desk',
+      statusRetrievalPlan: ['Wait for Moniepoint final callback', 'Replay callback listener', 'Call Moniepoint transfer status API', 'Escalate by email if still pending after 10 minutes'],
+      escalationAfter: '10 minutes after callback replay remains pending',
+      duplicatePaymentGuard: 'Keep the instruction locked while accepted status may still settle late.',
       makerChecker: 'Automation active',
       makerCheckerState: 'not_required',
       safeClosure: 'Do not close until Moniepoint callback or ledger posting proves beneficiary credit.',
@@ -1457,12 +1495,15 @@ const baseDashboard = (): DashboardMock => ({
       valueAtRisk: 'NGN 1,220,000',
       age: '24m',
       duplicateRisk: 'Low',
-      evidenceGap: 'Checker approval',
+      evidenceGap: 'Closure approval',
       nextAction: 'Approve reversal to partner.',
       owner: 'Reversal checker',
-      makerChecker: 'Checker approval pending',
+      statusRetrievalPlan: ['Read Interswitch final status API', 'Verify no core ledger posting', 'Record failed-safe evidence before reversal approval'],
+      escalationAfter: 'No escalation needed once failed-safe proof is captured',
+      duplicatePaymentGuard: 'Reversal can proceed only because rail evidence and ledger search show no beneficiary credit.',
+      makerChecker: 'Closure approval pending',
       makerCheckerState: 'checker_pending',
-      safeClosure: 'Safe reversal requires maker-checker approval and final failed-safe rail evidence.',
+      safeClosure: 'Safe reversal requires closure approval and final failed-safe rail evidence.',
       state: 'watch',
     },
   ],
@@ -1470,7 +1511,7 @@ const baseDashboard = (): DashboardMock => ({
     { route: 'Fidelity core', rail: 'Intra-bank', destinationBank: 'Fidelity Bank', p95CreditTime: '12s', timeoutRate: '0.02%', lateSuccessRate: '0.00%', openCases: 0, penaltyScore: 2, penaltyReason: 'No active penalty.', trafficSplit: '100% Fidelity beneficiaries', fallbackOrder: 'No fallback needed', state: 'healthy' },
     { route: 'NIP final leg', rail: 'NIP', destinationBank: 'External banks', p95CreditTime: '4m 18s', timeoutRate: '8.7%', lateSuccessRate: '2.4%', openCases: 4, penaltyScore: 38, penaltyReason: 'Timeouts and ledger/provider status conflict.', trafficSplit: '42% of eligible external traffic', fallbackOrder: 'Moniepoint, Interswitch', state: 'degraded' },
     { route: 'Moniepoint final leg', rail: 'Moniepoint', destinationBank: 'MFBs and wallets', p95CreditTime: '41s', timeoutRate: '0.3%', lateSuccessRate: '0.0%', openCases: 0, penaltyScore: 4, penaltyReason: 'Fastest P95 and no open repair cases in this window.', trafficSplit: '36% of eligible external traffic', fallbackOrder: 'Interswitch, Paystack, NIP', state: 'healthy' },
-    { route: 'Interswitch final leg', rail: 'Interswitch', destinationBank: 'External banks', p95CreditTime: '52s', timeoutRate: '0.9%', lateSuccessRate: '0.1%', openCases: 1, penaltyScore: 12, penaltyReason: 'One failed-safe reversal waiting maker-checker.', trafficSplit: '12% of eligible external traffic', fallbackOrder: 'Moniepoint, Paystack, NIP', state: 'watch' },
+    { route: 'Interswitch final leg', rail: 'Interswitch', destinationBank: 'External banks', p95CreditTime: '52s', timeoutRate: '0.9%', lateSuccessRate: '0.1%', openCases: 1, penaltyScore: 12, penaltyReason: 'One failed-safe reversal waiting closure approval.', trafficSplit: '12% of eligible external traffic', fallbackOrder: 'Moniepoint, Paystack, NIP', state: 'watch' },
     { route: 'Paystack final leg', rail: 'Paystack', destinationBank: 'NUBAN and supported wallets', p95CreditTime: '1m 26s', timeoutRate: '2.1%', lateSuccessRate: '0.4%', openCases: 2, penaltyScore: 20, penaltyReason: 'Transfer callback lag is above the Moniepoint and Interswitch windows.', trafficSplit: '10% of eligible external traffic', fallbackOrder: 'Moniepoint, Interswitch, NIP', state: 'watch' },
   ],
   routeDecisions: [
@@ -1540,7 +1581,7 @@ const baseDashboard = (): DashboardMock => ({
     { id: 'REQ-INF-10002-LEDGER', instructionReference: 'INF-10002', slaPolicyId: 'SLA-NG-ACCT-90', sourceTable: 'outcome_evidence', label: 'Core ledger posting', evidenceType: 'ledger_posting', required: true, capturedReference: 'FBN-LEDGER-SEARCH', status: 'Missing', state: 'degraded' },
     { id: 'REQ-INF-10003-CB', instructionReference: 'INF-10003', slaPolicyId: 'SLA-NG-ACCT-90', sourceTable: 'outcome_evidence', label: 'Final callback', evidenceType: 'partner_callback', required: true, capturedReference: 'MPT-TRF-55381', status: 'Overdue', state: 'watch' },
     { id: 'REQ-INF-10004-RAIL', instructionReference: 'INF-10004', slaPolicyId: 'SLA-NG-ACCT-90', sourceTable: 'outcome_evidence', label: 'Failed-safe rail status', evidenceType: 'rail_session', required: true, capturedReference: 'ISW-55092', status: 'Captured', state: 'healthy' },
-    { id: 'REQ-INF-10004-NOTE', instructionReference: 'INF-10004', slaPolicyId: 'SLA-NG-ACCT-90', sourceTable: 'outcome_evidence', label: 'Checker approval note', evidenceType: 'operator_note', required: true, capturedReference: 'REV-ISW-55092', status: 'Pending checker', state: 'watch' },
+    { id: 'REQ-INF-10004-NOTE', instructionReference: 'INF-10004', slaPolicyId: 'SLA-NG-ACCT-90', sourceTable: 'outcome_evidence', label: 'Closure approval note', evidenceType: 'operator_note', required: true, capturedReference: 'REV-ISW-55092', status: 'Pending approval', state: 'watch' },
   ],
   reconciliationMatches: [
     { instructionReference: 'INF-10002', sourceTable: 'reconciliation_matches', settlementBatch: 'SET-UK-20260519-044', providerFileReference: 'BX-ENG-77118', bankLedgerReference: 'FBN-LEDGER-SEARCH', matchState: 'Break open', mismatchReason: 'Provider file says paid but core ledger posting is missing.', resolvedAt: 'Open', state: 'degraded' },
@@ -1559,14 +1600,14 @@ const baseDashboard = (): DashboardMock => ({
     { id: 'api-switching-core', sourceTable: 'api_health_windows', serviceName: 'Switching API', endpoint: '/v1/transfers', provider: 'INSWITCH', successRate: '99.98%', timeoutRate: '0.02%', p95Latency: '142ms', polling: '15s polling', callbackStatus: 'Current', lastSuccessAt: '14:32:18 UTC', nextAction: 'No action. Telemetry is current.', state: 'healthy' },
     { id: 'provider-nip-status', sourceTable: 'api_health_windows', serviceName: 'NIP status lookup', endpoint: '/nip/session/status', provider: 'NIP', successRate: '91.3%', timeoutRate: '8.7%', p95Latency: '2.8s', polling: '15s polling', callbackStatus: 'Lagging', lastSuccessAt: '14:31:42 UTC', nextAction: 'Keep NIP repair cases in evidence review.', state: 'degraded' },
     { id: 'provider-moniepoint-callback', sourceTable: 'api_health_windows', serviceName: 'Moniepoint callback listener', endpoint: '/callbacks/moniepoint', provider: 'Moniepoint', successRate: '99.7%', timeoutRate: '0.3%', p95Latency: '410ms', polling: 'Replay every 3m', callbackStatus: 'Current', lastSuccessAt: '14:32:16 UTC', nextAction: 'Prefer Moniepoint for eligible new local payouts.', state: 'healthy' },
-    { id: 'provider-interswitch-status', sourceTable: 'api_health_windows', serviceName: 'Interswitch final status', endpoint: '/interswitch/transfers/status', provider: 'Interswitch', successRate: '99.1%', timeoutRate: '0.9%', p95Latency: '620ms', polling: '30s polling', callbackStatus: 'Current', lastSuccessAt: '14:31:59 UTC', nextAction: 'Checker can approve failed-safe reversal with evidence.', state: 'healthy' },
+    { id: 'provider-interswitch-status', sourceTable: 'api_health_windows', serviceName: 'Interswitch final status', endpoint: '/interswitch/transfers/status', provider: 'Interswitch', successRate: '99.1%', timeoutRate: '0.9%', p95Latency: '620ms', polling: '30s polling', callbackStatus: 'Current', lastSuccessAt: '14:31:59 UTC', nextAction: 'Closure approval can proceed with failed-safe evidence.', state: 'healthy' },
     { id: 'provider-paystack-status', sourceTable: 'api_health_windows', serviceName: 'Paystack transfer status', endpoint: '/paystack/transfer/status', provider: 'Paystack', successRate: '97.9%', timeoutRate: '2.1%', p95Latency: '1.2s', polling: '30s polling', callbackStatus: 'Lagging', lastSuccessAt: '14:30:58 UTC', nextAction: 'Keep Paystack behind Moniepoint until callback lag clears.', state: 'watch' },
   ],
   caseActionSteps: [
-    { action: 'attach_evidence', label: 'Attach evidence', queues: ['cooldown', 'requerying', 'exhausted', 'recon_break', 'completed_outside_platform', 'reversal'], duplicateRisk: 'Any', requiresEvidence: true, resultingState: 'Evidence updated', safetyChecklist: ['Evidence reference is specific', 'Reason names source checked', 'No closure action is taken automatically'] },
-    { action: 'manual_requery', label: 'Manual requery', queues: ['requerying', 'exhausted'], duplicateRisk: 'Any', requiresEvidence: true, resultingState: 'Requery running', safetyChecklist: ['Automatic attempts reviewed', 'Provider/rail method selected', 'No duplicate credit action is triggered'] },
-    { action: 'mark_completed_outside_platform', label: 'Mark completed outside platform', queues: ['exhausted', 'recon_break'], duplicateRisk: 'Low', requiresEvidence: true, resultingState: 'Checker pending', safetyChecklist: ['Ledger or session proof shows customer value delivered', 'Settlement batch is linked', 'Checker approval will be required'] },
-    { action: 'approve_reversal', label: 'Approve reversal', queues: ['reversal'], duplicateRisk: 'Low', requiresEvidence: true, resultingState: 'Reversal approved', safetyChecklist: ['Rail confirms no credit occurred', 'Maker note is present', 'Checker approval is captured'] },
+    { action: 'attach_evidence', label: 'Attach evidence', queues: ['cooldown', 'requerying', 'exhausted', 'recon_break', 'completed_outside_platform', 'reversal'], duplicateRisk: 'Any', requiresEvidence: true, resultingState: 'Evidence updated', safetyChecklist: ['Evidence reference is specific', 'Evidence note names source checked', 'No closure action is taken automatically'] },
+    { action: 'manual_requery', label: 'Retry status API', queues: ['requerying', 'exhausted'], duplicateRisk: 'Any', requiresEvidence: true, resultingState: 'Status retry running', safetyChecklist: ['Automatic attempts reviewed', 'Provider/rail method selected', 'No duplicate credit action is triggered'] },
+    { action: 'mark_completed_outside_platform', label: 'Confirm credited outside platform', queues: ['exhausted', 'recon_break'], duplicateRisk: 'Low', requiresEvidence: true, resultingState: 'Closure approval pending', safetyChecklist: ['Ledger or session proof shows customer value delivered', 'Settlement batch is linked', 'Closure approval will be required'] },
+    { action: 'approve_reversal', label: 'Approve reversal', queues: ['reversal'], duplicateRisk: 'Low', requiresEvidence: true, resultingState: 'Reversal approved', safetyChecklist: ['Rail confirms no credit occurred', 'Evidence note is present', 'Closure approval is captured'] },
   ],
 })
 
@@ -1722,6 +1763,7 @@ export const getDashboardMock = (scenario: UiScenario = 'degraded'): DashboardMo
     dashboard.incomingInstructions = []
     dashboard.finalLegAttempts = []
     dashboard.requeryAttempts = []
+    dashboard.providerEscalations = []
     dashboard.outcomeEvidence = []
     dashboard.remediationCases = []
     dashboard.routeDecisions = []
@@ -1754,6 +1796,7 @@ function applyAutomaticStaffAssignments(dashboard: DashboardMock) {
   const byReference = new Map(assignments.map((assignment) => [assignment.instructionReference, assignment]))
 
   dashboard.staffAssignments = assignments
+  dashboard.remediationCases = attachProviderEscalations(dashboard)
   dashboard.incomingInstructions = dashboard.incomingInstructions.map((instruction) => {
     const assignment = byReference.get(instruction.reference)
     return assignment ? { ...instruction, owner: assignment.staffName, staffAssignment: assignment } : instruction
@@ -1773,6 +1816,13 @@ function applyAutomaticStaffAssignments(dashboard: DashboardMock) {
     })),
     ...dashboard.auditEvents,
   ]
+}
+
+function attachProviderEscalations(dashboard: DashboardMock) {
+  return dashboard.remediationCases.map((item) => {
+    const escalation = dashboard.providerEscalations.find((record) => record.instructionReference === item.instructionReference)
+    return escalation ? { ...item, providerEscalation: escalation } : item
+  })
 }
 
 function needsAutomaticCustomerOwner(instruction: IncomingInstruction) {

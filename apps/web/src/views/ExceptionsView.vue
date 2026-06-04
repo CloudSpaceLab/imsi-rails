@@ -19,7 +19,7 @@ const props = defineProps<{
 const exceptionTabs: Array<{ id: ExceptionDetailTab; label: string }> = [
   { id: 'summary', label: 'Case summary' },
   { id: 'evidence', label: 'Evidence gaps' },
-  { id: 'requery', label: 'Backoff/requery' },
+  { id: 'requery', label: 'Status checks' },
   { id: 'closure', label: 'Closure' },
   { id: 'audit', label: 'Audit' },
 ]
@@ -66,6 +66,9 @@ const selectedCaseAudit = computed(() =>
     ? props.dashboard.auditEvents.filter((event) => `${event.object} ${event.reason}`.includes(selectedException.value?.instructionReference ?? ''))
     : [],
 )
+const selectedProviderEscalation = computed(() =>
+  selectedException.value ? props.dashboard.providerEscalations.find((item) => item.instructionReference === selectedException.value?.instructionReference) ?? null : null,
+)
 const allowedActionSteps = computed(() => {
   const item = selectedException.value
   if (!item) return []
@@ -85,8 +88,8 @@ const automationStatusLabels = {
 }
 const makerCheckerStateLabels = {
   not_required: 'Not required',
-  maker_required: 'Maker evidence required',
-  checker_pending: 'Checker pending',
+  maker_required: 'Evidence required before closure',
+  checker_pending: 'Closure approval pending',
   approved: 'Approved',
   rejected: 'Rejected',
 }
@@ -152,7 +155,7 @@ function submitSelectedAction() {
       <KpiTile label="Duplicate-risk watch" :value="dashboard.remediationCases.filter((item) => item.duplicateRisk !== 'Low').length" detail="Evidence attachment only until risk clears" tone="degraded" :icon="ShieldCheck" />
     </section>
 
-    <Panel title="Exception queues" eyebrow="Cooldown, requery, exhausted, recon, reversals" accent="watch">
+    <Panel title="Exception queues" eyebrow="Cooldown, status checks, exhausted, recon, reversals" accent="watch">
       <div class="segmented-group exception-tabs">
         <button v-for="tab in queueTabs" :key="tab.id" type="button" :class="{ 'is-selected': queueFilter === tab.id }" @click="setQueue(tab.id)">
           <strong>{{ tab.label }}</strong>
@@ -161,7 +164,7 @@ function submitSelectedAction() {
       </div>
     </Panel>
 
-    <Panel title="Closure readiness" eyebrow="Evidence, automation, checker, reversal" accent="degraded">
+    <Panel title="Closure readiness" eyebrow="Evidence, status retrieval, approval, reversal" accent="degraded">
       <div class="closure-readiness-grid">
         <button
           v-for="lane in closureReadinessLanes"
@@ -265,10 +268,27 @@ function submitSelectedAction() {
           <section v-else-if="exceptionTab === 'requery'" class="flow-tab-panel">
             <dl class="metric-grid">
               <div><dt>Automatic attempts</dt><dd>{{ selectedException.automaticAttempts }} / {{ selectedException.maxAutomaticAttempts }}</dd></div>
-              <div><dt>Next requery</dt><dd>{{ selectedException.nextRequeryAt }}</dd></div>
-              <div><dt>Automation</dt><dd>{{ automationStatusLabels[selectedException.automationStatus] }}</dd></div>
-              <div><dt>Pending attempt</dt><dd>{{ nextAutomaticAttempt?.dueAt ?? (automationExhausted ? 'Manual only' : 'No pending attempt') }}</dd></div>
+              <div><dt>Next status check</dt><dd>{{ selectedException.nextRequeryAt }}</dd></div>
+              <div><dt>Status retrieval</dt><dd>{{ automationStatusLabels[selectedException.automationStatus] }}</dd></div>
+              <div><dt>Escalate after</dt><dd>{{ selectedException.escalationAfter }}</dd></div>
             </dl>
+            <div class="policy-stack">
+              <article v-for="(step, index) in selectedException.statusRetrievalPlan" :key="step">
+                <HealthBadge
+                  :state="index < selectedException.automaticAttempts ? 'recovery' : index === selectedException.automaticAttempts ? selectedException.state : 'stale'"
+                  :trigger="index < selectedException.automaticAttempts ? 'Done' : index === selectedException.automaticAttempts ? 'Current' : 'Next'"
+                />
+                <span>
+                  <strong>{{ step }}</strong>
+                  <small>{{ index === selectedException.statusRetrievalPlan.length - 1 ? selectedException.escalationAfter : 'No customer debit or second credit is triggered' }}</small>
+                </span>
+              </article>
+            </div>
+            <aside v-if="selectedProviderEscalation" class="owner-assignment-card">
+              <strong>Provider escalation: {{ selectedProviderEscalation.provider }}</strong>
+              <span>{{ selectedProviderEscalation.channel }} / {{ selectedProviderEscalation.recipient }}</span>
+              <small>{{ selectedProviderEscalation.templateSubject }} / next {{ selectedProviderEscalation.nextEscalationAt }}</small>
+            </aside>
             <div class="attempt-list">
               <article v-for="attempt in selectedRequeryAttempts" :key="attempt.id">
                 <span class="attempt-index">#{{ attempt.attemptNumber }}</span>
@@ -281,10 +301,10 @@ function submitSelectedAction() {
 
           <section v-else-if="exceptionTab === 'closure'" class="flow-tab-panel">
             <div class="action-stepper">
-              <article class="action-step"><span>1</span><strong>Choose action</strong><small>{{ selectedActionStep?.resultingState ?? 'No action available' }}</small></article>
-              <article class="action-step"><span>2</span><strong>Attach evidence</strong><small>Reference required</small></article>
-              <article class="action-step"><span>3</span><strong>Record reason</strong><small>Operator note required</small></article>
-              <article class="action-step"><span>4</span><strong>Review checklist</strong><small>Submit audited action</small></article>
+              <article class="action-step"><span>1</span><strong>Choose status action</strong><small>{{ selectedActionStep?.resultingState ?? 'No action available' }}</small></article>
+              <article class="action-step"><span>2</span><strong>Add evidence reference</strong><small>Callback, status API, ledger, or provider email</small></article>
+              <article class="action-step"><span>3</span><strong>Record evidence note</strong><small>What was checked and current status</small></article>
+              <article class="action-step"><span>4</span><strong>Confirm no double payment</strong><small>Closure remains blocked until evidence is enough</small></article>
             </div>
             <div class="action-choice-grid">
               <button v-for="step in allowedActionSteps" :key="step.action" type="button" :class="{ 'is-selected': selectedAction === step.action }" @click="selectedAction = step.action">
@@ -293,8 +313,8 @@ function submitSelectedAction() {
               </button>
             </div>
             <label>
-              <span>Requery method</span>
-              <select v-model="selectedRequeryMethod" aria-label="Requery method" :disabled="selectedAction !== 'manual_requery'">
+              <span>Status/API method</span>
+              <select v-model="selectedRequeryMethod" aria-label="Status API method" :disabled="selectedAction !== 'manual_requery'">
                 <option v-for="method in requeryMethodOptions" :key="method" :value="method">{{ method }}</option>
               </select>
             </label>
@@ -303,8 +323,8 @@ function submitSelectedAction() {
               <input v-model="exceptionEvidence" aria-label="Evidence reference" placeholder="NIP session, ledger posting, callback, or case ID" />
             </label>
             <label>
-              <span>Reason and operator note</span>
-              <textarea v-model="exceptionReason" aria-label="Resolution reason" rows="4" placeholder="Record what was checked and why the action is safe."></textarea>
+              <span>Evidence note</span>
+              <textarea v-model="exceptionReason" aria-label="Evidence note" rows="4" placeholder="Record callback/status API/ledger result and why no duplicate payment will be triggered."></textarea>
             </label>
             <div class="checklist-stack">
               <article v-for="item in selectedActionStep?.safetyChecklist ?? []" :key="item">
@@ -313,14 +333,14 @@ function submitSelectedAction() {
               </article>
             </div>
             <dl class="metric-grid maker-checker-grid">
-              <div><dt>State</dt><dd>{{ makerCheckerStateLabels[selectedException.makerCheckerState] }}</dd></div>
+              <div><dt>Closure approval</dt><dd>{{ makerCheckerStateLabels[selectedException.makerCheckerState] }}</dd></div>
               <div><dt>Evidence gap</dt><dd>{{ selectedException.evidenceGap }}</dd></div>
-              <div><dt>Safe closure</dt><dd>{{ selectedException.safeClosure }}</dd></div>
+              <div><dt>Double-payment guard</dt><dd>{{ selectedException.duplicatePaymentGuard }}</dd></div>
             </dl>
-            <p v-if="!exceptionCanSubmit" class="form-error">Evidence and reason are required before manual completion, requery, reversal approval, or evidence attachment.</p>
+            <p v-if="!exceptionCanSubmit" class="form-error">Evidence reference and evidence note are required before status retry, provider escalation, reversal approval, or closure.</p>
             <p v-if="exceptionActionMessage" class="state-note state-note--success">
               <BadgeCheck :size="16" aria-hidden="true" />
-              <span>{{ exceptionActionMessage }} Audit event captured.</span>
+              <span>{{ exceptionActionMessage }} Case event captured.</span>
             </p>
             <p v-if="exceptionActionError" class="form-error">{{ exceptionActionError }}</p>
             <ActionBar>

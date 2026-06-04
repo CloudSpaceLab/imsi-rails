@@ -34,7 +34,7 @@ export const finalLegStateLabels: Record<FinalLegState, string> = {
   credited: 'Credited',
   sla_breached: 'SLA breached',
   cooldown: 'Cooldown',
-  requerying: 'Requerying',
+  requerying: 'Status check running',
   outcome_uncertain: 'Outcome uncertain',
   manual_remediation: 'Manual remediation',
   completed_outside_platform: 'Completed outside platform',
@@ -54,7 +54,7 @@ export const outcomeConfidenceLabels: Record<OutcomeConfidence, string> = {
 
 export const queueLabels: Record<RemediationCase['queue'], string> = {
   cooldown: 'Cooldown',
-  requerying: 'Requerying',
+  requerying: 'Status check running',
   exhausted: 'Automation exhausted',
   recon_break: 'Recon breaks',
   completed_outside_platform: 'Completed outside platform',
@@ -202,7 +202,7 @@ export function useInflows(dashboard: DashboardMock, selectedReference: Ref<stri
     },
     {
       id: 'requery',
-      label: 'Requery running',
+      label: 'Status check running',
       state: 'watch' as HealthState,
       items: dashboard.incomingInstructions.filter((item) => item.currentState === 'requerying'),
       empty: 'No requery running',
@@ -362,7 +362,7 @@ export function useRemediationQueue(dashboard: DashboardMock, selectedReference:
     },
     {
       id: 'checker_review',
-      label: 'Checker review',
+      label: 'Closure approval',
       state: 'recovery' as HealthState,
       items: dashboard.remediationCases.filter(
         (item) => item.makerCheckerState === 'checker_pending' || item.queue === 'completed_outside_platform',
@@ -458,11 +458,11 @@ export function useRemediationQueue(dashboard: DashboardMock, selectedReference:
     } else if (action === 'requery') {
       currentCase.queue = 'requerying'
       currentCase.automationStatus = 'running'
-      currentCase.makerChecker = 'Manual requery submitted'
+      currentCase.makerChecker = 'Status API retry submitted'
       currentCase.makerCheckerState = 'not_required'
-      currentCase.nextAction = 'Wait for manual requery response before any closure action.'
+      currentCase.nextAction = 'Wait for status API response before any closure action.'
       currentCase.state = 'watch'
-      currentCase.nextRequeryAt = 'Manual requery queued'
+      currentCase.nextRequeryAt = 'Status API retry queued'
       dashboard.requeryAttempts.unshift({
         id: `RQ-${currentCase.instructionReference}-MAN-${manualRequeryAttempts.value.length + 1}`,
         instructionReference: currentCase.instructionReference,
@@ -470,16 +470,16 @@ export function useRemediationQueue(dashboard: DashboardMock, selectedReference:
         dueAt: 'Now',
         completedAt: 'Queued',
         method,
-        result: `Manual requery queued with ${evidenceReference}`,
+        result: `Status API retry queued with ${evidenceReference}`,
         trigger: 'manual',
         state: 'recovery',
       })
     } else if (action === 'manual_complete') {
       currentCase.queue = 'completed_outside_platform'
       currentCase.automationStatus = 'manual_only'
-      currentCase.makerChecker = 'Checker review pending'
+      currentCase.makerChecker = 'Closure approval pending'
       currentCase.makerCheckerState = 'checker_pending'
-      currentCase.nextAction = 'Checker must approve completed-outside-platform closure.'
+      currentCase.nextAction = 'Closure approval is required before resolving as credited outside the platform.'
       currentCase.state = 'recovery'
     } else {
       currentCase.queue = 'reversal'
@@ -497,7 +497,7 @@ export function useRemediationQueue(dashboard: DashboardMock, selectedReference:
         action === 'attach_evidence'
           ? 'Repair evidence attached'
           : action === 'requery'
-            ? 'Manual requery evidence'
+            ? 'Status API retry evidence'
             : action === 'manual_complete'
               ? 'Manual completion evidence'
               : 'Reversal approval evidence',
@@ -513,7 +513,7 @@ export function useRemediationQueue(dashboard: DashboardMock, selectedReference:
         action === 'attach_evidence'
           ? 'Evidence attached'
           : action === 'requery'
-          ? 'Manual requery queued'
+          ? 'Status API retry queued'
           : action === 'manual_complete'
             ? 'Completed outside platform submitted'
             : 'Reversal approved',
@@ -527,7 +527,7 @@ export function useRemediationQueue(dashboard: DashboardMock, selectedReference:
         : action === 'approve_reversal'
         ? 'Reversal approval captured with evidence.'
         : action === 'requery'
-          ? 'Manual requery queued with evidence.'
+          ? 'Status API retry queued with evidence.'
           : 'Manual completion submitted for checker review.'
   }
 

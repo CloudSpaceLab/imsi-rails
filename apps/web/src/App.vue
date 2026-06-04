@@ -39,7 +39,7 @@ const screenDescriptions: Record<ScreenId, string> = {
   command: 'Failed transfers, local provider performance, partner SLA breaches, and API telemetry.',
   inflows: 'Trace each inbound instruction from partner receipt through final-leg evidence and customer value proof.',
   routes: 'Compare final-leg rail pressure before shifting eligible new transfers or containing a degraded endpoint.',
-  exceptions: 'Control unresolved credits with evidence-first requery, manual completion, and reversal workflows.',
+  exceptions: 'Control unresolved credits with webhook wait, status API retry, provider escalation, and reversal workflows.',
   settings: 'Manage contracts, standing accounts, SLA/backoff policy, feature rollout, and audit evidence.',
 }
 

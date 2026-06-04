@@ -93,6 +93,7 @@ describe('inbound settlement tower workflows', () => {
     )
     expect(dashboard.incomingInstructions.find((item) => item.currentState === 'cooldown')?.safeAction).toContain('Freeze duplicate action')
     expect(dashboard.requeryAttempts.find((attempt) => attempt.instructionReference === 'INF-10003' && attempt.completedAt === '-')?.result).toBe('Due now')
+    expect(dashboard.providerEscalations.find((item) => item.instructionReference === 'INF-10002')?.channel).toBe('email')
     expect(dashboard.routeDecisions.find((item) => item.instructionReference === 'INF-10002')?.rejectedRoutes.length).toBeGreaterThan(0)
     expect(dashboard.evidenceRequirements.find((item) => item.instructionReference === 'INF-10002')?.sourceTable).toBe('outcome_evidence')
     expect(dashboard.reconciliationMatches.find((item) => item.instructionReference === 'INF-10002')?.sourceTable).toBe('reconciliation_matches')
@@ -286,13 +287,14 @@ describe('inbound settlement tower workflows', () => {
     expect(wrapper.text()).toContain('Customer owner')
     expect(wrapper.text()).toContain('Miriam Eze')
     expect(wrapper.text()).toContain('failed transfer with unresolved customer value')
-    expect(wrapper.text()).not.toContain('Mark completed outside platform')
-    expect(wrapper.text()).toContain('Evidence and reason are required before')
+    expect(wrapper.text()).not.toContain('Confirm credited outside platform')
+    expect(wrapper.text()).toContain('Evidence reference and evidence note are required before')
+    expect(wrapper.text()).toContain('Double-payment guard')
     const submitButton = () => wrapper.findAll('button').find((button) => button.text().includes('Submit action'))
     expect(submitButton()?.attributes('disabled')).toBeDefined()
 
     await wrapper.get('input[aria-label="Evidence reference"]').setValue('NIP-TRF-88421')
-    await wrapper.get('textarea[aria-label="Resolution reason"]').setValue('Verified NIP session against suspense ledger before any closure action.')
+    await wrapper.get('textarea[aria-label="Evidence note"]').setValue('Verified NIP session against suspense ledger before any closure action.')
     await flushPromises()
 
     expect(submitButton()?.attributes('disabled')).toBeUndefined()
@@ -300,7 +302,7 @@ describe('inbound settlement tower workflows', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Evidence attached to the repair case')
-    expect(wrapper.text()).toContain('Audit event captured')
+    expect(wrapper.text()).toContain('Case event captured')
 
     await wrapper.findAll('.detail-tabs button').find((button) => button.text().includes('Audit'))?.trigger('click')
     await flushPromises()
@@ -308,7 +310,7 @@ describe('inbound settlement tower workflows', () => {
     expect(wrapper.text()).toContain('NIP-TRF-88421')
   })
 
-  it('surfaces exhausted backoff and maker-checker guardrails', async () => {
+  it('surfaces exhausted status retrieval and provider escalation guardrails', async () => {
     const wrapper = await mountApp('/exceptions?queue=exhausted')
 
     expect(router.currentRoute.value.query.queue).toBe('exhausted')
@@ -319,25 +321,27 @@ describe('inbound settlement tower workflows', () => {
     await flushPromises()
     expect(router.currentRoute.value.path).toBe('/exceptions/INF-10002')
 
-    await wrapper.findAll('.detail-tabs button').find((button) => button.text().includes('Backoff/requery'))?.trigger('click')
+    await wrapper.findAll('.detail-tabs button').find((button) => button.text().includes('Status checks'))?.trigger('click')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Backoff/requery')
+    expect(wrapper.text()).toContain('Status checks')
     expect(wrapper.text()).toContain('Closure readiness')
     expect(wrapper.text()).toContain('Evidence blocked')
-    expect(wrapper.text()).toContain('Requery running')
-    expect(wrapper.text()).toContain('Checker review')
+    expect(wrapper.text()).toContain('Status check running')
+    expect(wrapper.text()).toContain('Closure approval')
     expect(wrapper.text()).toContain('Reversal approval')
     expect(wrapper.text()).toContain('Automatic attempts')
     expect(wrapper.text()).toContain('3 / 3')
     expect(wrapper.text()).toContain('Automation exhausted')
-    expect(wrapper.text()).toContain('Manual only')
+    expect(wrapper.text()).toContain('Escalate after')
+    expect(wrapper.text()).toContain('Provider escalation: NIP')
+    expect(wrapper.text()).toContain('Status confirmation required for NIP session')
     expect(wrapper.text()).toContain('3 automatic / 0 manual')
 
     await wrapper.findAll('.detail-tabs button').find((button) => button.text().includes('Closure'))?.trigger('click')
     await flushPromises()
-    expect(wrapper.text()).toContain('Maker evidence required')
-    expect(wrapper.text()).toContain('Manual completion needs ledger/session evidence')
+    expect(wrapper.text()).toContain('Evidence required before closure')
+    expect(wrapper.text()).toContain('No new credit, reroute, or reversal')
   })
 
   it('mutates exception actions with audit evidence', async () => {
@@ -347,12 +351,12 @@ describe('inbound settlement tower workflows', () => {
     await wrapper.findAll('.action-choice-grid button').find((button) => button.text().includes('Approve reversal'))?.trigger('click')
     await flushPromises()
     await wrapper.get('input[aria-label="Evidence reference"]').setValue('REV-ISW-55092')
-    await wrapper.get('textarea[aria-label="Resolution reason"]').setValue('Final failed-safe status confirms the beneficiary was not credited.')
+    await wrapper.get('textarea[aria-label="Evidence note"]').setValue('Final failed-safe status confirms the beneficiary was not credited.')
     await wrapper.findAll('button').find((button) => button.text().includes('Submit action'))?.trigger('click')
     await flushPromises()
 
     expect(wrapper.text()).toContain('Reversal approval captured with evidence')
-    expect(wrapper.text()).toContain('Audit event captured')
+    expect(wrapper.text()).toContain('Case event captured')
     expect(wrapper.text()).toContain('Reversal approved')
 
     await wrapper.findAll('.detail-tabs button').find((button) => button.text().includes('Audit'))?.trigger('click')
