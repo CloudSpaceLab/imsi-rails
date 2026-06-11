@@ -199,8 +199,7 @@ function openRouteContext() {
             </dl>
             <aside v-if="selectedInflow.staffAssignment" class="owner-assignment-card">
               <strong>{{ selectedInflow.staffAssignment.staffName }}</strong>
-              <span>{{ selectedInflow.staffAssignment.staffRole }} / {{ selectedInflow.staffAssignment.team }}</span>
-              <small>{{ selectedInflow.staffAssignment.responsibility }}</small>
+              <span>{{ selectedInflow.staffAssignment.staffRole }} · {{ selectedInflow.staffAssignment.team }}</span>
             </aside>
             <div class="detail-status-rail">
               <article><strong>{{ selectedContract?.partner ?? selectedInflow.origin }}</strong><small>{{ selectedContract?.corridor ?? selectedInflow.destination }}</small></article>
@@ -278,7 +277,7 @@ function openRouteContext() {
                   <HealthBadge :state="attempt.state" />
                 </li>
               </ol>
-              <p v-if="selectedRequeries.length === 0">No requery attempts are required for this inflow.</p>
+              <p v-if="selectedRequeries.length === 0">No requery scheduled.</p>
             </section>
             <aside class="state-note">
               <RefreshCw :size="16" aria-hidden="true" />
@@ -294,7 +293,7 @@ function openRouteContext() {
             </dl>
             <aside class="state-note" :class="`state-note--${selectedReconciliation?.state ?? 'unknown'}`">
               <ListChecks :size="16" aria-hidden="true" />
-              <span>{{ selectedReconciliation?.mismatchReason ?? 'No reconciliation break is linked to this inflow.' }}</span>
+              <span>{{ selectedReconciliation?.mismatchReason ?? 'No break linked.' }}</span>
             </aside>
           </section>
 
@@ -305,7 +304,7 @@ function openRouteContext() {
                 <strong>{{ event.action }}</strong>
                 <small>{{ event.object }} / {{ event.reason }}</small>
               </article>
-              <EmptyState v-if="selectedAudit.length === 0" title="No audit event for this inflow" description="System and operator actions will appear here as the case moves." :icon="ShieldAlert" />
+              <EmptyState v-if="selectedAudit.length === 0" title="No audit events" description="Actions recorded as the case progresses." :icon="ShieldAlert" />
             </div>
           </section>
         </Panel>
@@ -318,17 +317,17 @@ function openRouteContext() {
           <article>
             <span>Safe action</span>
             <strong>{{ selectedInflow.safeAction }}</strong>
-            <small>{{ selectedInflow.staffAssignment?.staffName ?? selectedInflow.owner }} owns customer follow-up and closure handoff.</small>
+            <small>{{ selectedInflow.staffAssignment?.staffName ?? selectedInflow.owner }}</small>
           </article>
           <article v-if="selectedInflow.staffAssignment">
             <span>Customer owner</span>
             <strong>{{ selectedInflow.staffAssignment.staffName }}</strong>
-            <small>{{ selectedInflow.staffAssignment.assignmentRule }} / auto-assigned {{ selectedInflow.staffAssignment.assignedAt }}</small>
+            <small>{{ selectedInflow.staffAssignment.assignmentRule }} · {{ selectedInflow.staffAssignment.assignedAt }}</small>
           </article>
           <article>
             <span>Linked work</span>
-            <strong>{{ selectedRemediationCase?.id ?? 'No open case' }}</strong>
-            <small>{{ selectedRemediationCase?.nextAction ?? 'No remediation queue item is open.' }}</small>
+            <strong>{{ selectedRemediationCase?.id ?? '—' }}</strong>
+            <small>{{ selectedRemediationCase?.nextAction ?? 'No open case' }}</small>
           </article>
           <ActionBar>
             <UiButton v-if="selectedRemediationCase" @click="openPath(`/exceptions/${encodeURIComponent(selectedInflow.reference)}`, { tab: 'evidence' })">Open exception</UiButton>

@@ -250,7 +250,7 @@ function submitForApproval() {
 
     <aside v-if="submittedPartnerId" class="state-note state-note--watch">
       <CheckCircle2 :size="16" aria-hidden="true" />
-      <span>{{ submittedPartnerId }} submitted by {{ actorName ?? 'maker' }}. Awaiting checker approval before integration testing.</span>
+      <span>{{ submittedPartnerId }} submitted. Checker approval pending.</span>
     </aside>
 
     <Panel title="IMTO partners" eyebrow="Directory and onboarding status" accent="healthy">
@@ -357,9 +357,7 @@ function submitForApproval() {
               <aside v-if="directoryMatch" class="state-note state-note--healthy directory-lookup__match">
                 <CheckCircle2 :size="16" aria-hidden="true" />
                 <span>
-                  Matched {{ directoryMatch.bic }} — {{ directoryMatch.institution }}. Integration preconfigured from the SWIFT
-                  directory ({{ directoryMatch.messagingStandard }}, adapter profile {{ directoryMatch.adapterProfile }}).
-                  No custom integration build required.
+                  {{ directoryMatch.bic }} · {{ directoryMatch.institution }} · {{ directoryMatch.messagingStandard }} · {{ directoryMatch.adapterProfile }}
                 </span>
                 <button type="button" class="sidebar-link" @click="clearDirectoryMatch">Clear</button>
               </aside>
@@ -403,10 +401,7 @@ function submitForApproval() {
                 <div><dt>Messaging</dt><dd>{{ form.iso20022Ready ? 'ISO 20022' : 'MT103' }}</dd></div>
                 <div><dt>Adapter profile</dt><dd>{{ form.adapterProfile }}</dd></div>
               </dl>
-              <p class="wizard-note">
-                Messages arrive over the bank's existing SWIFT connection using the standard adapter profile. No partner API
-                credentials or certificates are needed; routing enrols automatically on the corridor template after approval.
-              </p>
+              <p class="wizard-note">Standard adapter · no credentials required</p>
               <UiButton variant="secondary" @click="clearDirectoryMatch">Switch to manual integration</UiButton>
             </template>
             <template v-else>
@@ -427,7 +422,7 @@ function submitForApproval() {
             <label class="wizard-check"><input v-model="form.licenceVerified" type="checkbox" /> Regulatory licence verified</label>
             <label class="wizard-check"><input v-model="form.amlReviewed" type="checkbox" /> AML programme reviewed</label>
             <label class="wizard-check"><input v-model="form.sanctionsCalibrated" type="checkbox" /> Sanctions screening calibrated</label>
-            <p class="wizard-note">Unchecked items remain open due-diligence tasks on the partner record.</p>
+            <p class="wizard-note">Unchecked items remain open on the partner record.</p>
           </template>
 
           <template v-else>
@@ -443,7 +438,7 @@ function submitForApproval() {
               <div v-else><dt>Adapter profile</dt><dd>{{ form.adapterProfile }}</dd></div>
               <div v-for="entry in dueDiligencePreview" :key="entry.item"><dt>{{ entry.item }}</dt><dd>{{ entry.status }}</dd></div>
             </dl>
-            <p class="wizard-note">Submission creates a maker record. A checker must approve before integration testing starts.</p>
+            <p class="wizard-note">Checker approval required before integration testing.</p>
           </template>
         </form>
 

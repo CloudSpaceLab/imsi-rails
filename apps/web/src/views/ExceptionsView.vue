@@ -226,7 +226,7 @@ function submitSelectedAction() {
             <strong>Customer owner: {{ selectedException.staffAssignment.staffName }}</strong>
             <span>{{ selectedException.staffAssignment.staffRole }} / {{ selectedException.staffAssignment.team }}</span>
             <span>{{ selectedException.staffAssignment.assignmentRule }}</span>
-            <small>{{ selectedException.staffAssignment.responsibility }}</small>
+            <small>{{ selectedException.staffAssignment.assignedAt }}</small>
           </aside>
 
           <section v-if="exceptionTab === 'summary'" class="flow-tab-panel">
@@ -280,7 +280,7 @@ function submitSelectedAction() {
                 />
                 <span>
                   <strong>{{ step }}</strong>
-                  <small>{{ index === selectedException.statusRetrievalPlan.length - 1 ? selectedException.escalationAfter : 'No customer debit or second credit is triggered' }}</small>
+                  <small>{{ index === selectedException.statusRetrievalPlan.length - 1 ? selectedException.escalationAfter : '—' }}</small>
                 </span>
               </article>
             </div>
@@ -358,7 +358,7 @@ function submitSelectedAction() {
                 <strong>{{ event.action }}</strong>
                 <small>{{ event.object }} / {{ event.reason }}</small>
               </article>
-              <EmptyState v-if="selectedCaseAudit.length === 0" title="No audit event for this case" description="Submitted actions will appear in this immutable trail." :icon="ShieldAlert" />
+              <EmptyState v-if="selectedCaseAudit.length === 0" title="No audit events" description="Actions recorded as the case progresses." :icon="ShieldAlert" />
             </div>
           </section>
         </template>

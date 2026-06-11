@@ -2012,7 +2012,7 @@ function buildStaffAssignment(instruction: IncomingInstruction): StaffAssignment
     team: staff.team,
     assignedAt: '14:32:18 UTC',
     assignmentRule,
-    responsibility: 'Own customer follow-up, evidence chase, status update, and closure handoff until the transaction is resolved.',
+    responsibility: 'Customer follow-up and closure handoff.',
     state: instruction.state,
   }
 }
