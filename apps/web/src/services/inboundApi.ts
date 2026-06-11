@@ -21,7 +21,7 @@ export type CreditLegQuery = {
   q?: string
 }
 
-export type CreditActionKind = 'attach_evidence' | 'resolve_recon' | 'manual_requery' | 'mark_completed_outside_platform' | 'approve_reversal'
+export type CreditActionKind = 'attach_evidence' | 'resolve_recon' | 'manual_requery' | 'mark_completed_outside_platform' | 'approve_reversal' | 'close_case'
 
 export type CreditActionPayload = {
   action: CreditActionKind

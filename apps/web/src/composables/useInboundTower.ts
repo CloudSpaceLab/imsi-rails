@@ -1,6 +1,7 @@
 import { computed, ref, watch, type Ref } from 'vue'
 import type {
   BackoffPolicy,
+  CaseVerdict,
   DashboardMock,
   FinalLegAttempt,
   FinalLegState,
@@ -59,6 +60,7 @@ export const queueLabels: Record<RemediationCase['queue'], string> = {
   recon_break: 'Recon breaks',
   completed_outside_platform: 'Completed outside platform',
   reversal: 'Reversals',
+  closed: 'Closed',
 }
 
 export function useCommandCenter(dashboard: DashboardMock) {
@@ -376,8 +378,8 @@ export function useRemediationQueue(dashboard: DashboardMock, selectedReference:
     },
   ])
   const filteredCases = computed(() => {
-    const cases =
-      queueFilter.value === 'all' ? dashboard.remediationCases : dashboard.remediationCases.filter((item) => item.queue === queueFilter.value)
+    const active = dashboard.remediationCases.filter((item) => item.queue !== 'closed')
+    const cases = queueFilter.value === 'all' ? active : active.filter((item) => item.queue === queueFilter.value)
     return [...cases].sort((a, b) => stateRank[a.state] - stateRank[b.state])
   })
   const selectedException = computed(
@@ -531,6 +533,62 @@ export function useRemediationQueue(dashboard: DashboardMock, selectedReference:
           : 'Manual completion submitted for checker review.'
   }
 
+  const closureVerdict = ref<CaseVerdict | null>(null)
+  const caseClosedMessage = ref('')
+
+  watch(selectedException, () => {
+    closureVerdict.value = selectedException.value?.verdict ?? null
+    caseClosedMessage.value = ''
+  }, { immediate: true })
+
+  async function closeCase(verdict: CaseVerdict) {
+    const currentCase = selectedException.value
+    if (!currentCase || !exceptionEvidence.value.trim() || !exceptionReason.value.trim()) return
+    const evidenceReference = exceptionEvidence.value.trim()
+    const reason = exceptionReason.value.trim()
+
+    exceptionActionPending.value = true
+    exceptionActionError.value = ''
+    try {
+      await applyCreditAction(
+        currentCase.apiReference ?? currentCase.instructionReference,
+        { action: 'close_case', note: reason, evidenceReference, reasonCode: verdict },
+      )
+    } catch (error) {
+      exceptionActionError.value = error instanceof Error ? error.message : 'Unable to close case'
+      return
+    } finally {
+      exceptionActionPending.value = false
+    }
+
+    currentCase.verdict = verdict
+    currentCase.closedAt = 'Now'
+    currentCase.closedBy = actorName.value
+    currentCase.queue = 'closed'
+    currentCase.state = verdict === 'succeeded' ? 'healthy' : verdict === 'reversed' ? 'recovery' : 'blocked'
+    currentCase.nextAction = `Closed as ${verdict} by ${actorName.value}.`
+    closureVerdict.value = verdict
+    caseClosedMessage.value = `Case closed as ${verdict}.`
+
+    dashboard.outcomeEvidence.unshift({
+      instructionReference: currentCase.instructionReference,
+      type: 'operator_note',
+      label: `Closed — ${verdict}`,
+      reference: evidenceReference,
+      status: reason,
+      owner: actorName.value,
+      state: currentCase.state,
+    })
+    dashboard.auditEvents.unshift({
+      time: 'Now',
+      actor: actorName.value,
+      action: `Case closed — ${verdict}`,
+      object: currentCase.instructionReference,
+      reason: `${reason} / ${evidenceReference}`,
+      state: currentCase.state,
+    })
+  }
+
   return {
     queueFilter,
     exceptionEvidence,
@@ -555,6 +613,9 @@ export function useRemediationQueue(dashboard: DashboardMock, selectedReference:
     automationExhausted,
     exceptionCanSubmit,
     submitExceptionAction,
+    closureVerdict,
+    caseClosedMessage,
+    closeCase,
   }
 }
 

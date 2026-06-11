@@ -9,7 +9,7 @@ import Panel from '../components/Panel.vue'
 import UiButton from '../components/UiButton.vue'
 import { formatNgnShort, parseMoney, queueLabels, useRemediationQueue } from '../composables/useInboundTower'
 import { useTowerRouting } from '../composables/useTowerRouting'
-import type { CaseActionStep, DashboardMock, ExceptionDetailTab, RemediationCase } from '../types'
+import type { CaseActionStep, CaseVerdict, DashboardMock, ExceptionDetailTab, RemediationCase } from '../types'
 
 const props = defineProps<{
   dashboard: DashboardMock
@@ -51,9 +51,18 @@ const {
   automationExhausted,
   exceptionCanSubmit,
   submitExceptionAction,
+  closureVerdict,
+  caseClosedMessage,
+  closeCase,
 } = useRemediationQueue(props.dashboard, selectedReference, actorNameRef)
 
 const selectedAction = ref<CaseActionStep['action']>('attach_evidence')
+const selectedVerdict = ref<CaseVerdict | null>(null)
+const verdictOptions: Array<{ value: CaseVerdict; label: string; state: string }> = [
+  { value: 'succeeded', label: 'Succeeded', state: 'healthy' },
+  { value: 'failed', label: 'Failed', state: 'blocked' },
+  { value: 'reversed', label: 'Reversed', state: 'recovery' },
+]
 const exceptionTab = computed<ExceptionDetailTab>(() =>
   exceptionTabs.some((tab) => tab.id === route.query.tab) ? (route.query.tab as ExceptionDetailTab) : 'summary',
 )
@@ -134,6 +143,24 @@ function setExceptionTab(tab: ExceptionDetailTab) {
 
 function selectCase(reference: string) {
   openPath(`/exceptions/${encodeURIComponent(reference)}`, { queue: queueFilter.value, tab: exceptionTab.value })
+}
+
+watch(
+  () => selectedException.value?.id,
+  () => { selectedVerdict.value = null },
+)
+
+const canCloseCase = computed(() =>
+  selectedVerdict.value !== null &&
+  exceptionEvidence.value.trim().length > 0 &&
+  exceptionReason.value.trim().length > 0 &&
+  !exceptionActionPending.value &&
+  selectedException.value?.queue !== 'closed',
+)
+
+function submitVerdict() {
+  if (!selectedVerdict.value || !canCloseCase.value) return
+  void closeCase(selectedVerdict.value)
 }
 
 function submitSelectedAction() {
@@ -300,55 +327,44 @@ function submitSelectedAction() {
           </section>
 
           <section v-else-if="exceptionTab === 'closure'" class="flow-tab-panel">
-            <div class="action-stepper">
-              <article class="action-step"><span>1</span><strong>Choose status action</strong><small>{{ selectedActionStep?.resultingState ?? 'No action available' }}</small></article>
-              <article class="action-step"><span>2</span><strong>Add evidence reference</strong><small>Callback, session ID, ledger ref</small></article>
-              <article class="action-step"><span>3</span><strong>Record evidence note</strong><small>Outcome and current status</small></article>
-              <article class="action-step"><span>4</span><strong>Confirm no double payment</strong><small>Required before closure</small></article>
-            </div>
-            <div class="action-choice-grid">
-              <button v-for="step in allowedActionSteps" :key="step.action" type="button" :class="{ 'is-selected': selectedAction === step.action }" @click="selectedAction = step.action">
-                <strong>{{ step.label }}</strong>
-                <small>{{ step.resultingState }}</small>
-              </button>
-            </div>
-            <label>
-              <span>Status/API method</span>
-              <select v-model="selectedRequeryMethod" aria-label="Status API method" :disabled="selectedAction !== 'manual_requery'">
-                <option v-for="method in requeryMethodOptions" :key="method" :value="method">{{ method }}</option>
-              </select>
-            </label>
-            <label>
-              <span>Evidence reference</span>
-              <input v-model="exceptionEvidence" aria-label="Evidence reference" placeholder="NIP session, ledger ref, callback ID" />
-            </label>
-            <label>
-              <span>Evidence note</span>
-              <textarea v-model="exceptionReason" aria-label="Evidence note" rows="4" placeholder="Outcome, status, and no-duplicate confirmation"></textarea>
-            </label>
-            <div class="checklist-stack">
-              <article v-for="item in selectedActionStep?.safetyChecklist ?? []" :key="item">
-                <BadgeCheck :size="15" aria-hidden="true" />
-                <span>{{ item }}</span>
-              </article>
-            </div>
-            <dl class="metric-grid maker-checker-grid">
-              <div><dt>Closure approval</dt><dd>{{ makerCheckerStateLabels[selectedException.makerCheckerState] }}</dd></div>
-              <div><dt>Evidence gap</dt><dd>{{ selectedException.evidenceGap }}</dd></div>
-              <div><dt>Double-payment guard</dt><dd>{{ selectedException.duplicatePaymentGuard }}</dd></div>
-            </dl>
-            <p v-if="!exceptionCanSubmit" class="form-error">Evidence reference and evidence note are required before status retry, provider escalation, reversal approval, or closure.</p>
-            <p v-if="exceptionActionMessage" class="state-note state-note--success">
-              <BadgeCheck :size="16" aria-hidden="true" />
-              <span>{{ exceptionActionMessage }} Case event captured.</span>
-            </p>
-            <p v-if="exceptionActionError" class="form-error">{{ exceptionActionError }}</p>
-            <ActionBar>
-              <UiButton :disabled="!selectedActionStep || !exceptionCanSubmit || exceptionActionPending" @click="submitSelectedAction">
-                <RefreshCw :size="15" aria-hidden="true" />
-                Submit action
-              </UiButton>
-            </ActionBar>
+            <template v-if="selectedException.queue === 'closed'">
+              <aside class="state-note state-note--healthy">
+                <BadgeCheck :size="16" aria-hidden="true" />
+                <span>Case closed as <strong>{{ selectedException.verdict }}</strong> by {{ selectedException.closedBy }} · {{ selectedException.closedAt }}</span>
+              </aside>
+            </template>
+            <template v-else>
+              <div class="verdict-choice-grid">
+                <button
+                  v-for="opt in verdictOptions"
+                  :key="opt.value"
+                  type="button"
+                  :class="['verdict-btn', `verdict-btn--${opt.state}`, { 'is-selected': selectedVerdict === opt.value }]"
+                  @click="selectedVerdict = opt.value"
+                >
+                  <strong>{{ opt.label }}</strong>
+                </button>
+              </div>
+              <label>
+                <span>Evidence reference</span>
+                <input v-model="exceptionEvidence" aria-label="Evidence reference" placeholder="NIP session, ledger ref, callback ID" />
+              </label>
+              <label>
+                <span>Evidence note</span>
+                <textarea v-model="exceptionReason" aria-label="Evidence note" rows="3" placeholder="Outcome, status, and no-duplicate confirmation"></textarea>
+              </label>
+              <p v-if="exceptionActionError" class="form-error">{{ exceptionActionError }}</p>
+              <aside v-if="caseClosedMessage" class="state-note state-note--healthy">
+                <BadgeCheck :size="16" aria-hidden="true" />
+                <span>{{ caseClosedMessage }}</span>
+              </aside>
+              <ActionBar>
+                <UiButton :disabled="!canCloseCase" @click="submitVerdict">
+                  <ShieldCheck :size="15" aria-hidden="true" />
+                  Close case
+                </UiButton>
+              </ActionBar>
+            </template>
           </section>
 
           <section v-else class="flow-tab-panel">

@@ -148,7 +148,7 @@ describe('inbound settlement tower workflows', () => {
     expect(wrapper.text()).not.toContain('Provider traffic controls')
     expect(wrapper.text()).toContain('Daily compliance, last 30 days')
     expect(wrapper.text()).toContain('Switching API telemetry')
-    expect(wrapper.text()).toContain('Transactions and middleware calls to fix')
+    expect(wrapper.text()).toContain('Repair queue')
     expect(wrapper.text()).toContain('Local provider performance')
     expect(wrapper.text()).toContain('International banking partner SLAs')
     expect(wrapper.text()).toContain('Moniepoint')
@@ -279,34 +279,36 @@ describe('inbound settlement tower workflows', () => {
     expect(wrapper.text()).toContain('Provider file says paid')
   })
 
-  it('requires evidence before manual exception actions', async () => {
+  it('requires verdict and evidence before case closure', async () => {
     const wrapper = await mountApp('/exceptions/INF-10002?tab=closure')
 
     expect(wrapper.text()).toContain('Case detail')
-    expect(wrapper.text()).toContain('Attach evidence')
+    expect(wrapper.text()).toContain('Succeeded')
+    expect(wrapper.text()).toContain('Failed')
+    expect(wrapper.text()).toContain('Reversed')
     expect(wrapper.text()).toContain('Customer owner')
     expect(wrapper.text()).toContain('Miriam Eze')
     expect(wrapper.text()).toContain('failed transfer with unresolved customer value')
-    expect(wrapper.text()).not.toContain('Confirm credited outside platform')
-    expect(wrapper.text()).toContain('Evidence reference and evidence note are required before')
-    expect(wrapper.text()).toContain('Double-payment guard')
-    const submitButton = () => wrapper.findAll('button').find((button) => button.text().includes('Submit action'))
-    expect(submitButton()?.attributes('disabled')).toBeDefined()
+    const closeButton = () => wrapper.findAll('button').find((button) => button.text().includes('Close case'))
+    expect(closeButton()?.attributes('disabled')).toBeDefined()
+
+    await wrapper.findAll('.verdict-btn').find((button) => button.text().includes('Failed'))?.trigger('click')
+    await flushPromises()
+    expect(closeButton()?.attributes('disabled')).toBeDefined()
 
     await wrapper.get('input[aria-label="Evidence reference"]').setValue('NIP-TRF-88421')
     await wrapper.get('textarea[aria-label="Evidence note"]').setValue('Verified NIP session against suspense ledger before any closure action.')
     await flushPromises()
 
-    expect(submitButton()?.attributes('disabled')).toBeUndefined()
-    await submitButton()?.trigger('click')
+    expect(closeButton()?.attributes('disabled')).toBeUndefined()
+    await closeButton()?.trigger('click')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Evidence attached to the repair case')
-    expect(wrapper.text()).toContain('Case event captured')
+    expect(wrapper.text()).toContain('Case closed as failed')
 
     await wrapper.findAll('.detail-tabs button').find((button) => button.text().includes('Audit'))?.trigger('click')
     await flushPromises()
-    expect(wrapper.text()).toContain('Evidence attached')
+    expect(wrapper.text()).toContain('Case closed — failed')
     expect(wrapper.text()).toContain('NIP-TRF-88421')
   })
 
@@ -340,24 +342,27 @@ describe('inbound settlement tower workflows', () => {
 
     await wrapper.findAll('.detail-tabs button').find((button) => button.text().includes('Closure'))?.trigger('click')
     await flushPromises()
-    expect(wrapper.text()).toContain('Evidence required before closure')
-    expect(wrapper.text()).toContain('No new credit, reroute, or reversal')
+    expect(wrapper.text()).toContain('Succeeded')
+    expect(wrapper.text()).toContain('Failed')
+    expect(wrapper.text()).toContain('Reversed')
+    expect(wrapper.text()).toContain('Close case')
   })
 
   it('mutates exception actions with audit evidence', async () => {
     const wrapper = await mountApp('/exceptions/INF-10004?tab=closure')
 
-    expect(wrapper.text()).toContain('Approve reversal')
-    await wrapper.findAll('.action-choice-grid button').find((button) => button.text().includes('Approve reversal'))?.trigger('click')
+    expect(wrapper.text()).toContain('Succeeded')
+    expect(wrapper.text()).toContain('Failed')
+    expect(wrapper.text()).toContain('Reversed')
+
+    await wrapper.findAll('.verdict-btn').find((button) => button.text().includes('Reversed'))?.trigger('click')
     await flushPromises()
     await wrapper.get('input[aria-label="Evidence reference"]').setValue('REV-ISW-55092')
     await wrapper.get('textarea[aria-label="Evidence note"]').setValue('Final failed-safe status confirms the beneficiary was not credited.')
-    await wrapper.findAll('button').find((button) => button.text().includes('Submit action'))?.trigger('click')
+    await wrapper.findAll('button').find((button) => button.text().includes('Close case'))?.trigger('click')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Reversal approval captured with evidence')
-    expect(wrapper.text()).toContain('Case event captured')
-    expect(wrapper.text()).toContain('Reversal approved')
+    expect(wrapper.text()).toContain('Case closed as reversed')
 
     await wrapper.findAll('.detail-tabs button').find((button) => button.text().includes('Audit'))?.trigger('click')
     await flushPromises()

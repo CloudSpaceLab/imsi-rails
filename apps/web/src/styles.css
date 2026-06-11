@@ -3854,6 +3854,50 @@ tbody tr:hover,
   overflow-wrap: anywhere;
 }
 
+.verdict-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.verdict-btn {
+  padding: 14px 10px;
+  border: 1.5px solid #d0d5dd;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  font: inherit;
+  text-align: center;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.verdict-btn strong {
+  font-size: 13.5px;
+}
+
+.verdict-btn--healthy.is-selected {
+  border-color: #039855;
+  background: #f0fdf4;
+  color: #039855;
+}
+
+.verdict-btn--blocked.is-selected {
+  border-color: #b42318;
+  background: #fff1f0;
+  color: #b42318;
+}
+
+.verdict-btn--recovery.is-selected {
+  border-color: #b54708;
+  background: #fffaeb;
+  color: #b54708;
+}
+
+.verdict-btn:hover:not(.is-selected) {
+  border-color: #98a2b3;
+  background: #f9fafb;
+}
+
 .maker-checker-grid {
   grid-template-columns: 1fr;
 }

@@ -976,11 +976,13 @@ export type OutcomeEvidence = {
   state: HealthState
 }
 
+export type CaseVerdict = 'failed' | 'succeeded' | 'reversed'
+
 export type RemediationCase = {
   id: string
   instructionReference: string
   apiReference?: string
-  queue: 'cooldown' | 'requerying' | 'exhausted' | 'recon_break' | 'completed_outside_platform' | 'reversal'
+  queue: 'cooldown' | 'requerying' | 'exhausted' | 'recon_break' | 'completed_outside_platform' | 'reversal' | 'closed'
   route: string
   provider: string
   requeryMethod: string
@@ -1005,6 +1007,9 @@ export type RemediationCase = {
   makerCheckerState: 'not_required' | 'maker_required' | 'checker_pending' | 'approved' | 'rejected'
   safeClosure: string
   state: HealthState
+  verdict?: CaseVerdict
+  closedAt?: string
+  closedBy?: string
 }
 
 export type RoutePenalty = {
