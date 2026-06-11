@@ -6,6 +6,8 @@ export const screenRoutes: Array<{ id: ScreenId; path: string; label: string }> 
   { id: 'inflows', path: '/inflows', label: 'Inflows' },
   { id: 'routes', path: '/routes', label: 'Routes' },
   { id: 'exceptions', path: '/exceptions', label: 'Exceptions' },
+  { id: 'partners', path: '/partners', label: 'Partners' },
+  { id: 'reports', path: '/reports', label: 'Reports' },
   { id: 'settings', path: '/settings', label: 'Settings' },
 ]
 

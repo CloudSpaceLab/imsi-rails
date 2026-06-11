@@ -8,6 +8,38 @@ const bankStaffOwners = [
   { staffName: 'Miriam Eze', staffRole: 'Customer Success Lead', team: 'High Value Transfers' },
 ]
 
+type PartnerSlaSeed = {
+  partner: string
+  target: number
+  base: number
+  swing: number
+  dipStart: number
+  dipDepth: number
+}
+
+const partnerSlaSeeds: PartnerSlaSeed[] = [
+  { partner: 'Sterling Send (UK)', target: 97, base: 98.4, swing: 0.9, dipStart: 78, dipDepth: 1.2 },
+  { partner: 'Hellenic Remit (Greece)', target: 97, base: 97.6, swing: 1.1, dipStart: 62, dipDepth: 4.8 },
+  { partner: 'Albion Money (UK)', target: 97, base: 98.9, swing: 0.6, dipStart: 30, dipDepth: 0.8 },
+]
+
+function buildPartnerSlaHistory() {
+  const days = 90
+  const end = new Date('2026-06-10T00:00:00Z')
+  return partnerSlaSeeds.map((seed) => ({
+    partner: seed.partner,
+    target: seed.target,
+    daily: Array.from({ length: days }, (_, index) => {
+      const date = new Date(end)
+      date.setUTCDate(date.getUTCDate() - (days - 1 - index))
+      const wave = Math.sin((index / days) * Math.PI * 6 + seed.base) * seed.swing
+      const dip = index >= seed.dipStart ? seed.dipDepth * Math.min(1, (index - seed.dipStart) / 8) : 0
+      const value = Math.min(100, Math.max(88, seed.base + wave - dip))
+      return { label: date.toISOString().slice(0, 10), value: Math.round(value * 10) / 10 }
+    }),
+  }))
+}
+
 const baseDashboard = (): DashboardMock => ({
   scenario: 'degraded-ria',
   viewState: 'ready',
@@ -91,6 +123,7 @@ const baseDashboard = (): DashboardMock => ({
     },
   ],
   visuals: {
+    partnerSlaHistory: buildPartnerSlaHistory(),
     completionTrend: [
       { label: '07:00', value: 97.2 },
       { label: '08:00', value: 97.8 },
@@ -1066,6 +1099,96 @@ const baseDashboard = (): DashboardMock => ({
     { contractId: 'CON-UK-NG-01', partner: 'Sterling Send (UK)', corridor: 'United Kingdom -> Nigeria', creditSla: '90s', p95Credit: '24s', breachRate: '1.6%', agingBreaches: 1, valueAtRisk: 'NGN 4.82M', oldestBreach: '12m 04s', breachReason: 'NIP ledger evidence missing', owner: 'Settlement Ops', recommendedAction: 'Verify NIP session before resolving ledger break', state: 'healthy', trend: '-0.4% vs last week' },
     { contractId: 'CON-GR-NG-02', partner: 'Hellenic Remit (Greece)', corridor: 'Greece -> Nigeria', creditSla: '120s', p95Credit: '4m 02s', breachRate: '5.2%', agingBreaches: 6, valueAtRisk: 'NGN 2.44M', oldestBreach: '8m 12s', breachReason: 'Moniepoint callback lag', owner: 'Provider callback desk', recommendedAction: 'Escalate endpoint callback lag at 10m aging', state: 'degraded', trend: '+2.1% vs last week' },
     { contractId: 'CON-UK-NG-03', partner: 'Albion Money (UK)', corridor: 'United Kingdom -> Nigeria', creditSla: '30s', p95Credit: '14s', breachRate: '1.0%', agingBreaches: 0, valueAtRisk: 'NGN 620K', oldestBreach: '11s', breachReason: 'Compliance hold before wallet credit', owner: 'Compliance', recommendedAction: 'Clear sanctions false-positive before OPay credit', state: 'healthy', trend: 'flat vs last week' },
+  ],
+  imtoPartners: [
+    {
+      id: 'IMTO-001',
+      name: 'Sterling Send (UK)',
+      country: 'United Kingdom',
+      corridor: 'United Kingdom -> Nigeria',
+      status: 'active',
+      riskRating: 'low',
+      integrationMode: 'REST',
+      iso20022Ready: true,
+      creditSla: '90s',
+      settlementCurrency: 'GBP / NGN',
+      prefundingModel: 'prefunded',
+      contractEnd: '2027-03-31',
+      onboardingStage: 'Live',
+      approvalState: 'approved',
+      dueDiligence: [
+        { item: 'Regulatory licence verification', status: 'complete' },
+        { item: 'AML programme review', status: 'complete' },
+        { item: 'Annual risk reassessment', status: 'pending' },
+      ],
+      state: 'healthy',
+    },
+    {
+      id: 'IMTO-002',
+      name: 'Hellenic Remit (Greece)',
+      country: 'Greece',
+      corridor: 'Greece -> Nigeria',
+      status: 'active',
+      riskRating: 'medium',
+      integrationMode: 'SOAP',
+      iso20022Ready: false,
+      creditSla: '120s',
+      settlementCurrency: 'EUR / NGN',
+      prefundingModel: 'hybrid',
+      contractEnd: '2026-12-31',
+      onboardingStage: 'Live',
+      approvalState: 'approved',
+      dueDiligence: [
+        { item: 'Regulatory licence verification', status: 'complete' },
+        { item: 'AML programme review', status: 'complete' },
+        { item: 'Callback endpoint remediation plan', status: 'overdue' },
+      ],
+      state: 'degraded',
+    },
+    {
+      id: 'IMTO-003',
+      name: 'Albion Money (UK)',
+      country: 'United Kingdom',
+      corridor: 'United Kingdom -> Nigeria',
+      status: 'active',
+      riskRating: 'low',
+      integrationMode: 'REST',
+      iso20022Ready: true,
+      creditSla: '30s',
+      settlementCurrency: 'GBP / NGN',
+      prefundingModel: 'prefunded',
+      contractEnd: '2027-09-30',
+      onboardingStage: 'Live',
+      approvalState: 'approved',
+      dueDiligence: [
+        { item: 'Regulatory licence verification', status: 'complete' },
+        { item: 'AML programme review', status: 'complete' },
+        { item: 'Sanctions screening calibration', status: 'complete' },
+      ],
+      state: 'healthy',
+    },
+    {
+      id: 'IMTO-004',
+      name: 'Maple Transfer (Canada)',
+      country: 'Canada',
+      corridor: 'Canada -> Nigeria',
+      status: 'onboarding',
+      riskRating: 'medium',
+      integrationMode: 'REST',
+      iso20022Ready: true,
+      creditSla: '90s',
+      settlementCurrency: 'CAD / NGN',
+      prefundingModel: 'credit-line',
+      contractEnd: '2028-01-31',
+      onboardingStage: 'Integration testing',
+      approvalState: 'checker_pending',
+      dueDiligence: [
+        { item: 'Regulatory licence verification', status: 'complete' },
+        { item: 'AML programme review', status: 'pending' },
+        { item: 'Sanctions screening calibration', status: 'pending' },
+      ],
+      state: 'watch',
+    },
   ],
   complianceHolds: [
     { reference: 'CRD-90260', partner: 'Albion Money (UK)', type: 'Sanctions', beneficiary: 'Blessing Udo', amount: 'NGN 620,000', age: '11s', dueAt: '14:32:20 UTC', decisionSla: '30s', requiredEvidence: 'Screening disposition and false-positive reason', partnerRfiReference: 'CASE-SANC-90260', owner: 'Compliance', valueAtRisk: 'NGN 620,000', state: 'watch', note: 'Name match against sanctions list - manual review.' },

@@ -170,7 +170,7 @@ function openRouteContext() {
 
     <template v-else-if="selectedInflow">
       <section class="detail-workspace">
-        <Panel title="Inflow detail" eyebrow="Repair-first transaction trace" :accent="selectedInflow.state" class="detail-primary-panel">
+        <Panel title="Inflow detail" eyebrow="Transaction trace" :accent="selectedInflow.state" class="detail-primary-panel">
           <div class="detail-heading">
             <div>
               <p class="section-kicker mono">{{ selectedInflow.reference }}</p>

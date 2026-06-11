@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { AlertTriangle, ArrowRight, BadgeCheck, CheckCircle2, FileCheck2, Network, RefreshCw, ShieldAlert, WifiOff } from '@lucide/vue'
 import ActionBar from '../components/ActionBar.vue'
 import DashboardChart from '../components/DashboardChart.vue'
@@ -203,15 +203,51 @@ const switchingChecks = computed(() => [
   },
 ] satisfies Array<{ label: string; value: string; detail: string; state: HealthState }>)
 
-const slaTrendLabels = computed(() => props.dashboard.visuals.completionTrend.map((point) => point.label))
-const slaTrendDatasets = computed(() => [
+const slaRangeOptions = [7, 30, 90] as const
+const slaRangeDays = ref<(typeof slaRangeOptions)[number]>(30)
+const partnerTrendColors = ['#0a66ff', '#067647', '#6941c6', '#b54708']
+const partnerSlaWindow = computed(() =>
+  props.dashboard.visuals.partnerSlaHistory.map((series) => ({
+    ...series,
+    daily: series.daily.slice(-slaRangeDays.value),
+  })),
+)
+const slaTarget = computed(() => partnerSlaWindow.value[0]?.target ?? 97)
+const partnerTrendLabels = computed(() => partnerSlaWindow.value[0]?.daily.map((point) => point.label.slice(5)) ?? [])
+const partnerTrendDatasets = computed(() => [
+  ...partnerSlaWindow.value.map((series, index) => ({
+    label: series.partner,
+    values: series.daily.map((point) => point.value),
+    color: partnerTrendColors[index % partnerTrendColors.length],
+  })),
   {
-    label: 'SLA completion',
-    values: props.dashboard.visuals.completionTrend.map((point) => point.value),
-    color: '#0a66ff',
-    fill: true,
+    label: `Target ${slaTarget.value}%`,
+    values: partnerTrendLabels.value.map(() => slaTarget.value),
+    color: '#b42318',
   },
 ])
+const partnerStandings = computed(() =>
+  partnerSlaWindow.value
+    .map((series) => {
+      const values = series.daily.map((point) => point.value)
+      const average = values.reduce((sum, value) => sum + value, 0) / Math.max(values.length, 1)
+      const breachDays = values.filter((value) => value < series.target).length
+      const underperforming = average < series.target
+      return {
+        partner: series.partner,
+        average: Math.round(average * 10) / 10,
+        breachDays,
+        days: values.length,
+        state: (underperforming ? 'degraded' : breachDays ? 'watch' : 'healthy') as HealthState,
+      }
+    })
+    .sort((a, b) => stateOrder(a.state) - stateOrder(b.state) || b.breachDays - a.breachDays),
+)
+const partnerStandingTone = computed<HealthState>(() => {
+  if (partnerStandings.value.some((row) => row.state === 'degraded')) return 'degraded'
+  if (partnerStandings.value.some((row) => row.state === 'watch')) return 'watch'
+  return 'healthy'
+})
 const providerChartLabels = computed(() => providerPerformanceRows.value.map((row) => row.rail))
 const providerChartDatasets = computed(() => [
   {
@@ -294,7 +330,7 @@ function openFirstFailure() {
       <div class="ops-command-bar__copy">
         <p class="eyebrow">Primary dashboard</p>
         <h2>Settlement reliability</h2>
-        <p>{{ primarySignal }} Failed transfers, local provider performance, partner SLA breaches, and API telemetry stay on one operating screen.</p>
+        <p>{{ primarySignal }}</p>
       </div>
       <div class="ops-command-bar__meta">
         <HealthBadge :state="overallTone" :trigger="valueAtRiskTotal" />
@@ -351,15 +387,41 @@ function openFirstFailure() {
     </section>
 
     <section class="ops-chart-grid" aria-label="Operational charts">
-      <Panel title="SLA completion trend" eyebrow="8-hour window" :accent="partnerSlaTone">
+      <Panel title="Partner SLA standing" :eyebrow="`Daily compliance, last ${slaRangeDays} days`" :accent="partnerStandingTone">
+        <div class="sla-range-toggle" role="group" aria-label="SLA time range">
+          <button
+            v-for="option in slaRangeOptions"
+            :key="option"
+            type="button"
+            :class="{ 'is-active': slaRangeDays === option }"
+            @click="slaRangeDays = option"
+          >
+            {{ option }}d
+          </button>
+        </div>
         <DashboardChart
           kind="line"
-          :labels="slaTrendLabels"
-          :datasets="slaTrendDatasets"
+          :labels="partnerTrendLabels"
+          :datasets="partnerTrendDatasets"
           unit="%"
-          summary="SLA completion rate by hour for the selected settlement window."
+          :summary="`Daily SLA compliance per partner against the ${slaTarget}% target, last ${slaRangeDays} days.`"
           @drilldown="openPath('/settings', { tab: 'sla', focus: 'breaches' })"
         />
+        <ul class="sla-standing-list">
+          <li
+            v-for="row in partnerStandings"
+            :key="row.partner"
+            class="is-clickable"
+            role="button"
+            tabindex="0"
+            @click="openPath('/partners')"
+            @keydown.enter.prevent="openPath('/partners')"
+          >
+            <strong>{{ row.partner }}</strong>
+            <small>{{ row.average }}% avg / below target {{ row.breachDays }} of {{ row.days }} days</small>
+            <HealthBadge :state="row.state" />
+          </li>
+        </ul>
       </Panel>
       <Panel title="Local provider performance" eyebrow="Current window" :accent="localProviderTone">
         <DashboardChart
@@ -382,7 +444,7 @@ function openFirstFailure() {
     </section>
 
     <section class="ops-workbench-grid">
-      <Panel title="Transactions and middleware calls to fix" eyebrow="Evidence-first worklist" :accent="openRemediationCases[0]?.state ?? 'healthy'">
+      <Panel title="Transactions and middleware calls to fix" eyebrow="Open repair queue" :accent="openRemediationCases[0]?.state ?? 'healthy'">
         <div class="repair-worklist">
           <button
             v-for="item in repairQueue"
@@ -422,7 +484,7 @@ function openFirstFailure() {
         </ActionBar>
       </Panel>
 
-      <Panel title="Switching API telemetry" eyebrow="Settlement reliability layer" :accent="switchingApiState">
+      <Panel title="Switching API telemetry" eyebrow="API status" :accent="switchingApiState">
         <div class="switching-brief">
           <Network :size="18" aria-hidden="true" />
           <span>
@@ -448,7 +510,7 @@ function openFirstFailure() {
     </section>
 
     <section class="ops-workbench-grid ops-workbench-grid--balanced">
-      <Panel title="Local provider performance" eyebrow="Working count and best performer" :accent="localProviderTone">
+      <Panel title="Local provider performance" eyebrow="Status and metrics" :accent="localProviderTone">
         <div class="provider-operating-list">
           <button
             v-for="row in providerRows"

@@ -182,7 +182,7 @@ function submitSelectedAction() {
     </Panel>
 
     <section class="exception-workspace">
-      <Panel title="Remediation queue" eyebrow="Evidence-first closure" accent="degraded">
+      <Panel title="Remediation queue" eyebrow="Open cases" accent="degraded">
         <div class="remediation-queue">
           <button
             v-for="item in filteredCases"

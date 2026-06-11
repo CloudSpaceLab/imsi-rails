@@ -33,7 +33,7 @@ async function submit() {
       <div>
         <p class="eyebrow">imsi-rails access</p>
         <h1>{{ title }}</h1>
-        <p>Use local credentials for product administrators or LDAP/AD for bank operators.</p>
+        <p>Sign in with local credentials or LDAP/AD.</p>
       </div>
       <div class="segmented-group" aria-label="Login mode">
         <button type="button" :class="{ 'is-selected': mode === 'local' }" @click="mode = 'local'">

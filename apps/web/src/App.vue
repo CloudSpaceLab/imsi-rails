@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { Activity, Gauge, Inbox, LogOut, Network, Settings, ShieldAlert, ToggleRight } from '@lucide/vue'
+import { Activity, FileText, Gauge, Inbox, LogOut, Network, Settings, ShieldAlert, ToggleRight, Users } from '@lucide/vue'
 import DataFreshness from './components/DataFreshness.vue'
 import LoginPanel from './components/LoginPanel.vue'
 import PageHeader from './components/PageHeader.vue'
@@ -13,6 +13,8 @@ import { getDashboardMock } from './services/mockDashboard'
 import CommandCenterView from './views/CommandCenterView.vue'
 import ExceptionsView from './views/ExceptionsView.vue'
 import InflowsView from './views/InflowsView.vue'
+import PartnersView from './views/PartnersView.vue'
+import ReportsView from './views/ReportsView.vue'
 import RoutesView from './views/RoutesView.vue'
 import SettingsView, { type SettingsTab } from './views/SettingsView.vue'
 import type { ScreenId, SessionUser, UiScenario } from './types'
@@ -32,15 +34,19 @@ const navigation = [
   { id: 'inflows' as ScreenId, label: 'Inflows', icon: Inbox, kicker: 'Transaction trace' },
   { id: 'routes' as ScreenId, label: 'Routes', icon: Network, kicker: 'Rail health' },
   { id: 'exceptions' as ScreenId, label: 'Exceptions', icon: ShieldAlert, kicker: 'Resolution queue' },
+  { id: 'partners' as ScreenId, label: 'Partners', icon: Users, kicker: 'IMTO management' },
+  { id: 'reports' as ScreenId, label: 'Reports', icon: FileText, kicker: 'Generate and download' },
   { id: 'settings' as ScreenId, label: 'Settings', icon: Settings, kicker: 'Policy and controls' },
 ]
 
 const screenDescriptions: Record<ScreenId, string> = {
   command: 'Failed transfers, local provider performance, partner SLA breaches, and API telemetry.',
-  inflows: 'Trace each inbound instruction from partner receipt through final-leg evidence and customer value proof.',
-  routes: 'Compare final-leg rail pressure before shifting eligible new transfers or containing a degraded endpoint.',
-  exceptions: 'Control unresolved credits with webhook wait, status API retry, provider escalation, and reversal workflows.',
-  settings: 'Manage contracts, standing accounts, SLA/backoff policy, feature rollout, and audit evidence.',
+  inflows: 'Inbound instructions from partner receipt to final credit evidence.',
+  routes: 'Final-leg rail performance and traffic shift decisions.',
+  exceptions: 'Unresolved credits: retries, provider escalations, and reversals.',
+  partners: 'IMTO partner directory, onboarding workflow, and approvals.',
+  reports: 'Operational, regulatory, and executive report generation and download.',
+  settings: 'Contracts, standing accounts, SLA/backoff policy, feature switches, and audit.',
 }
 
 const activeScreen = computed<ScreenId>(() => (route.meta.screen as ScreenId | undefined) ?? 'command')
@@ -125,7 +131,7 @@ function openSettingsTab(tab: SettingsTab) {
   <div v-if="!authReady" class="login-shell">
     <section class="login-card">
       <Activity :size="24" aria-hidden="true" />
-      <p>Loading inbound settlement tower...</p>
+      <p>Loading...</p>
     </section>
   </div>
 
@@ -204,6 +210,8 @@ function openSettingsTab(tab: SettingsTab) {
       <InflowsView v-else-if="activeScreen === 'inflows'" :dashboard="dashboard" />
       <RoutesView v-else-if="activeScreen === 'routes'" :dashboard="dashboard" @settings-tab="openSettingsTab" />
       <ExceptionsView v-else-if="activeScreen === 'exceptions'" :dashboard="dashboard" :actor-name="actorName" />
+      <PartnersView v-else-if="activeScreen === 'partners'" :dashboard="dashboard" :actor-name="actorName" />
+      <ReportsView v-else-if="activeScreen === 'reports'" :dashboard="dashboard" />
       <SettingsView v-else :dashboard="dashboard" :initial-tab="settingsTab" :session-user="sessionUser" />
     </main>
   </div>

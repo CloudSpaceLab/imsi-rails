@@ -16,10 +16,10 @@ Frontend choices:
 
 - Framework: Vue 3 with Vite.
 - Navigation: screen-state navigation inside the MVP shell before adopting a full router.
-- Design direction: dark-first operational control room; light/read-only executive mode is deferred.
+- Design direction: light-first bank operations surface with dense, restrained instrumentation.
 - Data model: typed UI contracts and mock services first, then backend API adapters.
 - Icons: `@lucide/vue`.
-- Charting: lightweight SVG/CSS and table views for the first revamp; add a chart library only when diagnostic density requires it.
+- Charting: Chart.js for bank-facing dashboard line/bar/doughnut charts, with uPlot retained for dense diagnostic time-series and latency drilldowns.
 - Tables: native semantic tables/grids for MVP; add virtualization when rows exceed 1,000.
 - Realtime model: websocket-first data shape with polling fallback and explicit stale/unavailable states.
 - QA: build/typecheck on every change, then add Playwright screenshots, accessibility checks, and visual regression.
@@ -37,4 +37,5 @@ Frontend choices:
 - No SvelteKit migration during the UI revamp.
 - Product screens are rebuilt around workflows rather than polishing the old one-page demo.
 - Static fixtures are organized as typed scenarios, so loading, stale, empty, permission-denied, and API-failure states can be designed before backend APIs are complete.
+- Dashboard charts must map to backend rollups described in `docs/adr/0002-settlement-data-architecture.md`.
 - All traffic-changing workflows must show preview, reason capture, approval state, audit context, and rollback target before activation.

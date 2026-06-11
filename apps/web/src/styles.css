@@ -4722,6 +4722,365 @@ tbody tr:hover,
   gap: 16px;
 }
 
+.metric-grid.metric-grid--three {
+  display: grid;
+  gap: 12px;
+}
+
+.metric-card {
+  border: 1px solid rgba(16, 24, 40, 0.1);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #fff;
+  display: grid;
+  gap: 4px;
+}
+
+.metric-card small {
+  color: #667085;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.metric-card strong {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.partner-directory,
+.report-catalog {
+  display: grid;
+  gap: 8px;
+}
+
+.sla-standing-list li.is-clickable {
+  cursor: pointer;
+}
+
+.sla-standing-list li.is-clickable:hover {
+  border-color: #0a66ff;
+}
+
+.partner-detail {
+  display: grid;
+  gap: 14px;
+}
+
+.partner-detail header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.partner-detail header strong {
+  font-size: 16px;
+}
+
+.partner-detail header small {
+  display: block;
+  color: #667085;
+  font-size: 12px;
+}
+
+.partner-detail h4 {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #475467;
+}
+
+.partner-row {
+  text-align: left;
+  background: #fff;
+  cursor: pointer;
+  font: inherit;
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(0, 2.2fr) minmax(150px, 0.9fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid rgba(16, 24, 40, 0.08);
+  border-radius: 10px;
+}
+
+.partner-row__identity {
+  display: grid;
+  gap: 2px;
+}
+
+.partner-row__identity small,
+.partner-row__approval small {
+  color: #667085;
+  font-size: 11.5px;
+}
+
+.partner-row dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 0;
+}
+
+.partner-row dl div {
+  display: grid;
+  gap: 1px;
+}
+
+.partner-row dt {
+  color: #667085;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.partner-row dd {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.partner-risk {
+  text-transform: capitalize;
+}
+
+.partner-risk[data-risk='high'] {
+  color: #b42318;
+}
+
+.partner-risk[data-risk='medium'] {
+  color: #b54708;
+}
+
+.partner-row__approval {
+  display: grid;
+  gap: 2px;
+}
+
+.wizard-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+}
+
+.wizard-steps li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(16, 24, 40, 0.12);
+  font-size: 12px;
+  color: #475467;
+}
+
+.wizard-steps li span {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(16, 24, 40, 0.08);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.wizard-steps li.is-active {
+  border-color: #0a66ff;
+  color: #0a66ff;
+}
+
+.wizard-steps li.is-active span {
+  background: #0a66ff;
+  color: #fff;
+}
+
+.wizard-steps li.is-done {
+  color: #067647;
+}
+
+.wizard-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+  margin-bottom: 12px;
+}
+
+.wizard-form label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #344054;
+}
+
+.wizard-form input[type='text'],
+.wizard-form input[type='date'],
+.wizard-form select,
+.report-controls select {
+  border: 1px solid rgba(16, 24, 40, 0.16);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.wizard-form .wizard-check {
+  grid-template-columns: auto 1fr;
+  display: grid;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.wizard-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #667085;
+  font-size: 12px;
+}
+
+.wizard-error {
+  margin: 0 0 10px;
+  color: #b42318;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.wizard-review {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 18px;
+  margin: 0;
+}
+
+.wizard-review div {
+  display: grid;
+  gap: 1px;
+}
+
+.wizard-review dt {
+  color: #667085;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.wizard-review dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.report-controls {
+  display: flex;
+  gap: 18px;
+}
+
+.report-controls label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #344054;
+}
+
+.report-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid rgba(16, 24, 40, 0.08);
+  border-radius: 10px;
+}
+
+.report-row > span {
+  display: grid;
+  gap: 2px;
+}
+
+.report-row small {
+  color: #667085;
+  font-size: 12px;
+}
+
+.report-download {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0a66ff;
+  text-decoration: none;
+}
+
+.report-download:hover {
+  text-decoration: underline;
+}
+
+.sla-range-toggle {
+  display: inline-flex;
+  gap: 4px;
+  margin-bottom: 8px;
+  padding: 3px;
+  border: 1px solid rgba(16, 24, 40, 0.12);
+  border-radius: 8px;
+}
+
+.sla-range-toggle button {
+  border: 0;
+  background: transparent;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475467;
+  cursor: pointer;
+}
+
+.sla-range-toggle button.is-active {
+  background: #0a66ff;
+  color: #fff;
+}
+
+.sla-standing-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.sla-standing-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'partner badge' 'detail badge';
+  align-items: center;
+  column-gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid rgba(16, 24, 40, 0.08);
+  border-radius: 8px;
+}
+
+.sla-standing-list li strong {
+  grid-area: partner;
+  font-size: 12.5px;
+}
+
+.sla-standing-list li small {
+  grid-area: detail;
+  color: #667085;
+  font-size: 11.5px;
+}
+
+.sla-standing-list li > :last-child {
+  grid-area: badge;
+}
+
 .repair-ticket,
 .switching-check-list article,
 .switching-brief,

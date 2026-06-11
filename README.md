@@ -8,6 +8,7 @@ International money transfer reliability infrastructure for banks.
 
 - [Market and platform brief](plan.md)
 - [Research and architecture](docs/research-and-architecture.md)
+- [IMTO orchestration and transfer rails backend architecture](docs/imto-orchestration-architecture.md)
 - [Delivery masterplan](docs/masterplan.md)
 - [Product requirements document](docs/prd.md)
 - [Users, brand, and design language](docs/users-brand-design-language.md)

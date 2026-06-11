@@ -1,3 +1,634 @@
+# UI/UX Reset Plan - Inbound Settlement Control Tower
+
+Planning date: 2026-06-01
+
+## Executive Decision
+
+The product should be refocused as a simple, premium control tower for inbound IMTO settlement into Nigerian bank accounts.
+
+The current experience is trying to expose too many domains at once: provider scorecards, FX/cost analytics, route policy, incidents, audits, routing contracts, incoming credits, SLA, reconciliation, and several debit/outflow-adjacent surfaces. The real product center is simpler:
+
+> Monitor incoming IMTO settlement requests, select the safest eligible final-leg route, prove whether the beneficiary was credited, and resolve/reconcile anything that breaches SLA or exhausts automatic requery.
+
+Everything that does not help an operator answer "where is this incoming transaction, is customer value delivered, and what safe action should happen next?" should either disappear from primary navigation or sit behind a feature switch.
+
+## 2026-06-03 Architecture Correction
+
+The dashboard cannot look credible to banks if it is only a polished demo. It must be backed by a core operating database model and chart rollups.
+
+The primary product tables should capture:
+
+- partner contracts and standing accounts
+- incoming settlement instructions
+- route decisions and rejected-route reasons
+- final-leg attempts across Fidelity core, NIP, Moniepoint, Interswitch, and other enabled local rails
+- provider/API calls, latency, timeout, and callback outcomes
+- SLA deadlines, cooldown windows, requery attempts, and late-success observation
+- outcome evidence: provider callback, rail/session evidence, core ledger posting, settlement batch, operator note, and audit event
+- remediation cases, maker-checker status, duplicate-risk level, and safe closure path
+- reconciliation matches and breaks
+- immutable audit events and policy versions
+
+The primary dashboard should read from four backend rollups, not hand-written UI numbers:
+
+| Dashboard chart | Backend rollup | Operating question |
+| --- | --- | --- |
+| SLA completion trend | `partner_sla_windows` | Are international banking partner SLAs failing? |
+| Local provider performance | `route_health_windows` | Which local payment providers are working and which performs best? |
+| Exception mix | `exception_windows` | Which failed/reversed transfers or middleware calls need repair? |
+| API telemetry | `api_health_windows` | Is the switching API telemetry fresh enough for operations decisions? |
+
+Detailed database architecture is tracked in `docs/adr/0002-settlement-data-architecture.md`, with the initial MariaDB schema draft in `db/settlement_core.sql`.
+
+## Current UI Diagnosis
+
+The Vue app currently has twelve top-level navigation areas:
+
+- Control Room
+- Transactions
+- Routes
+- Policy
+- Incidents
+- Rates & costs
+- Reconcile
+- Providers
+- Audit
+- Routing contracts
+- Incoming credits
+- Inbound SLA
+
+That is the noise. The app contains many useful pieces, but they are exposed as separate dashboards before the user has a clear mental model. The result feels broad instead of powerful.
+
+The code shape mirrors the product noise:
+
+- `apps/web/src/App.vue` is a large multi-screen container with many unrelated workflows in one file.
+- `apps/web/src/types.ts` carries broad product concepts instead of a tight inbound settlement model.
+- `apps/web/src/router.ts` exposes too many top-level screens.
+- `apps/web/src/styles.css` has a strong dark visual direction, but the density of panels, tables, badges, and dashboards makes the experience feel busy.
+
+## Refocused Product Model
+
+### Core Story
+
+A foreign bank or IMTO has an SLA with Fidelity Bank in Nigeria.
+
+The foreign partner operates a standing account with Fidelity Bank. The account has:
+
+- available prefund balance
+- optional credit line or overdraft rules
+- SLA deadline for beneficiary credit
+- settlement and reconciliation requirements
+- permitted corridors, currencies, destination banks, and rails
+
+An incoming transaction arrives:
+
+1. Foreign bank asks Fidelity Bank to credit a beneficiary in naira.
+2. The platform validates contract, balance/credit availability, beneficiary destination, and policy.
+3. If the beneficiary bank is Fidelity, the platform uses intra-bank routing.
+4. If the beneficiary bank is external, the platform uses an external route such as NIP, Moniepoint, Interswitch, or another configured rail.
+5. The platform monitors the final credit leg against the SLA.
+6. If the transaction breaches SLA, the platform does not blindly mark it failed. It enters a controlled timeout, cooldown, requery, and reconciliation workflow.
+7. If automatic checks exhaust, the transaction moves into manual remediation where an operator can requery, attach evidence, mark completed outside platform, approve reversal, or escalate.
+8. Route performance is penalized when the route produces timeouts, uncertain outcomes, callback inconsistency, or manual remediation burden.
+
+### Product Promise
+
+One dashboard and API for the final leg of inbound IMTO settlement:
+
+- observe incoming transaction health
+- route to the best eligible intra-bank or external rail
+- track SLA and late-success risk
+- avoid duplicate credit and unsafe reroute
+- reconcile provider, rail, and bank-ledger outcomes
+- remediate unresolved outcomes with evidence
+- improve future route selection based on operational truth
+
+## Target Information Architecture
+
+The app should have a maximum of five top-level dashboards.
+
+### 1. Command Center
+
+Purpose: live inbound settlement control tower.
+
+Primary question:
+
+> What inbound value is at risk right now, which routes are under pressure, and what should operations do next?
+
+Above the fold:
+
+- live inbound value and count
+- credited within SLA
+- open SLA breaches
+- unknown final outcomes
+- value at risk
+- standing account availability
+- top recommended action
+- route health strip for intra-bank, NIP, Moniepoint, Interswitch, and any configured partner route
+
+Visual structure:
+
+- central "inflow spine" from foreign bank to Fidelity standing account to beneficiary bank
+- SLA pressure lane grouped by `within SLA`, `cooldown`, `requerying`, `manual remediation`, `reconciled`
+- right-side action stack with only the next safest actions
+- compact route health cards with P95 credit time, timeout rate, late-success rate, and open cases
+
+### 2. Inflows
+
+Purpose: searchable incoming transaction workspace.
+
+Primary question:
+
+> Where is this incoming transaction, who owns the next action, and is customer value delivered?
+
+Core surfaces:
+
+- transaction search by switch reference, partner reference, bank reference, NIP/session reference, beneficiary account, amount, and settlement batch
+- transaction lifecycle timeline
+- final-leg route chosen and why
+- current SLA state and deadline
+- callback, posting, ledger, and settlement evidence
+- late-success guard status
+- current owner and safe next action
+
+This dashboard absorbs the current `Transactions`, `Incoming credits`, and credit detail surfaces.
+
+### 3. Routes
+
+Purpose: route selection, route health, and SLA performance by endpoint.
+
+Primary question:
+
+> Which final-leg route should receive new inbound traffic right now?
+
+Core surfaces:
+
+- intra-bank route performance
+- external route performance: NIP, Moniepoint, Interswitch, Paystack transfer, MFBs, wallets if enabled
+- route eligibility matrix
+- destination-bank health
+- SLA breach trend
+- timeout and late-success trend
+- automatic route penalty score
+- traffic split and fallback order
+
+This dashboard absorbs the current `Routes`, parts of `Providers`, and the useful parts of `Rates & costs`.
+
+### 4. Exceptions
+
+Purpose: settlement, reconciliation, and remediation center.
+
+Primary question:
+
+> Which transactions are not safe to close yet, and what evidence is needed to close them?
+
+Core queues:
+
+- SLA breached, still within cooldown
+- automatic requery in progress
+- automatic requery exhausted
+- uncertain outcome / late-success risk
+- provider says paid, bank ledger missing
+- bank ledger posted, provider callback missing
+- duplicate-risk watch
+- reversal pending
+- completed outside platform awaiting maker-checker
+
+Manual actions:
+
+- requery status by route/provider
+- request provider evidence
+- attach posting/session evidence
+- mark completed outside platform
+- approve reversal
+- close reconciliation break
+- escalate to route owner
+
+This dashboard absorbs the current `Reconcile`, `Incidents`, and unresolved credit workflows.
+
+### 5. Settings
+
+Purpose: low-frequency configuration and advanced features.
+
+Primary question:
+
+> What contracts, SLAs, routes, approvals, and feature switches govern inbound settlement?
+
+Core surfaces:
+
+- partner contracts and standing accounts
+- credit line rules
+- SLA definitions
+- route eligibility rules
+- provider/rail credentials and endpoints
+- maker-checker approval rules
+- circuit breaker thresholds
+- feature switches
+- audit log and exports
+
+This dashboard absorbs the current `Policy`, `Routing contracts`, `Inbound SLA`, `Audit`, and admin configuration.
+
+## What Gets Tucked Behind Feature Switches
+
+The primary app should not look like a debit/outflow operations suite. Debit-adjacent features only appear when enabled and only inside the workflow where they matter.
+
+Suggested feature switches:
+
+- `externalDebitRailOps`: exposes debit/refund/return handling for payment gateways and outbound rail mechanics.
+- `walletAndCashPickup`: exposes wallet, cash pickup, and agent-network endpoints.
+- `advancedFxCosts`: exposes full FX/rate economics beyond basic cost and stale-rate eligibility.
+- `providerCommercialScorecards`: exposes commercial/provider negotiation scorecards.
+- `policySimulator`: exposes shadow-routing and historical replay tools.
+- `multiBankPortfolio`: exposes group-level executive views across multiple banks.
+- `advancedComplianceCases`: exposes deeper AML/RFI/case-management workflows.
+- `settlementFileImports`: exposes bulk settlement-file upload and matching tools.
+
+Default MVP feature state:
+
+| Feature | Default | Reason |
+| --- | --- | --- |
+| Intra-bank routing | On | Core final-leg route |
+| NIP / external bank routing | On | Core final-leg route |
+| SLA monitoring | On | Core promise |
+| Cooldown/requery/backoff | On | Prevents unsafe failure handling |
+| Manual remediation | On | Needed after automation exhausts |
+| Reconciliation evidence | On | Needed to prove customer value |
+| Debit/refund operations | Off | Advanced exception mode |
+| Wallet/cash pickup | Off | Not needed for account-payout pilot |
+| Full FX board | Off | Useful, but not core to final-leg credit monitoring |
+| Provider commercial scorecards | Off | Executive/provider management, not daily operations |
+
+## SLA Timeout, Cooldown, and Late-Success Model
+
+The hardest part of the product is not showing failed transactions. It is knowing when a transaction is safe to call failed.
+
+### State Model
+
+Recommended final-leg states:
+
+- `received`: inbound instruction accepted
+- `validated`: contract, account, policy, and route eligibility checked
+- `routing`: final-leg route being selected
+- `submitted`: posted to intra-bank or external rail
+- `accepted`: rail/provider accepted the request
+- `credit_pending`: beneficiary credit not yet proven
+- `credited`: customer value delivered and evidence attached
+- `sla_breached`: SLA deadline missed, but outcome not final
+- `cooldown`: waiting before requery because late success is possible
+- `requerying`: automatic status check in progress
+- `outcome_uncertain`: route cannot prove paid or failed
+- `manual_remediation`: automation exhausted and operator action required
+- `completed_outside_platform`: operator confirmed credit with external evidence
+- `reversal_pending`: safe reversal/return path initiated
+- `failed_safe`: no credit occurred and reroute/reversal is safe
+- `failed_unsafe`: failure claimed but duplicate-credit risk remains
+- `reconciled`: settlement, ledger, and provider evidence matched
+
+### Backoff Rules
+
+Backoff should be route-specific and SLA-specific. Example default:
+
+- T+0 at SLA breach: mark `sla_breached`, freeze unsafe duplicate actions, open cooldown clock.
+- T+30s: first automatic requery.
+- T+2m: second requery plus provider callback check.
+- T+5m: third requery plus ledger/NIP/session evidence check.
+- T+15m: final automatic requery.
+- Exhausted: move to `manual_remediation`.
+
+The timings above are placeholders. Settings should allow each route to define:
+
+- SLA duration
+- cooldown windows
+- max requery attempts
+- requery provider/API method
+- late-success observation window
+- whether reroute is ever allowed after acceptance
+- evidence required before manual completion
+
+### Route Penalty
+
+Routes should lose score when they create operational uncertainty, not only when they hard fail.
+
+Penalty inputs:
+
+- SLA breach rate
+- timeout rate
+- late success after timeout
+- callback lag
+- inconsistent status response
+- missing session/posting evidence
+- manual remediation rate
+- duplicate-risk events
+- reconciliation break rate
+- operator override frequency
+
+Penalty should decay after recovery, so a route can earn traffic back through recovery testing.
+
+## Visual Design Direction
+
+The target feel is Fortune-500 bank infrastructure: premium, quiet, dense, and decisive.
+
+The app should feel expensive because it removes doubt, not because it adds decoration.
+
+### Visual Principles
+
+- Calm dark operational canvas.
+- One strong primary visual per dashboard.
+- Tables are compact and purposeful, not wall-to-wall.
+- Status colors are reserved for operational state.
+- No nested cards inside cards.
+- No decorative gradients competing with risk signals.
+- Motion only for live updates, SLA clocks, and state transitions.
+- Every number shows unit, freshness, and time window.
+
+### Signature Components
+
+- `InflowSpine`: visualizes foreign bank -> Fidelity standing account -> beneficiary bank/rail.
+- `SlaClock`: compact circular or horizontal SLA countdown with breached/cooldown/requery states.
+- `StandingAccountMeter`: prefund, credit line, available limit, and projected exhaustion.
+- `RouteHealthStrip`: intra-bank, NIP, Moniepoint, Interswitch, and enabled rails.
+- `BackoffLadder`: shows automatic requery attempts, next attempt time, and exhausted state.
+- `OutcomeConfidenceBadge`: `proven credited`, `probably pending`, `uncertain`, `safe failed`, `unsafe failed`.
+- `RemediationQueue`: prioritized by value at risk, SLA age, duplicate risk, and evidence gaps.
+- `EvidenceDrawer`: ledger posting, provider callback, rail session, settlement batch, operator note, and audit trail.
+- `RoutePenaltyMeter`: shows why a route is losing future traffic.
+
+## Screen-Level Refactor Plan
+
+### Command Center Layout
+
+Top row:
+
+- Inbound value today
+- Credited within SLA
+- Open SLA breaches
+- Unknown outcomes
+- Standing account availability
+
+Main left:
+
+- live inflow spine
+- route health strip
+- SLA pressure lanes
+
+Main right:
+
+- recommended action
+- highest-risk transactions
+- automatic backoff currently running
+- routes being penalized
+
+Bottom:
+
+- compact route table sorted by operational risk
+- no broad provider analytics unless opened as a drilldown
+
+### Inflows Layout
+
+Top:
+
+- universal search
+- filters: SLA state, route, destination bank, partner, value band, outcome confidence
+
+Main:
+
+- transaction work queue
+- selected transaction trace side panel
+
+Trace:
+
+- route decision
+- final-leg attempt timeline
+- SLA clock and backoff ladder
+- evidence checklist
+- safe actions only
+
+### Routes Layout
+
+Top:
+
+- route health by final-leg route
+- active circuit breakers
+- route penalty changes
+
+Main:
+
+- route matrix by destination bank and rail
+- route detail drawer with success, P95, timeout, late-success, callback lag, recon breaks
+
+Controls:
+
+- enable/disable by corridor, destination bank, amount band, and partner contract
+- traffic split
+- fallback order
+- recovery testing
+
+All traffic-changing controls require preview, reason, approval state, and rollback target.
+
+### Exceptions Layout
+
+Top:
+
+- manual queue size
+- value at risk
+- oldest unresolved
+- duplicate-risk count
+
+Main:
+
+- queue tabs: cooldown, requerying, exhausted, recon breaks, completed outside platform, reversals
+
+Case detail:
+
+- current theory of outcome
+- evidence status
+- requery action
+- mark completed outside platform
+- approve reversal
+- close break
+- audit trail
+
+### Settings Layout
+
+Top:
+
+- partner/contract selector
+- environment and feature switches
+
+Sections:
+
+- standing account and credit line
+- SLA and backoff policy
+- route eligibility and thresholds
+- maker-checker and roles
+- integrations
+- audit exports
+
+## Frontend Implementation Plan
+
+### Phase 1 - Product Scope Reset
+
+Goal: make the app simpler before making it prettier.
+
+Tasks:
+
+- Replace twelve top-level screens with five: `Command Center`, `Inflows`, `Routes`, `Exceptions`, `Settings`.
+- Move `FX`, `Providers`, `Audit`, `Contracts`, `Credits`, and `Inbound SLA` into tabs/drawers under the five-screen model.
+- Add feature switches for debit/outflow, wallets, cash pickup, advanced FX, provider scorecards, and policy simulator.
+- Rename product copy around inbound settlement, final-leg credit, SLA, outcome confidence, and remediation.
+
+Acceptance criteria:
+
+- top-level navigation has no more than five items
+- no debit/outflow feature appears in primary navigation by default
+- first viewport answers live inbound risk and next action
+
+### Phase 2 - Domain Model Reset
+
+Goal: align types and mock data with the actual bank workflow.
+
+Tasks:
+
+- Create inbound-focused domain types:
+  - `InboundContract`
+  - `StandingAccount`
+  - `CreditFacility`
+  - `IncomingInstruction`
+  - `FinalLegAttempt`
+  - `SlaPolicy`
+  - `BackoffPolicy`
+  - `RequeryAttempt`
+  - `OutcomeEvidence`
+  - `RemediationCase`
+  - `RoutePenalty`
+- Convert current `CreditLeg`, `RoutingContract`, `InboundSlaRow`, and `ReconciliationItem` into the new model.
+- Add realistic examples for Fidelity Bank:
+  - Bank X in England -> Fidelity standing account -> Fidelity beneficiary
+  - Bank X in England -> Fidelity standing account -> external beneficiary via NIP
+  - NIP timeout followed by late success
+  - Moniepoint callback missing but ledger posted
+  - Interswitch failed-safe with reversal pending
+
+Acceptance criteria:
+
+- every UI state maps to the inbound settlement model
+- timeout/cooldown/requery states are represented in mock data and tests
+
+### Phase 3 - App Architecture Cleanup
+
+Goal: stop `App.vue` from being the whole product.
+
+Tasks:
+
+- Split `App.vue` into a shell and route views:
+  - `views/CommandCenterView.vue`
+  - `views/InflowsView.vue`
+  - `views/RoutesView.vue`
+  - `views/ExceptionsView.vue`
+  - `views/SettingsView.vue`
+- Move screen computations into composables:
+  - `useInboundTower`
+  - `useRouteHealth`
+  - `useRemediationQueue`
+  - `useFeatureSwitches`
+- Create small domain components for the signature components listed above.
+- Keep shared primitives in `components/`.
+
+Acceptance criteria:
+
+- `App.vue` is mostly shell, auth, and layout
+- each view owns one primary workflow
+- tests mount views independently
+
+### Phase 4 - Premium Visual System
+
+Goal: make the product visually rich without returning to noise.
+
+Tasks:
+
+- Tighten tokens for canvas, surface, line, text, live signal, SLA, risk, recovery, and policy.
+- Reduce panel count and use full-width bands or split views instead of stacked card grids.
+- Add a strong first-viewport visual to Command Center: the inflow spine plus SLA pressure lanes.
+- Replace generic KPI cards with outcome-specific instruments:
+  - SLA clock
+  - standing account meter
+  - route penalty meter
+  - backoff ladder
+- Use icon buttons and compact tooltips for secondary actions.
+
+Acceptance criteria:
+
+- one visual hierarchy per screen
+- no generic dashboard cards that do not drive an action
+- status color only communicates status
+- text fits on desktop and mobile without overlap
+
+### Phase 5 - Remediation and Requery Workflow
+
+Goal: make the hardest operational workflow first-class.
+
+Tasks:
+
+- Build manual requery by route/provider.
+- Show automatic attempts and next attempt time.
+- Show when automation has exhausted.
+- Require evidence and reason for manual completion.
+- Add maker-checker state for `completed outside platform` and reversal approval.
+- Persist audit event shape in mocks/API contract.
+
+Acceptance criteria:
+
+- operator can see why a transaction is not safely failed
+- operator can manually requery after automatic backoff exhausts
+- operator can mark completed outside platform with evidence
+- duplicate-credit risk is explicit before any closure action
+
+### Phase 6 - Verification
+
+Goal: make the redesign shippable, not just attractive.
+
+Tasks:
+
+- Update unit/component tests for five-screen navigation.
+- Add tests for timeout -> cooldown -> requery -> manual remediation.
+- Add tests for feature switches hiding debit/outflow/advanced modules.
+- Run `npm run web:build` and `npm run web:test`.
+- Use browser screenshots at desktop and mobile for Command Center, Inflows, and Exceptions.
+
+Acceptance criteria:
+
+- build passes
+- tests pass
+- screenshots show no overlap or noisy first viewport
+- critical workflows are keyboard reachable
+
+## Suggested Build Order
+
+1. Navigation and copy reset.
+2. Inbound domain types and mock data.
+3. Command Center first viewport.
+4. Inflows search and transaction trace.
+5. Exceptions/remediation workflow.
+6. Routes health and route penalty view.
+7. Settings with feature switches and SLA/backoff policy.
+8. Visual polish and responsive QA.
+
+## Definition of Done
+
+The refactor is successful when:
+
+- a Fidelity operations user can understand inbound settlement risk in under five seconds
+- the app has four or five main dashboards, not twelve
+- incoming transactions are the center of every workflow
+- debit/outflow and advanced analytics are hidden unless enabled
+- SLA breach does not equal naive failure
+- cooldown, backoff, requery, late success, and reconciliation are visible and actionable
+- every manual completion or reversal has evidence and maker-checker/audit context
+- route penalties affect future recommendations
+- the interface feels like a premium bank control tower, not a noisy admin dashboard
+
+---
+
 # imsi-rails - IMTO Switch and Monitoring Dashboard Brief
 
 Research date: 2026-05-19
@@ -128,13 +759,13 @@ It is the bank's switching, monitoring, policy, and reliability layer across exi
 | CIO / CTO | fewer one-off integrations, cleaner API layer, observable transaction flow |
 | Risk / Compliance | auditable routing decisions, approved providers only, clear exception handling |
 | Treasury / Finance | settlement visibility, prefund exposure, cost and FX performance |
-| Executive Management | reliable remittance revenue, customer assurance, provider accountability |
+| Executive Management | reliable remittance revenue, customer confidence, provider accountability |
 
 ### Sales Narrative
 
 Lead with reliability, not technology:
 
-1. Banks lose revenue and customer assurance when international transfers fail or stall.
+1. Banks lose confidence and revenue when international transfers fail or stall.
 2. Most banks already have many IMTO providers, but no single truth about which route is best at any moment.
 3. The platform gives banks one control tower for IMTO health, transaction routing, failures, reconciliation, and provider scorecards.
 4. Banks keep their providers. The switch makes those providers compete on measurable performance.
@@ -211,7 +842,7 @@ If a feature does not help one of these metrics, it should wait.
 
 ### What Not To Build First
 
-Defer these until the core switch has production evidence:
+Defer these until the core switch is proven in production:
 
 - consumer remittance app
 - mobile wallet payout across every African country
@@ -493,7 +1124,7 @@ For every routed transaction, the engine should persist:
 - fallback route list
 - whether auto-switching was allowed
 
-This audit trail is essential for bank assurance, provider disputes, and regulatory review.
+This audit trail is essential for bank confidence, provider disputes, and regulatory review.
 
 ## Dashboard KPIs
 

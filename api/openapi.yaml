@@ -327,6 +327,199 @@ paths:
       responses:
         "200":
           description: SSE stream of dashboard.summary events.
+  /v1/inbound/summary:
+    get:
+      summary: At-a-glance counts of inbound credit work
+      operationId: getInboundSummary
+      responses:
+        "200":
+          description: Inbound credit summary counts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundSummary"
+  /v1/inbound/contracts:
+    get:
+      summary: List inbound routing contracts (foreign partners this bank lands for)
+      operationId: listRoutingContracts
+      parameters:
+        - name: state
+          in: query
+          schema:
+            $ref: "#/components/schemas/HealthState"
+      responses:
+        "200":
+          description: Routing contracts.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contracts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RoutingContract"
+  /v1/inbound/contracts/{id}:
+    get:
+      summary: Retrieve a routing contract with its local endpoints
+      operationId: getRoutingContract
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Routing contract.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoutingContract"
+        "404":
+          description: Contract not found.
+  /v1/inbound/credits:
+    get:
+      summary: List incoming credit legs
+      operationId: listCreditLegs
+      parameters:
+        - name: state
+          in: query
+          schema:
+            $ref: "#/components/schemas/CreditLegState"
+        - name: contract_id
+          in: query
+          schema:
+            type: string
+        - name: q
+          in: query
+          description: Free-text match on reference, partner, beneficiary, endpoint.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Credit legs.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  credit_legs:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CreditLeg"
+  /v1/inbound/credits/{reference}:
+    get:
+      summary: Retrieve a credit leg with its lifecycle timeline
+      operationId: getCreditLeg
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Credit leg.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreditLeg"
+        "404":
+          description: Credit leg not found.
+  /v1/inbound/credits/{reference}/actions:
+    post:
+      summary: Apply an operator intervention to a credit leg
+      operationId: applyCreditAction
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreditActionRequest"
+      responses:
+        "200":
+          description: Updated credit leg.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreditLeg"
+        "400":
+          description: Invalid body, missing decision evidence, or unknown action.
+        "404":
+          description: Credit leg not found.
+        "409":
+          description: Credit leg state does not allow this action.
+  /v1/inbound/credit-breaks:
+    get:
+      summary: List credit legs needing remediation, checker action, or reversal approval
+      operationId: listCreditBreaks
+      responses:
+        "200":
+          description: Credit legs needing intervention.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  credit_legs:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CreditLeg"
+  /v1/inbound/sla:
+    get:
+      summary: Per-contract inbound credit SLA performance
+      operationId: getInboundSla
+      responses:
+        "200":
+          description: Inbound SLA rows.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rows:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/InboundSlaRow"
+  /v1/inbound/compliance-holds:
+    get:
+      summary: Open sanctions/KYC/RFI holds on incoming credit legs
+      operationId: getComplianceHolds
+      responses:
+        "200":
+          description: Compliance holds.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  holds:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ComplianceHold"
+  /v1/inbound/audit:
+    get:
+      summary: Operator intervention log for credit-leg actions
+      operationId: getInboundAudit
+      responses:
+        "200":
+          description: Audit events, newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/InboundAuditEvent"
 components:
   securitySchemes:
     cookieAuth:
@@ -976,6 +1169,9 @@ components:
         - healthy
         - watch
         - degraded
+        - blocked
+        - recovery
+        - stale
     CircuitBreakerState:
       type: string
       enum:
@@ -1020,3 +1216,353 @@ components:
               type: string
             detail:
               type: string
+    CreditLegState:
+      type: string
+      enum:
+        - received
+        - crediting
+        - credited
+        - cooldown
+        - requerying
+        - manual_remediation
+        - completed_outside_platform
+        - reversal_pending
+        - reversed
+        - recon_break
+    InboundSummary:
+      type: object
+      properties:
+        contract_count:
+          type: integer
+        credits_in_flight:
+          type: integer
+        reversals:
+          type: integer
+        recon_breaks:
+          type: integer
+        compliance_holds:
+          type: integer
+    ContractEndpoint:
+      type: object
+      properties:
+        name:
+          type: string
+        kind:
+          type: string
+          description: Local bank, MFB, Fintech wallet, or Agent network.
+        rail:
+          type: string
+        reach:
+          type: string
+        reliability:
+          type: string
+        p95_credit:
+          type: string
+        open_credits:
+          type: integer
+        callback_lag:
+          type: string
+        settlement_lag:
+          type: string
+        owner:
+          type: string
+        state:
+          $ref: "#/components/schemas/HealthState"
+    RoutingContract:
+      type: object
+      properties:
+        id:
+          type: string
+        partner:
+          type: string
+        partner_type:
+          type: string
+        origin_country:
+          type: string
+        destination_country:
+          type: string
+        corridor:
+          type: string
+        payout_methods:
+          type: string
+        endpoint_count:
+          type: integer
+        monthly_volume:
+          type: string
+        delivery_reliability:
+          type: string
+        credit_sla:
+          type: string
+        sla_breach_rate:
+          type: string
+        last_settlement:
+          type: string
+        available_limit:
+          type: string
+        settlement_model:
+          type: string
+        prefund_status:
+          type: string
+        cutoff_window:
+          type: string
+        open_exceptions:
+          type: integer
+        oldest_open_credit:
+          type: string
+        next_review:
+          type: string
+        state:
+          $ref: "#/components/schemas/HealthState"
+        status:
+          type: string
+        owner:
+          type: string
+        note:
+          type: string
+        endpoints:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContractEndpoint"
+    InboundTimelineStep:
+      type: object
+      properties:
+        label:
+          type: string
+        owner:
+          type: string
+        status:
+          type: string
+          enum: [done, current, pending]
+        time:
+          type: string
+        duration:
+          type: string
+        source:
+          type: string
+        reference:
+          type: string
+        note:
+          type: string
+    EvidenceItem:
+      type: object
+      properties:
+        label:
+          type: string
+        reference:
+          type: string
+        status:
+          type: string
+        owner:
+          type: string
+        state:
+          $ref: "#/components/schemas/HealthState"
+    RequeryAttempt:
+      type: object
+      properties:
+        id:
+          type: string
+        due_at:
+          type: string
+        completed_at:
+          type: string
+        method:
+          type: string
+        result:
+          type: string
+        trigger:
+          type: string
+          enum: [automatic, manual]
+        state:
+          $ref: "#/components/schemas/HealthState"
+    CreditLeg:
+      type: object
+      properties:
+        reference:
+          type: string
+        contract_id:
+          type: string
+        partner:
+          type: string
+        partner_reference:
+          type: string
+        origin_country:
+          type: string
+        destination_country:
+          type: string
+        beneficiary:
+          type: string
+        beneficiary_account:
+          type: string
+        endpoint:
+          type: string
+        endpoint_kind:
+          type: string
+        amount:
+          type: string
+        value_at_risk:
+          type: string
+        received_at:
+          type: string
+        credited_at:
+          type: string
+        elapsed:
+          type: string
+        sla_due_at:
+          type: string
+        sla_state:
+          $ref: "#/components/schemas/HealthState"
+        credit_state:
+          $ref: "#/components/schemas/CreditLegState"
+        state:
+          $ref: "#/components/schemas/HealthState"
+        reversal:
+          type: boolean
+        recon_state:
+          type: string
+        evidence_status:
+          type: string
+        rail_reference:
+          type: string
+        bank_posting_reference:
+          type: string
+        settlement_batch:
+          type: string
+        callback_lag:
+          type: string
+        last_callback_at:
+          type: string
+        posting_attempts:
+          type: integer
+        maker_checker_status:
+          type: string
+        next_action:
+          type: string
+        owner:
+          type: string
+        blocker:
+          type: string
+        risk_flags:
+          type: array
+          items:
+            type: string
+        evidence:
+          type: array
+          items:
+            $ref: "#/components/schemas/EvidenceItem"
+        requery_attempts:
+          type: array
+          items:
+            $ref: "#/components/schemas/RequeryAttempt"
+        timeline:
+          type: array
+          items:
+            $ref: "#/components/schemas/InboundTimelineStep"
+    InboundSlaRow:
+      type: object
+      properties:
+        contract_id:
+          type: string
+        partner:
+          type: string
+        corridor:
+          type: string
+        credit_sla:
+          type: string
+        p95_credit:
+          type: string
+        breach_rate:
+          type: string
+        aging_breaches:
+          type: integer
+        value_at_risk:
+          type: string
+        oldest_breach:
+          type: string
+        breach_reason:
+          type: string
+        owner:
+          type: string
+        recommended_action:
+          type: string
+        state:
+          $ref: "#/components/schemas/HealthState"
+        trend:
+          type: string
+    ComplianceHold:
+      type: object
+      properties:
+        reference:
+          type: string
+        partner:
+          type: string
+        type:
+          type: string
+          description: Sanctions, KYC, RFI, or Purpose.
+        beneficiary:
+          type: string
+        amount:
+          type: string
+        age:
+          type: string
+        due_at:
+          type: string
+        decision_sla:
+          type: string
+        required_evidence:
+          type: string
+        partner_rfi_reference:
+          type: string
+        owner:
+          type: string
+        value_at_risk:
+          type: string
+        state:
+          $ref: "#/components/schemas/HealthState"
+        note:
+          type: string
+    CreditActionRequest:
+      type: object
+      required: [action, note, evidence_reference, reason_code]
+      properties:
+        action:
+          type: string
+          enum: [resolve_recon, manual_requery, mark_completed_outside_platform, approve_reversal]
+        note:
+          type: string
+        evidence_reference:
+          type: string
+        reason_code:
+          type: string
+        requery_method:
+          type: string
+        customer_value_delivered:
+          type: boolean
+    InboundAuditEvent:
+      type: object
+      properties:
+        time:
+          type: string
+        actor:
+          type: string
+        action:
+          type: string
+        reference:
+          type: string
+        object:
+          type: string
+        result:
+          type: string
+        note:
+          type: string
+        evidence_reference:
+          type: string
+        reason_code:
+          type: string
+        requery_method:
+          type: string
+        state:
+          type: string
+        maker_checker_status:
+          type: string
+        customer_value_delivered:
+          type: boolean

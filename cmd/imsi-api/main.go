@@ -10,6 +10,7 @@ import (
 	"github.com/CloudSpaceLab/imsi-rails/internal/core"
 	"github.com/CloudSpaceLab/imsi-rails/internal/dashboard"
 	"github.com/CloudSpaceLab/imsi-rails/internal/health"
+	"github.com/CloudSpaceLab/imsi-rails/internal/inbound"
 	"github.com/CloudSpaceLab/imsi-rails/internal/intake"
 )
 
@@ -24,6 +25,7 @@ func main() {
 	intake.NewHandler(seedIntakeService(healthService)).RegisterProtected(mux, authService.Require)
 	health.NewHandler(healthService).RegisterProtected(mux, authService.Require)
 	dashboard.NewHandler(dashboard.NewSeedService()).RegisterProtected(mux, authService.Require)
+	inbound.NewHandler(inbound.NewSeedService()).RegisterProtected(mux, authService.Require)
 
 	addr := ":8080"
 	if envAddr := os.Getenv("IMSI_API_ADDR"); envAddr != "" {

@@ -5,6 +5,8 @@ export type ScreenId =
   | 'inflows'
   | 'routes'
   | 'exceptions'
+  | 'partners'
+  | 'reports'
   | 'settings'
 
 export type UiScenario =
@@ -187,8 +189,17 @@ export type DashboardBreakdown = {
   state: HealthState
 }
 
+export type PartnerSlaHistory = {
+  partner: string
+  /** SLA compliance target as a percentage, e.g. 97 */
+  target: number
+  /** Daily SLA compliance percentage, oldest first; label is an ISO date */
+  daily: ChartPoint[]
+}
+
 export type DashboardVisuals = {
   completionTrend: ChartPoint[]
+  partnerSlaHistory: PartnerSlaHistory[]
   volumeTrend: ChartPoint[]
   latencyBands: LatencyBand[]
   exceptionBreakdown: DashboardBreakdown[]
@@ -717,6 +728,35 @@ export type InboundSlaRow = {
   trend: string
 }
 
+export type ImtoPartnerStatus = 'active' | 'onboarding' | 'suspended' | 'draft'
+export type ImtoRiskRating = 'low' | 'medium' | 'high'
+export type ImtoIntegrationMode = 'REST' | 'SOAP' | 'SFTP'
+export type ImtoApprovalState = 'approved' | 'checker_pending' | 'maker_draft' | 'rejected'
+
+export type ImtoDueDiligenceItem = {
+  item: string
+  status: 'complete' | 'pending' | 'overdue'
+}
+
+export type ImtoPartner = {
+  id: string
+  name: string
+  country: string
+  corridor: string
+  status: ImtoPartnerStatus
+  riskRating: ImtoRiskRating
+  integrationMode: ImtoIntegrationMode
+  iso20022Ready: boolean
+  creditSla: string
+  settlementCurrency: string
+  prefundingModel: 'prefunded' | 'credit-line' | 'hybrid'
+  contractEnd: string
+  onboardingStage: string
+  approvalState: ImtoApprovalState
+  dueDiligence: ImtoDueDiligenceItem[]
+  state: HealthState
+}
+
 export type ComplianceHold = {
   reference: string
   partner: string
@@ -1024,6 +1064,7 @@ export type DashboardMock = {
   routingContracts: RoutingContract[]
   creditLegs: CreditLeg[]
   inboundSla: InboundSlaRow[]
+  imtoPartners: ImtoPartner[]
   complianceHolds: ComplianceHold[]
   featureSwitches: FeatureSwitch[]
   inboundContracts: InboundContract[]

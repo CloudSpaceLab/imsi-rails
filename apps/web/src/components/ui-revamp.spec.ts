@@ -113,11 +113,11 @@ describe('inbound settlement tower workflows', () => {
     expect(getDashboardMock('api-failure').viewState).toBe('error')
   })
 
-  it('exposes only five top-level screens', async () => {
+  it('exposes only seven top-level screens', async () => {
     const wrapper = await mountApp()
     const labels = screenRoutes.map((screen) => screen.label)
 
-    expect(labels).toEqual(['Command Center', 'Inflows', 'Routes', 'Exceptions', 'Settings'])
+    expect(labels).toEqual(['Command Center', 'Inflows', 'Routes', 'Exceptions', 'Partners', 'Reports', 'Settings'])
     for (const label of labels) {
       const button = wrapper.findAll('button.nav-item').find((item) => item.text().includes(label))
       expect(button, `missing nav item ${label}`).toBeTruthy()
@@ -142,11 +142,11 @@ describe('inbound settlement tower workflows', () => {
     expect(wrapper.text()).toContain('Switching API status')
     expect(wrapper.text()).toContain('Local providers working')
     expect(wrapper.text()).toContain('International partner SLAs')
-    expect(wrapper.text()).toContain('SLA completion trend')
+    expect(wrapper.text()).toContain('Partner SLA standing')
     expect(wrapper.text()).toContain('Exception mix')
     expect(wrapper.text()).not.toContain(`SLA ${'controls'}`)
     expect(wrapper.text()).not.toContain('Provider traffic controls')
-    expect(wrapper.text()).toContain('8-hour window')
+    expect(wrapper.text()).toContain('Daily compliance, last 30 days')
     expect(wrapper.text()).toContain('Switching API telemetry')
     expect(wrapper.text()).toContain('Transactions and middleware calls to fix')
     expect(wrapper.text()).toContain('Local provider performance')

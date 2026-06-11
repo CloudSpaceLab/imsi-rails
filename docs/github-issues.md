@@ -8,6 +8,8 @@ Updated on 2026-05-19 with design-language implementation issues #23-#24.
 
 Updated on 2026-05-20 with UI/UX revamp epic #37 and child issues #38-#51 across milestone `M1.5: UI/UX Revamp`.
 
+Updated on 2026-05-21 after a deeper backend review with transfer orchestration milestone `M1.1: Transfer Orchestration Backbone` and issues #52-#70.
+
 ## Milestones
 
 ### M0: Foundation and Landing Page
@@ -30,6 +32,19 @@ Goal:
 Exit:
 
 - sandbox transaction can be routed and inspected in UI
+
+### M1.1: Transfer Orchestration Backbone
+
+Goal:
+
+- turn route selection into a durable transfer orchestration layer with attempts, provider operations, callbacks, outbox events, exceptions, reconciliation states, and evidence reports
+
+Exit:
+
+- provider attempts are durable and state transitions are owned by an orchestrator
+- provider callbacks are ingested through a durable inbox
+- unknown outcomes and duplicate payout risk are modeled explicitly
+- reports and reconciliation work from immutable events rather than manual evidence gathering
 
 ### M1.5: UI/UX Revamp
 
@@ -83,6 +98,179 @@ Exit:
 - security, performance, deployment, and operating runbooks are ready
 
 ## Issues
+
+### 52. ORCH-00 Backend orchestration epic: turn route selection into transfer rails control layer
+
+Milestone: M1.1: Transfer Orchestration Backbone
+
+Labels: `backend`, `architecture`, `orchestration`, `P0`
+
+GitHub: https://github.com/CloudSpaceLab/imsi-rails/issues/52
+
+Child issues:
+
+- #53 ORCH-01 Persist transfers, attempts, provider operations, timeline spans, and outbox schema
+- #54 ORCH-02 Implement transfer orchestrator state machine with attempts and finality boundaries
+- #55 ORCH-03 Define provider adapter interface and runtime execution policy
+- #56 ORCH-04 Expand sandbox adapter to simulate real IMTO failure modes
+- #57 ORCH-05 Add durable webhook inbox and callback normalization pipeline
+- #58 ORCH-06 Add provider status poller and unknown-outcome resolver
+- #59 ORCH-07 Align OpenAPI with canonical transfer rails contract
+- #60 ORCH-08 Integrate capability, liquidity, FX quote, and settlement snapshots into route policy
+- #61 ORCH-09 Replace pilot in-memory stores with MariaDB repositories
+- #62 ORCH-10 Implement transactional outbox and NATS JetStream publication
+- #63 REL-01 Feed dashboard analytics from orchestration events instead of seeded metrics
+- #64 EXC-01 Implement exception engine with ownership, SLA clocks, and recommended actions
+- #65 INC-01 Implement incident lifecycle and postmortem evidence model
+- #66 REC-01 Implement automatic reconciliation state machine and evidence matching
+- #67 REP-01 Implement report generation and evidence packs
+- #68 ADAPT-01 Build Thunes-style adapter simulation
+- #69 ADAPT-02 Build MoneyGram payout-partner simulation
+- #70 ADAPT-03 Build PAPSS/ISO 20022-style rail simulation
+
+### 53. ORCH-01 Persist transfers, attempts, provider operations, timeline spans, and outbox schema
+
+Milestone: M1.1: Transfer Orchestration Backbone
+
+Labels: `backend`, `data-model`, `persistence`, `orchestration`, `P0`
+
+GitHub: https://github.com/CloudSpaceLab/imsi-rails/issues/53
+
+### 54. ORCH-02 Implement transfer orchestrator state machine with attempts and finality boundaries
+
+Milestone: M1.1: Transfer Orchestration Backbone
+
+Labels: `backend`, `payments`, `orchestration`, `reliability`, `P0`
+
+GitHub: https://github.com/CloudSpaceLab/imsi-rails/issues/54
+
+### 55. ORCH-03 Define provider adapter interface and runtime execution policy
+
+Milestone: M1.1: Transfer Orchestration Backbone
+
+Labels: `backend`, `adapter`, `orchestration`, `P0`
+
+GitHub: https://github.com/CloudSpaceLab/imsi-rails/issues/55
+
+### 56. ORCH-04 Expand sandbox adapter to simulate real IMTO failure modes
+
+Milestone: M1.1: Transfer Orchestration Backbone
+
+Labels: `backend`, `adapter`, `testing`, `orchestration`, `P0`
+
+GitHub: https://github.com/CloudSpaceLab/imsi-rails/issues/56
+
+### 57. ORCH-05 Add durable webhook inbox and callback normalization pipeline
+
+Milestone: M1.1: Transfer Orchestration Backbone
+
+Labels: `backend`, `webhooks`, `adapter`, `orchestration`, `P0`
+
+GitHub: https://github.com/CloudSpaceLab/imsi-rails/issues/57
+
+### 58. ORCH-06 Add provider status poller and unknown-outcome resolver
+
+Milestone: M1.1: Transfer Orchestration Backbone
+
+Labels: `backend`, `adapter`, `reliability`, `orchestration`, `P0`
+
+GitHub: https://github.com/CloudSpaceLab/imsi-rails/issues/58
+
+### 59. ORCH-07 Align OpenAPI with canonical transfer rails contract
+
+Milestone: M1.1: Transfer Orchestration Backbone
+
+Labels: `backend`, `api`, `documentation`, `orchestration`, `P0`
+
+GitHub: https://github.com/CloudSpaceLab/imsi-rails/issues/59
+
+### 60. ORCH-08 Integrate capability, liquidity, FX quote, and settlement snapshots into route policy
+
+Milestone: M3: Switching and Configuration
+
+Labels: `backend`, `routing`, `policy`, `orchestration`, `P0`
+
+GitHub: https://github.com/CloudSpaceLab/imsi-rails/issues/60
+
+### 61. ORCH-09 Replace pilot in-memory stores with MariaDB repositories
+
+Milestone: M1.1: Transfer Orchestration Backbone
+
+Labels: `backend`, `persistence`, `data-model`, `P0`
+
+GitHub: https://github.com/CloudSpaceLab/imsi-rails/issues/61
+
+### 62. ORCH-10 Implement transactional outbox and NATS JetStream publication
+
+Milestone: M1.1: Transfer Orchestration Backbone
+
+Labels: `backend`, `reliability`, `persistence`, `orchestration`, `P0`
+
+GitHub: https://github.com/CloudSpaceLab/imsi-rails/issues/62
+
+### 63. REL-01 Feed dashboard analytics from orchestration events instead of seeded metrics
+
+Milestone: M2: Reliability Intelligence
+
+Labels: `backend`, `analytics`, `observability`, `reliability`, `P0`
+
+GitHub: https://github.com/CloudSpaceLab/imsi-rails/issues/63
+
+### 64. EXC-01 Implement exception engine with ownership, SLA clocks, and recommended actions
+
+Milestone: M2: Reliability Intelligence
+
+Labels: `backend`, `operations`, `reliability`, `orchestration`, `P0`
+
+GitHub: https://github.com/CloudSpaceLab/imsi-rails/issues/64
+
+### 65. INC-01 Implement incident lifecycle and postmortem evidence model
+
+Milestone: M2: Reliability Intelligence
+
+Labels: `backend`, `incident`, `operations`, `reliability`, `P1`
+
+GitHub: https://github.com/CloudSpaceLab/imsi-rails/issues/65
+
+### 66. REC-01 Implement automatic reconciliation state machine and evidence matching
+
+Milestone: M4: FX, Cost, and Reconciliation
+
+Labels: `backend`, `reconciliation`, `operations`, `P0`
+
+GitHub: https://github.com/CloudSpaceLab/imsi-rails/issues/66
+
+### 67. REP-01 Implement report generation and evidence packs
+
+Milestone: M4: FX, Cost, and Reconciliation
+
+Labels: `backend`, `reports`, `audit`, `operations`, `P1`
+
+GitHub: https://github.com/CloudSpaceLab/imsi-rails/issues/67
+
+### 68. ADAPT-01 Build Thunes-style adapter simulation
+
+Milestone: M1.1: Transfer Orchestration Backbone
+
+Labels: `backend`, `adapter`, `testing`, `P1`
+
+GitHub: https://github.com/CloudSpaceLab/imsi-rails/issues/68
+
+### 69. ADAPT-02 Build MoneyGram payout-partner simulation
+
+Milestone: M1.1: Transfer Orchestration Backbone
+
+Labels: `backend`, `adapter`, `testing`, `P1`
+
+GitHub: https://github.com/CloudSpaceLab/imsi-rails/issues/69
+
+### 70. ADAPT-03 Build PAPSS/ISO 20022-style rail simulation
+
+Milestone: M1.1: Transfer Orchestration Backbone
+
+Labels: `backend`, `adapter`, `testing`, `reconciliation`, `P1`
+
+GitHub: https://github.com/CloudSpaceLab/imsi-rails/issues/70
 
 ### 37. UI/UX revamp epic: rebuild bank-grade control room experience
 

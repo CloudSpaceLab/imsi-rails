@@ -176,7 +176,7 @@ watch(selectedSla, (policy) => syncSlaDraft(policy), { immediate: true })
     </Panel>
 
     <section v-if="settingsTab === 'contracts'" class="dashboard-grid">
-      <Panel title="Partner contracts and standing accounts" eyebrow="Govern inbound settlement" accent="healthy" class="span-8">
+      <Panel title="Partner contracts and standing accounts" eyebrow="Contracts and accounts" accent="healthy" class="span-8">
         <DataTable :empty="dashboard.inboundContracts.length === 0" empty-title="No contracts" empty-description="No inbound contracts are configured.">
           <table class="compact-table">
             <thead>
