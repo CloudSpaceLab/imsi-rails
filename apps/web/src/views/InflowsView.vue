@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ArrowLeft, FileCheck2, GitBranch, History, Inbox, Landmark, ListChecks, RefreshCw, Search, ShieldAlert } from '@lucide/vue'
 import ActionBar from '../components/ActionBar.vue'
 import DataTable from '../components/DataTable.vue'
@@ -15,12 +15,14 @@ import {
   outcomeConfidenceLabels,
   routePenaltyWidth,
   useInflows,
+  useRemediationQueue,
 } from '../composables/useInboundTower'
 import { useTowerRouting } from '../composables/useTowerRouting'
-import type { DashboardMock, InflowDetailTab } from '../types'
+import type { CaseVerdict, DashboardMock, InflowDetailTab } from '../types'
 
 const props = defineProps<{
   dashboard: DashboardMock
+  actorName?: string
 }>()
 
 const inflowTabs: Array<{ id: InflowDetailTab; label: string; icon: unknown }> = [
@@ -81,6 +83,38 @@ const selectedAudit = computed(() =>
     : [],
 )
 const nextRequery = computed(() => selectedRequeries.value.find((attempt) => attempt.completedAt === '-') ?? null)
+
+const actorNameRef = computed(() => props.actorName ?? 'Staff')
+const {
+  exceptionEvidence,
+  exceptionReason,
+  exceptionActionPending,
+  caseClosedMessage,
+  closureVerdict,
+  closeCase,
+} = useRemediationQueue(props.dashboard, selectedReference, actorNameRef)
+
+const selectedVerdict = ref<CaseVerdict | null>(null)
+watch(selectedReference, () => { selectedVerdict.value = null })
+const verdictOptions: Array<{ value: CaseVerdict; label: string; state: string }> = [
+  { value: 'succeeded', label: 'Succeeded', state: 'healthy' },
+  { value: 'failed', label: 'Failed', state: 'blocked' },
+  { value: 'reversed', label: 'Reversed', state: 'recovery' },
+]
+const canCloseCase = computed(() =>
+  Boolean(
+    selectedVerdict.value &&
+    exceptionEvidence.value.trim() &&
+    exceptionReason.value.trim() &&
+    !exceptionActionPending.value &&
+    selectedRemediationCase.value?.queue !== 'closed',
+  ),
+)
+
+async function submitVerdict() {
+  if (!canCloseCase.value || !selectedVerdict.value) return
+  await closeCase(selectedVerdict.value)
+}
 
 function setTab(tab: InflowDetailTab) {
   if (!selectedInflow.value) return
@@ -329,8 +363,43 @@ function openRouteContext() {
             <strong>{{ selectedRemediationCase?.id ?? '—' }}</strong>
             <small>{{ selectedRemediationCase?.nextAction ?? 'No open case' }}</small>
           </article>
+
+          <template v-if="selectedRemediationCase">
+            <div v-if="selectedRemediationCase.queue === 'closed'" class="case-closed-banner">
+              <strong>Closed — {{ selectedRemediationCase.verdict }}</strong>
+              <small>{{ selectedRemediationCase.closedBy }} · {{ selectedRemediationCase.closedAt }}</small>
+            </div>
+            <template v-else>
+              <div class="verdict-choice-grid">
+                <button
+                  v-for="opt in verdictOptions"
+                  :key="opt.value"
+                  class="verdict-btn"
+                  :class="[`verdict-btn--${opt.state}`, { 'is-selected': selectedVerdict === opt.value }]"
+                  type="button"
+                  @click="selectedVerdict = opt.value"
+                >{{ opt.label }}</button>
+              </div>
+              <input
+                v-model="exceptionEvidence"
+                class="form-input"
+                type="text"
+                aria-label="Evidence reference"
+                placeholder="Evidence ref"
+              />
+              <textarea
+                v-model="exceptionReason"
+                class="form-input"
+                aria-label="Evidence note"
+                placeholder="Note"
+                rows="2"
+              />
+              <p v-if="caseClosedMessage" class="action-message">{{ caseClosedMessage }}</p>
+              <UiButton :disabled="!canCloseCase" @click="submitVerdict">Close case</UiButton>
+            </template>
+          </template>
+
           <ActionBar>
-            <UiButton v-if="selectedRemediationCase" @click="openPath(`/exceptions/${encodeURIComponent(selectedInflow.reference)}`, { tab: 'evidence' })">Open exception</UiButton>
             <UiButton variant="secondary" @click="openRouteContext">Route context</UiButton>
           </ActionBar>
         </aside>
