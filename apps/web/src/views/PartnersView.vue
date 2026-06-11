@@ -6,7 +6,7 @@ import ActionBar from '../components/ActionBar.vue'
 import HealthBadge from '../components/HealthBadge.vue'
 import Panel from '../components/Panel.vue'
 import UiButton from '../components/UiButton.vue'
-import type { DashboardMock, HealthState, ImtoIntegrationMode, ImtoPartner, ImtoRiskRating } from '../types'
+import type { DashboardMock, HealthState, ImtoIntegrationMode, ImtoPartner, ImtoRiskRating, NetworkDirectoryEntry } from '../types'
 
 const props = defineProps<{
   dashboard: DashboardMock
@@ -98,12 +98,65 @@ const form = reactive({
   contractEnd: '',
   integrationMode: 'REST' as ImtoIntegrationMode,
   iso20022Ready: false,
+  bic: '',
+  adapterProfile: '',
   apiCredentialReference: '',
   certificateReference: '',
   licenceVerified: false,
   amlReviewed: false,
   sanctionsCalibrated: false,
 })
+
+// Network directory quick-start: BIC or institution name resolves a SWIFT
+// directory entry, which preconfigures integration with a standard adapter
+// profile so no per-partner integration build is needed.
+const directoryQuery = ref('')
+const directoryMatch = ref<NetworkDirectoryEntry | null>(null)
+const directoryError = ref('')
+
+function lookupDirectory() {
+  const query = directoryQuery.value.trim().toLowerCase()
+  if (!query) {
+    directoryError.value = 'Enter a BIC or institution name to search the network directory.'
+    return
+  }
+  const match = props.dashboard.networkDirectory.find(
+    (entry) => entry.bic.toLowerCase() === query || entry.institution.toLowerCase().includes(query),
+  )
+  if (!match) {
+    directoryMatch.value = null
+    directoryError.value = 'No directory match. Continue with manual entry or check the BIC.'
+    return
+  }
+  directoryError.value = ''
+  directoryMatch.value = match
+  form.name = match.institution
+  form.country = match.country
+  form.corridor = match.corridor
+  form.riskRating = match.defaultRiskRating
+  form.creditSla = match.defaultCreditSla
+  form.settlementCurrency = match.settlementCurrency
+  form.integrationMode = 'NETWORK'
+  form.iso20022Ready = match.messagingStandard === 'ISO 20022'
+  form.bic = match.bic
+  form.adapterProfile = match.adapterProfile
+}
+
+function clearDirectoryMatch() {
+  directoryMatch.value = null
+  directoryQuery.value = ''
+  directoryError.value = ''
+  form.integrationMode = 'REST'
+  form.bic = ''
+  form.adapterProfile = ''
+}
+
+function integrationLabel(partner: Pick<ImtoPartner, 'integrationMode' | 'iso20022Ready' | 'bic'>): string {
+  if (partner.integrationMode === 'NETWORK') {
+    return `SWIFT network${partner.bic ? ` / ${partner.bic}` : ''}${partner.iso20022Ready ? ' / ISO 20022' : ' / MT103'}`
+  }
+  return `${partner.integrationMode}${partner.iso20022Ready ? ' / ISO 20022' : ''}`
+}
 
 const dueDiligencePreview = computed(() => [
   { item: 'Regulatory licence verification', status: form.licenceVerified ? 'complete' : 'pending' } as const,
@@ -116,6 +169,7 @@ function openWizard() {
   wizardStep.value = 0
   wizardError.value = ''
   submittedPartnerId.value = ''
+  clearDirectoryMatch()
 }
 
 function validateStep(): string {
@@ -128,7 +182,7 @@ function validateStep(): string {
     if (!form.settlementCurrency.trim()) return 'Settlement currency is required.'
     if (!form.contractEnd) return 'Contract end date is required.'
   }
-  if (wizardStep.value === 2) {
+  if (wizardStep.value === 2 && form.integrationMode !== 'NETWORK') {
     if (!form.apiCredentialReference.trim()) return 'API credential reference is required.'
     if (form.integrationMode !== 'SFTP' && !form.certificateReference.trim()) return 'Certificate reference is required for API integrations.'
   }
@@ -161,6 +215,8 @@ function submitForApproval() {
     riskRating: form.riskRating,
     integrationMode: form.integrationMode,
     iso20022Ready: form.iso20022Ready,
+    bic: form.bic || undefined,
+    onboardingChannel: form.integrationMode === 'NETWORK' ? 'network' : 'manual',
     creditSla: form.creditSla,
     settlementCurrency: form.settlementCurrency.trim(),
     prefundingModel: form.prefundingModel,
@@ -215,10 +271,11 @@ function submitForApproval() {
             <div><dt>Status</dt><dd>{{ statusLabels[selectedPartner.status] }} / {{ selectedPartner.onboardingStage }}</dd></div>
             <div><dt>Approval</dt><dd>{{ approvalLabels[selectedPartner.approvalState] }}</dd></div>
             <div><dt>Risk</dt><dd class="partner-risk" :data-risk="selectedPartner.riskRating">{{ selectedPartner.riskRating }}</dd></div>
-            <div><dt>Integration</dt><dd>{{ selectedPartner.integrationMode }}{{ selectedPartner.iso20022Ready ? ' / ISO 20022' : '' }}</dd></div>
+            <div><dt>Integration</dt><dd>{{ integrationLabel(selectedPartner) }}</dd></div>
             <div><dt>Credit SLA</dt><dd>{{ selectedPartner.creditSla }}</dd></div>
             <div><dt>Settlement</dt><dd>{{ selectedPartner.settlementCurrency }} / {{ selectedPartner.prefundingModel }}</dd></div>
             <div><dt>Contract end</dt><dd>{{ selectedPartner.contractEnd }}</dd></div>
+            <div v-if="selectedPartner.onboardingChannel === 'network'"><dt>Routing</dt><dd>Auto-enrolled on corridor template, no custom build</dd></div>
             <div v-if="selectedSla"><dt>Breach rate</dt><dd>{{ selectedSla.breachRate }} / oldest {{ selectedSla.oldestBreach }}</dd></div>
             <div v-if="selectedSla"><dt>Value at risk</dt><dd>{{ selectedSla.valueAtRisk }}</dd></div>
           </dl>
@@ -256,7 +313,7 @@ function submitForApproval() {
             <dl>
               <div><dt>Status</dt><dd>{{ statusLabels[partner.status] }}</dd></div>
               <div><dt>Risk</dt><dd class="partner-risk" :data-risk="partner.riskRating">{{ partner.riskRating }}</dd></div>
-              <div><dt>Integration</dt><dd>{{ partner.integrationMode }}{{ partner.iso20022Ready ? ' / ISO 20022' : '' }}</dd></div>
+              <div><dt>Integration</dt><dd>{{ integrationLabel(partner) }}</dd></div>
               <div><dt>Credit SLA</dt><dd>{{ partner.creditSla }}</dd></div>
               <div><dt>Contract end</dt><dd>{{ partner.contractEnd }}</dd></div>
             </dl>
@@ -289,6 +346,24 @@ function submitForApproval() {
 
         <form class="wizard-form" @submit.prevent="nextStep">
           <template v-if="wizardStep === 0">
+            <div class="directory-lookup">
+              <label>Network directory quick start
+                <span class="directory-lookup__row">
+                  <input v-model="directoryQuery" type="text" placeholder="BIC (e.g. WISEGB2LXXX) or institution name" @keydown.enter.prevent="lookupDirectory" />
+                  <UiButton variant="secondary" @click="lookupDirectory">Look up</UiButton>
+                </span>
+              </label>
+              <p v-if="directoryError" class="wizard-error" role="alert">{{ directoryError }}</p>
+              <aside v-if="directoryMatch" class="state-note state-note--healthy directory-lookup__match">
+                <CheckCircle2 :size="16" aria-hidden="true" />
+                <span>
+                  Matched {{ directoryMatch.bic }} — {{ directoryMatch.institution }}. Integration preconfigured from the SWIFT
+                  directory ({{ directoryMatch.messagingStandard }}, adapter profile {{ directoryMatch.adapterProfile }}).
+                  No custom integration build required.
+                </span>
+                <button type="button" class="sidebar-link" @click="clearDirectoryMatch">Clear</button>
+              </aside>
+            </div>
             <label>Partner name<input v-model="form.name" type="text" placeholder="e.g. Maple Transfer" /></label>
             <label>Country<input v-model="form.country" type="text" placeholder="e.g. Canada" /></label>
             <label>Corridor<input v-model="form.corridor" type="text" placeholder="e.g. Canada -> Nigeria" /></label>
@@ -321,16 +396,31 @@ function submitForApproval() {
           </template>
 
           <template v-else-if="wizardStep === 2">
-            <label>Integration mode
-              <select v-model="form.integrationMode">
-                <option value="REST">REST API</option>
-                <option value="SOAP">SOAP</option>
-                <option value="SFTP">SFTP file exchange</option>
-              </select>
-            </label>
-            <label>API credential reference<input v-model="form.apiCredentialReference" type="text" placeholder="Vault reference, not the secret" /></label>
-            <label>Certificate reference<input v-model="form.certificateReference" type="text" placeholder="mTLS certificate reference" /></label>
-            <label class="wizard-check"><input v-model="form.iso20022Ready" type="checkbox" /> ISO 20022 message support</label>
+            <template v-if="form.integrationMode === 'NETWORK'">
+              <dl class="wizard-review">
+                <div><dt>Integration</dt><dd>SWIFT network rails</dd></div>
+                <div><dt>BIC</dt><dd>{{ form.bic }}</dd></div>
+                <div><dt>Messaging</dt><dd>{{ form.iso20022Ready ? 'ISO 20022' : 'MT103' }}</dd></div>
+                <div><dt>Adapter profile</dt><dd>{{ form.adapterProfile }}</dd></div>
+              </dl>
+              <p class="wizard-note">
+                Messages arrive over the bank's existing SWIFT connection using the standard adapter profile. No partner API
+                credentials or certificates are needed; routing enrols automatically on the corridor template after approval.
+              </p>
+              <UiButton variant="secondary" @click="clearDirectoryMatch">Switch to manual integration</UiButton>
+            </template>
+            <template v-else>
+              <label>Integration mode
+                <select v-model="form.integrationMode">
+                  <option value="REST">REST API</option>
+                  <option value="SOAP">SOAP</option>
+                  <option value="SFTP">SFTP file exchange</option>
+                </select>
+              </label>
+              <label>API credential reference<input v-model="form.apiCredentialReference" type="text" placeholder="Vault reference, not the secret" /></label>
+              <label>Certificate reference<input v-model="form.certificateReference" type="text" placeholder="mTLS certificate reference" /></label>
+              <label class="wizard-check"><input v-model="form.iso20022Ready" type="checkbox" /> ISO 20022 message support</label>
+            </template>
           </template>
 
           <template v-else-if="wizardStep === 3">
@@ -348,8 +438,9 @@ function submitForApproval() {
               <div><dt>Credit SLA</dt><dd>{{ form.creditSla }}</dd></div>
               <div><dt>Settlement</dt><dd>{{ form.settlementCurrency }} / {{ form.prefundingModel }}</dd></div>
               <div><dt>Contract end</dt><dd>{{ form.contractEnd }}</dd></div>
-              <div><dt>Integration</dt><dd>{{ form.integrationMode }}{{ form.iso20022Ready ? ' / ISO 20022' : '' }}</dd></div>
-              <div><dt>Credentials</dt><dd>{{ form.apiCredentialReference }}</dd></div>
+              <div><dt>Integration</dt><dd>{{ integrationLabel(form) }}</dd></div>
+              <div v-if="form.integrationMode !== 'NETWORK'"><dt>Credentials</dt><dd>{{ form.apiCredentialReference }}</dd></div>
+              <div v-else><dt>Adapter profile</dt><dd>{{ form.adapterProfile }}</dd></div>
               <div v-for="entry in dueDiligencePreview" :key="entry.item"><dt>{{ entry.item }}</dt><dd>{{ entry.status }}</dd></div>
             </dl>
             <p class="wizard-note">Submission creates a maker record. A checker must approve before integration testing starts.</p>

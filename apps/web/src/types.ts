@@ -730,8 +730,21 @@ export type InboundSlaRow = {
 
 export type ImtoPartnerStatus = 'active' | 'onboarding' | 'suspended' | 'draft'
 export type ImtoRiskRating = 'low' | 'medium' | 'high'
-export type ImtoIntegrationMode = 'REST' | 'SOAP' | 'SFTP'
+export type ImtoIntegrationMode = 'REST' | 'SOAP' | 'SFTP' | 'NETWORK'
 export type ImtoApprovalState = 'approved' | 'checker_pending' | 'maker_draft' | 'rejected'
+
+export type NetworkDirectoryEntry = {
+  bic: string
+  institution: string
+  country: string
+  corridor: string
+  settlementCurrency: string
+  messagingStandard: 'ISO 20022' | 'MT103'
+  network: 'SWIFT'
+  defaultCreditSla: string
+  defaultRiskRating: ImtoRiskRating
+  adapterProfile: string
+}
 
 export type ImtoDueDiligenceItem = {
   item: string
@@ -747,6 +760,8 @@ export type ImtoPartner = {
   riskRating: ImtoRiskRating
   integrationMode: ImtoIntegrationMode
   iso20022Ready: boolean
+  bic?: string
+  onboardingChannel?: 'manual' | 'network'
   creditSla: string
   settlementCurrency: string
   prefundingModel: 'prefunded' | 'credit-line' | 'hybrid'
@@ -1065,6 +1080,7 @@ export type DashboardMock = {
   creditLegs: CreditLeg[]
   inboundSla: InboundSlaRow[]
   imtoPartners: ImtoPartner[]
+  networkDirectory: NetworkDirectoryEntry[]
   complianceHolds: ComplianceHold[]
   featureSwitches: FeatureSwitch[]
   inboundContracts: InboundContract[]

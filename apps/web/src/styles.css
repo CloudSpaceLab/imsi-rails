@@ -4952,6 +4952,35 @@ tbody tr:hover,
   font-weight: 600;
 }
 
+.directory-lookup {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px dashed #c7d2e4;
+  border-radius: 10px;
+  background: #f8fafd;
+}
+
+.directory-lookup__row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.directory-lookup__row input {
+  flex: 1;
+}
+
+.directory-lookup__match {
+  align-items: flex-start;
+}
+
+.directory-lookup__match .sidebar-link {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .wizard-review {
   grid-column: 1 / -1;
   display: grid;
