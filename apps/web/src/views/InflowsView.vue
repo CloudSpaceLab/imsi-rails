@@ -128,7 +128,7 @@ function openRouteContext() {
       </Panel>
 
       <Panel title="Incoming transfers" eyebrow="Search by reference, beneficiary, bank, route, or amount" accent="watch">
-        <DataTable :empty="filteredInflows.length === 0" empty-title="No active inflows" empty-description="No incoming instruction matches the selected monitoring filter.">
+        <DataTable :empty="filteredInflows.length === 0" empty-title="No inflows" empty-description="No match for current filters.">
           <table class="compact-table">
             <thead>
               <tr>
@@ -337,6 +337,6 @@ function openRouteContext() {
       </section>
     </template>
 
-    <EmptyState v-else title="No inflow selected" description="Select an incoming instruction to inspect final-leg evidence." :icon="Inbox" />
+    <EmptyState v-else title="No inflow selected" description="Select a transfer from the queue." :icon="Inbox" />
   </section>
 </template>

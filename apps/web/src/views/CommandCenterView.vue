@@ -444,7 +444,7 @@ function openFirstFailure() {
     </section>
 
     <section class="ops-workbench-grid">
-      <Panel title="Transactions and middleware calls to fix" eyebrow="Open repair queue" :accent="openRemediationCases[0]?.state ?? 'healthy'">
+      <Panel title="Repair queue" eyebrow="Open cases" :accent="openRemediationCases[0]?.state ?? 'healthy'">
         <div class="repair-worklist">
           <button
             v-for="item in repairQueue"
@@ -470,8 +470,8 @@ function openFirstFailure() {
           <article v-if="repairQueue.length === 0" class="quiet-empty">
             <CheckCircle2 :size="18" aria-hidden="true" />
             <span>
-              <strong>No open repair queue</strong>
-              <small>No failed transfer, reversal, requery, or ledger evidence task is waiting.</small>
+              <strong>Queue clear</strong>
+              <small>No open cases.</small>
             </span>
           </article>
         </div>

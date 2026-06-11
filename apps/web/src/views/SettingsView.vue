@@ -272,7 +272,7 @@ watch(selectedSla, (policy) => syncSlaDraft(policy), { immediate: true })
 
     <section v-else-if="settingsTab === 'integrations'" class="dashboard-grid">
       <Panel title="Switching API and provider endpoints" eyebrow="API health windows" accent="healthy" class="span-12">
-        <DataTable :empty="dashboard.integrationHealth.length === 0" empty-title="No integration health" empty-description="No API or provider endpoint telemetry is available.">
+        <DataTable :empty="dashboard.integrationHealth.length === 0" empty-title="No data" empty-description="No endpoint telemetry available.">
           <table class="compact-table">
             <thead>
               <tr>
@@ -384,7 +384,7 @@ watch(selectedSla, (policy) => syncSlaDraft(policy), { immediate: true })
             <span>Confirm new password</span>
             <input v-model="passwordForm.confirm" type="password" autocomplete="new-password" aria-label="Confirm new password" />
           </label>
-          <small>Minimum 12 characters. This action is recorded in the audit trail.</small>
+          <small>Min. 12 characters. Recorded in audit trail.</small>
           <p v-if="passwordError" class="form-error">{{ passwordError }}</p>
           <aside v-if="passwordMessage" class="state-note state-note--success">
             <KeyRound :size="16" aria-hidden="true" />

@@ -233,8 +233,8 @@ function generateReport(definition: ReportDefinition) {
       <article v-else class="quiet-empty">
         <FileText :size="18" aria-hidden="true" />
         <span>
-          <strong>No reports generated yet</strong>
-          <small>Pick a report above to generate a downloadable file.</small>
+          <strong>No reports generated</strong>
+          <small>Select a report above to generate.</small>
         </span>
       </article>
     </Panel>

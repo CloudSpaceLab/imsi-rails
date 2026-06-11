@@ -201,7 +201,7 @@ function submitSelectedAction() {
             </span>
             <HealthBadge :state="item.state" />
           </button>
-          <EmptyState v-if="filteredCases.length === 0" title="No exceptions in this queue" description="There is nothing to remediate for the selected queue." :icon="CheckCircle2" tone="success" />
+          <EmptyState v-if="filteredCases.length === 0" title="Queue clear" description="No open cases." :icon="CheckCircle2" tone="success" />
         </div>
       </Panel>
 
@@ -302,9 +302,9 @@ function submitSelectedAction() {
           <section v-else-if="exceptionTab === 'closure'" class="flow-tab-panel">
             <div class="action-stepper">
               <article class="action-step"><span>1</span><strong>Choose status action</strong><small>{{ selectedActionStep?.resultingState ?? 'No action available' }}</small></article>
-              <article class="action-step"><span>2</span><strong>Add evidence reference</strong><small>Callback, status API, ledger, or provider email</small></article>
-              <article class="action-step"><span>3</span><strong>Record evidence note</strong><small>What was checked and current status</small></article>
-              <article class="action-step"><span>4</span><strong>Confirm no double payment</strong><small>Closure remains blocked until evidence is enough</small></article>
+              <article class="action-step"><span>2</span><strong>Add evidence reference</strong><small>Callback, session ID, ledger ref</small></article>
+              <article class="action-step"><span>3</span><strong>Record evidence note</strong><small>Outcome and current status</small></article>
+              <article class="action-step"><span>4</span><strong>Confirm no double payment</strong><small>Required before closure</small></article>
             </div>
             <div class="action-choice-grid">
               <button v-for="step in allowedActionSteps" :key="step.action" type="button" :class="{ 'is-selected': selectedAction === step.action }" @click="selectedAction = step.action">
@@ -320,11 +320,11 @@ function submitSelectedAction() {
             </label>
             <label>
               <span>Evidence reference</span>
-              <input v-model="exceptionEvidence" aria-label="Evidence reference" placeholder="NIP session, ledger posting, callback, or case ID" />
+              <input v-model="exceptionEvidence" aria-label="Evidence reference" placeholder="NIP session, ledger ref, callback ID" />
             </label>
             <label>
               <span>Evidence note</span>
-              <textarea v-model="exceptionReason" aria-label="Evidence note" rows="4" placeholder="Record callback/status API/ledger result and why no duplicate payment will be triggered."></textarea>
+              <textarea v-model="exceptionReason" aria-label="Evidence note" rows="4" placeholder="Outcome, status, and no-duplicate confirmation"></textarea>
             </label>
             <div class="checklist-stack">
               <article v-for="item in selectedActionStep?.safetyChecklist ?? []" :key="item">
@@ -362,7 +362,7 @@ function submitSelectedAction() {
             </div>
           </section>
         </template>
-        <EmptyState v-else title="No case selected" description="Choose a remediation case to inspect evidence and safe actions." :icon="ShieldAlert" />
+        <EmptyState v-else title="No case selected" description="Select a case from the queue." :icon="ShieldAlert" />
       </Panel>
     </section>
   </section>

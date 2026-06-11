@@ -223,7 +223,7 @@ function setRouteTab(tab: RouteDetailTab) {
               <HealthBadge :state="item.state" />
             </button>
           </div>
-          <EmptyState v-if="linkedInflows.length === 0 && linkedCases.length === 0" title="No linked work" description="No inflow or exception is currently attached to this route." />
+          <EmptyState v-if="linkedInflows.length === 0 && linkedCases.length === 0" title="No linked work" description="No active inflows or cases on this route." />
         </section>
 
         <section v-else-if="routeTab === 'history'" class="flow-tab-panel">
