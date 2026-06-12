@@ -1,0 +1,37 @@
+[
+  {
+    "state": "created",
+    "source": "bank",
+    "message": "transaction received from bank channel"
+  },
+  {
+    "state": "accepted",
+    "source": "switch",
+    "message": "required fields and idempotency key accepted"
+  },
+  {
+    "state": "sent_to_provider",
+    "source": "switch",
+    "message": "selected route submitted to provider adapter"
+  },
+  {
+    "state": "provider_accepted",
+    "source": "provider",
+    "message": "provider accepted transaction for payout"
+  },
+  {
+    "state": "received_by_bank",
+    "source": "bank",
+    "message": "destination bank received payout instruction"
+  },
+  {
+    "state": "credited",
+    "source": "bank",
+    "message": "beneficiary account credited"
+  },
+  {
+    "state": "reconciled",
+    "source": "settlement",
+    "message": "provider and bank records matched"
+  }
+]
