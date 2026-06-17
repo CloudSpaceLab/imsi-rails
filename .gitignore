@@ -1,0 +1,7 @@
+/target/
+node_modules/
+/dist/
+/apps/web/dist/
+/.playwright-mcp/
+/imsi-rails-vue-*.png
+*.tsbuildinfo
