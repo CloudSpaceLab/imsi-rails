@@ -159,6 +159,15 @@ p {
   font-size: 20px;
 }
 
+.hero-proof {
+  max-width: 640px;
+  margin-top: 18px;
+  padding-left: 16px;
+  border-left: 3px solid var(--mint);
+  color: var(--muted);
+  font-size: 16px;
+}
+
 .hero-actions,
 .signal-row {
   display: flex;
@@ -548,4 +557,3 @@ meter::-moz-meter-bar {
     grid-template-columns: 92px 1fr 34px;
   }
 }
-
